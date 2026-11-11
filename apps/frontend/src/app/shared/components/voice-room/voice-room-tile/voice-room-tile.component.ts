@@ -188,6 +188,12 @@ export class VoiceRoomTileComponent {
       !this.codecUnsupported(),
   );
 
+  protected readonly showTileActions = computed(() => {
+    const paused = this.previewPaused();
+    const watch = this.showWatchButton();
+    return paused || watch;
+  });
+
   protected readonly showStopWatchButton = computed(
     () => this.showStreamRow() && this.watchingScreen(),
   );
@@ -231,6 +237,20 @@ export class VoiceRoomTileComponent {
 
   protected onOpenTheatreClick(): void {
     this.voiceRoomViewService.openTheatre(this.peer().id, this.streamKind());
+  }
+
+  protected onIdleActivate(event: Event): void {
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest('.tile-cta, .auto-pause-row')
+    ) {
+      return;
+    }
+    if (event instanceof KeyboardEvent) {
+      event.preventDefault();
+    }
+    this.onOpenTheatreClick();
   }
 
   protected onVideoActivate(): void {

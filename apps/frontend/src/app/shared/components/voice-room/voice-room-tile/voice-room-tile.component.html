@@ -24,35 +24,15 @@
         {{ 'CALL.STREAM_CODEC_UNSUPPORTED' | translate }}
       </p>
     </div>
-  } @else if (previewPaused()) {
-    <div class="preview-paused-overlay">
-      <button
-        tuiButton
-        size="s"
-        type="button"
-        [tuiHint]="'CALL.PREVIEW_PAUSED' | translate"
-        (click)="onResumePreview()">
-        {{ 'CALL.PREVIEW_RESUME' | translate }}
-      </button>
-      <label
-        tuiLabel
-        class="auto-pause-row">
-        <input
-          tuiCheckbox
-          type="checkbox"
-          [ngModel]="autoPauseWhenHidden()"
-          (ngModelChange)="onAutoPauseWhenHiddenChange($event)" />
-        {{ 'CALL.PREVIEW_AUTO_PAUSE' | translate }}
-      </label>
-    </div>
   } @else {
     <div
       class="idle-media"
+      [class.with-actions]="showTileActions()"
       role="button"
       tabindex="0"
-      (click)="onOpenTheatreClick()"
-      (keydown.enter)="onOpenTheatreClick()"
-      (keydown.space)="$event.preventDefault(); onOpenTheatreClick()">
+      (click)="onIdleActivate($event)"
+      (keydown.enter)="onIdleActivate($event)"
+      (keydown.space)="onIdleActivate($event)">
       <app-user-avatar
         class="avatar"
         size="xl"
@@ -61,16 +41,42 @@
         [avatarUrl]="p.avatarUrl"
         [talking]="isSpeaking()" />
 
-      @if (showWatchButton()) {
+      @if (previewPaused()) {
         <button
-          class="watch-cta"
+          class="tile-cta"
+          tuiButton
+          size="s"
+          type="button"
+          [tuiHint]="'CALL.PREVIEW_PAUSED' | translate"
+          (click)="onResumePreview()">
+          <span class="tile-cta-label">
+            {{ 'CALL.PREVIEW_RESUME' | translate }}
+          </span>
+        </button>
+        <label
+          tuiLabel
+          class="auto-pause-row">
+          <input
+            tuiCheckbox
+            type="checkbox"
+            [ngModel]="autoPauseWhenHidden()"
+            (ngModelChange)="onAutoPauseWhenHiddenChange($event)" />
+          <span class="tile-cta-label">
+            {{ 'CALL.PREVIEW_AUTO_PAUSE' | translate }}
+          </span>
+        </label>
+      } @else if (showWatchButton()) {
+        <button
+          class="tile-cta"
           tuiButton
           appearance="primary"
           size="s"
           type="button"
           [iconStart]="icons['screen-share']"
-          (click)="$event.stopPropagation(); onWatchClick()">
-          {{ 'CALL.WATCH_SCREEN' | translate }}
+          (click)="onWatchClick()">
+          <span class="tile-cta-label">
+            {{ 'CALL.WATCH_SCREEN' | translate }}
+          </span>
         </button>
       }
     </div>

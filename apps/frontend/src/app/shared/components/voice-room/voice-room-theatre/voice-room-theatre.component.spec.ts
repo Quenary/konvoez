@@ -231,7 +231,7 @@ describe('VoiceRoomTheatreComponent', () => {
 
     expect(fixture.nativeElement.querySelector('.stage-video')).toBeNull();
     expect(
-      fixture.nativeElement.querySelector('.preview-paused-overlay'),
+      fixture.nativeElement.querySelector('.idle-media.with-actions'),
     ).toBeTruthy();
     expect(
       fixture.nativeElement.querySelector(

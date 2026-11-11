@@ -158,6 +158,24 @@ describe('VoiceRoomTileComponent', () => {
     return fixture;
   };
 
+  it('marks an idle screen tile so the watch button can clear the name', () => {
+    const fixture = TestBed.createComponent(VoiceRoomTileComponent);
+    fixture.componentRef.setInput('peer', user(2));
+    fixture.componentRef.setInput('streamKind', 'screen');
+    fixture.componentRef.setInput('screenAvailable', true);
+    fixture.componentRef.setInput('watchingScreen', false);
+    fixture.detectChanges();
+
+    const idle = fixture.nativeElement.querySelector(
+      '.idle-media',
+    ) as HTMLElement | null;
+    expect(idle?.classList.contains('with-actions')).toBe(true);
+    expect(idle?.querySelector('.avatar')).not.toBeNull();
+    expect(idle?.querySelector('.tile-cta-label')?.textContent).toContain(
+      'CALL.WATCH_SCREEN',
+    );
+  });
+
   it('shows a codec placeholder instead of the watch button', () => {
     const fixture = TestBed.createComponent(VoiceRoomTileComponent);
     fixture.componentRef.setInput('peer', user(2));
@@ -194,11 +212,15 @@ describe('VoiceRoomTileComponent', () => {
     ).toBeNull();
 
     const pausedFixture = create('screen', true);
-    const overlay = pausedFixture.nativeElement.querySelector(
-      '.preview-paused-overlay',
+    const idle = pausedFixture.nativeElement.querySelector(
+      '.idle-media.with-actions',
     ) as HTMLElement | null;
-    expect(overlay).not.toBeNull();
-    expect(overlay?.querySelector('button + .auto-pause-row')).not.toBeNull();
+    expect(idle).not.toBeNull();
+    expect(idle?.querySelector('.avatar')).not.toBeNull();
+    expect(idle?.querySelector('.tile-cta + .auto-pause-row')).not.toBeNull();
+    expect(idle?.querySelector('.tile-cta-label')?.textContent).toContain(
+      'CALL.PREVIEW_RESUME',
+    );
   });
 
   it('shows a pause control on the local screen tile while preview is playing', () => {
