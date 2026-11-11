@@ -65,6 +65,7 @@ export interface IInviteViewItem {
   readonly emailSent: boolean;
   readonly emailSentAt: Date | null;
   readonly url: string;
+  readonly canCopyLink: boolean;
   readonly canResendEmail: boolean;
   readonly isResendCooldown: boolean;
 }
@@ -182,6 +183,8 @@ export class SettingsInvitesComponent {
         ? new Date(invite.emailSentAt)
         : null;
       const isActive = invite.status === 'active';
+      const code = isActive ? (invite.code ?? '') : '';
+      const url = isActive ? (invite.url ?? '') : '';
       const canResendEmail = isActive && Boolean(invite.email) && canSendEmail;
       const isResendCooldown = emailSentAt
         ? now - emailSentAt.getTime() < inviteResendEmailCooldownMs
@@ -189,8 +192,8 @@ export class SettingsInvitesComponent {
 
       return {
         id: invite.id,
-        code: invite.code,
         email: invite.email ?? '',
+        code,
         authorUsername: invite.author.username,
         usedByUsername: invite.usedBy?.username ?? null,
         status: invite.status,
@@ -201,7 +204,8 @@ export class SettingsInvitesComponent {
         remainingText,
         emailSent,
         emailSentAt,
-        url: invite.url ?? '',
+        url,
+        canCopyLink: Boolean(code || url),
         canResendEmail,
         isResendCooldown,
       };
@@ -228,13 +232,18 @@ export class SettingsInvitesComponent {
   }
 
   protected async copyLink(invite: IInviteViewItem): Promise<void> {
+    if (!invite.canCopyLink) {
+      return;
+    }
     const url =
       invite.url ||
-      buildInviteUrl(
-        window.location.origin,
-        invite.code,
-        invite.email || null,
-      ) ||
+      (invite.code
+        ? buildInviteUrl(
+            window.location.origin,
+            invite.code,
+            invite.email || null,
+          )
+        : null) ||
       invite.code;
     try {
       await navigator.clipboard.writeText(url);

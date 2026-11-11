@@ -162,13 +162,15 @@
                 #actionsMenu
                 let-close>
                 <tui-data-list>
-                  <button
-                    tuiOption
-                    type="button"
-                    [iconStart]="icons.copy"
-                    (click)="copyLink(invite); close()">
-                    {{ 'SETTINGS.INVITES.COPY_LINK' | translate }}
-                  </button>
+                  @if (invite.canCopyLink) {
+                    <button
+                      tuiOption
+                      type="button"
+                      [iconStart]="icons.copy"
+                      (click)="copyLink(invite); close()">
+                      {{ 'SETTINGS.INVITES.COPY_LINK' | translate }}
+                    </button>
+                  }
                   @if (invite.canResendEmail) {
                     <button
                       tuiOption

@@ -78,11 +78,12 @@ export class InviteCreateDialogComponent {
 
   protected readonly inviteUrl = computed(() => {
     const invite = this.createdInvite();
-    if (!invite) return '';
+    const code = invite?.code;
+    if (!invite || !code) return '';
     return (
       invite.url ??
-      buildInviteUrl(window.location.origin, invite.code, invite.email) ??
-      invite.code
+      buildInviteUrl(window.location.origin, code, invite.email) ??
+      code
     );
   });
 

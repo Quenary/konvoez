@@ -112,5 +112,51 @@ describe('invite.schemas', () => {
         );
       }
     });
+
+    it('requires a code while the invite is active', () => {
+      const parsed = inviteSchema.safeParse({
+        ...validInvite,
+        code: undefined,
+      });
+      expect(parsed.success).toBe(false);
+    });
+
+    it.each(['used', 'revoked', 'expired'] as const)(
+      'accepts a %s invite without a code or url',
+      (status) => {
+        const parsed = inviteSchema.safeParse({
+          ...validInvite,
+          status,
+          code: undefined,
+          url: undefined,
+        });
+        expect(parsed.success).toBe(true);
+        if (parsed.success) {
+          expect(parsed.data.code).toBeUndefined();
+          expect(parsed.data.url).toBeUndefined();
+        }
+      },
+    );
+
+    it.each(['used', 'revoked', 'expired'] as const)(
+      'rejects a code or url on a %s invite',
+      (status) => {
+        expect(
+          inviteSchema.safeParse({
+            ...validInvite,
+            status,
+            url: undefined,
+          }).success,
+        ).toBe(false);
+        expect(
+          inviteSchema.safeParse({
+            ...validInvite,
+            status,
+            code: undefined,
+            url: 'https://konvoez.example.com/auth/register?code=secret',
+          }).success,
+        ).toBe(false);
+      },
+    );
   });
 });

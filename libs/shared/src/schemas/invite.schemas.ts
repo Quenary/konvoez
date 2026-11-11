@@ -27,19 +27,44 @@ export const inviteStatusSchema = z.enum([
 ]);
 export type TInviteStatus = z.infer<typeof inviteStatusSchema>;
 
-export const inviteSchema = baseEntitySchema.extend({
-  id: z.number().int(),
-  code: stringSchema,
-  email: emailSchema.nullish(),
-  author: inviteAuthorSchema,
-  expiresAt: z.coerce.date(),
-  usedAt: z.coerce.date().nullish(),
-  usedBy: inviteAuthorSchema.nullish(),
-  revokedAt: z.coerce.date().nullish(),
-  status: inviteStatusSchema,
-  emailSent: z.boolean().default(false),
-  emailSentAt: z.coerce.date().nullish(),
-  url: z.string().optional(),
-  emailSendFailed: z.boolean().optional(),
-});
+export const inviteSchema = baseEntitySchema
+  .extend({
+    id: z.number().int(),
+    code: stringSchema.optional(),
+    email: emailSchema.nullish(),
+    author: inviteAuthorSchema,
+    expiresAt: z.coerce.date(),
+    usedAt: z.coerce.date().nullish(),
+    usedBy: inviteAuthorSchema.nullish(),
+    revokedAt: z.coerce.date().nullish(),
+    status: inviteStatusSchema,
+    emailSent: z.boolean().default(false),
+    emailSentAt: z.coerce.date().nullish(),
+    url: z.string().optional(),
+    emailSendFailed: z.boolean().optional(),
+  })
+  .superRefine((invite, ctx) => {
+    const alive = invite.status === 'active';
+    if (alive && !invite.code) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['code'],
+        message: 'Active invite requires a code',
+      });
+    }
+    if (!alive && invite.code) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['code'],
+        message: 'Invite code is only available while the invite is active',
+      });
+    }
+    if (!alive && invite.url) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['url'],
+        message: 'Invite url is only available while the invite is active',
+      });
+    }
+  });
 export type IInvite = z.infer<typeof inviteSchema>;
