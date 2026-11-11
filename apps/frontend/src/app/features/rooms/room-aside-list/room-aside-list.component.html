@@ -140,6 +140,7 @@
             [cdkDragStartDelay]="dragStartDelay"
             (cdkDragEnded)="onMemberDragEnded()"
             [tuiDropdown]="peer.canMove ? peerContextMenu : null"
+            [tuiDropdownSided]="true"
             tuiDropdownContext
             (longtap)="onPeerLongtap(peer, room)"
             (click)="onPeerClick(peer)"
