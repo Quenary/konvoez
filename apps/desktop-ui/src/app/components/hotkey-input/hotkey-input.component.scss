@@ -14,13 +14,16 @@
 .hotkey-textfield {
   width: 100%;
 
-  &.recording {
+  // Readonly textfields set outline-color and box-shadow with !important.
+  // The element selector keeps these states above that rule.
+  &:is(tui-textfield)[data-mode~='readonly'].recording {
     outline: 0.125rem solid var(--tui-background-accent-1) !important;
+    outline-color: var(--tui-background-accent-1) !important;
     outline-offset: -0.125rem !important;
-    box-shadow: 0 0 0 1px var(--tui-background-accent-1);
+    box-shadow: 0 0 0 1px var(--tui-background-accent-1) !important;
   }
 
-  &.has-error {
+  &:is(tui-textfield)[data-mode~='readonly'].has-error {
     outline-color: var(--tui-status-negative) !important;
   }
 

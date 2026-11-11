@@ -9,18 +9,19 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { TuiLabel, TuiTextfield } from '@taiga-ui/core';
+import { TuiInput, TuiLabel, TuiTextfield } from '@taiga-ui/core';
 import { formatKeyboardEventToAccelerator } from '@konvoez/client-shell';
 
 @Component({
   selector: 'app-hotkey-input',
-  imports: [TuiLabel, TuiTextfield],
+  imports: [TuiInput, TuiLabel, TuiTextfield],
   template: `
     <label
       tuiLabel
       class="hotkey-label">
       {{ label() }}
       <tui-textfield
+        tuiTextfieldSize="m"
         [tuiTextfieldCleaner]="false"
         class="hotkey-textfield"
         [class.recording]="recording()"
@@ -29,7 +30,7 @@ import { formatKeyboardEventToAccelerator } from '@konvoez/client-shell';
           #inputEl
           tuiInput
           type="text"
-          readonly
+          [readonly]="true"
           [disabled]="disabled()"
           [value]="displayValue()"
           [placeholder]="recording() ? recordingPlaceholder() : ''"
