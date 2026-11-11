@@ -69,9 +69,9 @@
         </div>
       }
 
-      <fieldset
-        class="setting-group"
-        [disabled]="isSettingsLoading() || settingsLoadFailed()">
+      @let settingsLocked = isSettingsLoading() || settingsLoadFailed();
+
+      <fieldset [disabled]="settingsLocked">
         <legend tuiTitle>
           {{ 'SETTINGS.NOTIFICATIONS.TOPICS_TITLE' | translate }}
         </legend>
@@ -135,12 +135,14 @@
             {{ 'SETTINGS.NOTIFICATIONS.REACTIONS_DESC' | translate }}
           </p>
         </div>
+      </fieldset>
+
+      <fieldset [disabled]="settingsLocked">
+        <legend tuiTitle>
+          {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_TITLE' | translate }}
+        </legend>
 
         <div class="setting-item">
-          <span class="setting-item-subtitle">{{
-            'SETTINGS.NOTIFICATIONS.MENTIONS_TITLE' | translate
-          }}</span>
-
           <label tuiLabel>
             <input
               tuiSwitch
@@ -153,7 +155,9 @@
           <p class="setting-item-description">
             {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_USERNAME_DESC' | translate }}
           </p>
+        </div>
 
+        <div class="setting-item">
           <label tuiLabel>
             <input
               tuiSwitch
@@ -166,7 +170,9 @@
           <p class="setting-item-description">
             {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_ROLE_DESC' | translate }}
           </p>
+        </div>
 
+        <div class="setting-item">
           <label tuiLabel>
             <input
               tuiSwitch
