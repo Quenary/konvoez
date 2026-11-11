@@ -59,18 +59,9 @@ sequenceDiagram
 
 ## UI
 
-- The navigation tree is hierarchical:
-  - `/direct` lists direct chats; child `:id` opens a direct chat.
-  - `/text-room` lists text rooms; child `:id` opens a text room.
-  - `/voice-room` lists voice rooms; child `:id` opens a voice room.
-  - `/settings` on small screens lists settings sections; child paths open section panels.
-- On a handset (`LayoutService.isMobile()`), the sidebar is replaced by a bottom tab bar (`TuiTabBar`) with Direct, Text rooms, Voice rooms, and Settings tabs:
-  - Tabs display unread badges for Direct and Text rooms, and an in-call indicator for Voice rooms.
-  - The tab bar stays on every authenticated handset screen, including open chats and settings sections. Authorization screens do not show it. Its controls sit above the system safe area, so the home indicator and rounded screen corners do not cover the outer tabs.
-  - Child screens fill the area above the tab bar. The header back button follows the in-app navigation history, and opens the parent list when that history is empty.
-  - An active voice session or direct call shows a compact call bar above the tab bar, except while a voice room screen (`/voice-room/:id`) is open. The bar follows the desktop voice panel: an audio-lines connection indicator, the session name, microphone, speaker, camera and screen share while they are on, device settings, and hang up. A direct call shows the interlocutor name in the panel and in the bar, or the direct-call label when that name is missing.
-- On the next breakpoint (`LayoutService.isSmall()`), the sidebar stays and collapses automatically. Navigation collapses it again.
-- On desktop, the sidebar is retained. Clicking the "Текстовые" or "Голосовые" section headers navigates to `/text-room` or `/voice-room`.
+- On a handset the sidebar is replaced by a bottom tab bar with Direct, text rooms, voice rooms, and settings. A child route opens the chat or room above the bar. The header back button follows in-app history and opens the parent list when that history is empty.
+- On the next breakpoint the sidebar stays and collapses automatically. Navigation collapses it again.
+- On a wide screen the sidebar stays. The text and voice section headers open the room lists.
 - The **add** buttons (text, voice) in the rooms list and list screen headers are shown only to users with `MANAGE_ROOMS` or the `OWNER`.
 - The per-room right-click context menu and the header ellipsis menu include a top «Подробнее» action for all users. The edit and delete options are shown only to users with `MANAGE_ROOMS` or the `OWNER`.
 - Clicking a room header (avatar and title) opens the **details dialog** (`room-details-dialog`) without a window title. Clicking a direct chat header opens the **user dialog** (`user-dialog`).
