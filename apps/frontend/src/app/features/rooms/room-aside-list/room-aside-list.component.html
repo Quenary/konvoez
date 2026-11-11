@@ -216,29 +216,14 @@
   #peerContextMenu
   let-close>
   @if (selectedPeerForMenu(); as selected) {
-    @let targets = moveTargetRooms();
-    <tui-data-list>
-      @if (targets.length > 0) {
-        <tui-opt-group [label]="'VOICE.MOVE_TO' | translate">
-          @for (target of targets; track target.id) {
-            <button
-              tuiOption
-              type="button"
-              (click)="moveMember(selected.peer, target); close()">
-              {{ target.name }}
-            </button>
-          }
-        </tui-opt-group>
-        <hr />
-      }
-      <button
-        tuiOption
-        class="destructive"
-        type="button"
-        (click)="disconnectMember(selected.peer, selected.roomId); close()">
-        {{ 'VOICE.DISCONNECT_FROM_VOICE' | translate }}
-      </button>
-    </tui-data-list>
+    <app-user-context-menu
+      [canModerate]="true"
+      [moveTargets]="moveTargetRooms()"
+      (details)="openPeerDialog(selected.peer); close()"
+      (move)="moveMember(selected.peer, $event); close()"
+      (disconnect)="
+        disconnectMember(selected.peer, selected.roomId); close()
+      " />
   }
 </ng-template>
 

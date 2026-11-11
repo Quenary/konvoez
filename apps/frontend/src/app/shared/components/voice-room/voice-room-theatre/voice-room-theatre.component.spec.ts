@@ -5,8 +5,12 @@ import { Store } from '@ngrx/store';
 import { IUserSafe } from '@konvoez/shared';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
+import { VoiceSessionService } from '@core/services/voice-session.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
+import { RoomsStore } from '@core/stores/rooms.store';
 import { SettingsStore } from '@core/stores/settings.store';
+import { TuiNotificationService } from '@taiga-ui/core';
+import { of } from 'rxjs';
 import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/local-settings.schema';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceRoomTheatreComponent } from './voice-room-theatre.component';
@@ -123,6 +127,25 @@ describe('VoiceRoomTheatreComponent', () => {
             tiles: tiles.asReadonly(),
             theatreTile: computed(() => theatreTile()),
           },
+        },
+        {
+          provide: RoomsStore,
+          useValue: {
+            voiceRooms: signal<Array<{ id: number; name: string }>>(
+              [],
+            ).asReadonly(),
+          },
+        },
+        {
+          provide: VoiceSessionService,
+          useValue: {
+            moveMember: vi.fn(),
+            disconnectMember: vi.fn(),
+          },
+        },
+        {
+          provide: TuiNotificationService,
+          useValue: { open: vi.fn(() => of(null)) },
         },
       ],
     });

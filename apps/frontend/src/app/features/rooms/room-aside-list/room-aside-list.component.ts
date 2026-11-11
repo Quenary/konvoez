@@ -19,13 +19,10 @@ import {
 } from '@angular/cdk/drag-drop';
 import {
   TuiButton,
-  TuiDataList,
   TuiDropdown,
   TuiHint,
   TuiIcon,
   TuiNotificationService,
-  TuiOptGroup,
-  TuiOption,
 } from '@taiga-ui/core';
 import {
   TuiAutoColorPipe,
@@ -40,7 +37,6 @@ import { WA_IS_TOUCH } from '@ng-web-apis/platform';
 import {
   EPermission,
   ERoomType,
-  IRoom,
   IUserSafe,
   TVoiceRoomPeerUser,
 } from '@konvoez/shared';
@@ -51,6 +47,7 @@ import { VoiceSessionService } from '@core/services/voice-session.service';
 import { UsersStore } from '@core/stores/users.store';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
+import { UserContextMenuComponent } from '@shared/components/user-context-menu/user-context-menu.component';
 import { createLongtapClickGuard } from '@shared/functions/longtap-click-guard.function';
 import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
 import { icons } from '@constants';
@@ -92,13 +89,11 @@ export interface IRoomWithPeers extends IVoiceRoomRow {
     TuiInitialsPipe,
     TuiNavigation,
     TuiDropdown,
-    TuiDataList,
-    TuiOptGroup,
-    TuiOption,
     PulseIndicatorComponent,
     UserAvatarComponent,
     RoomPeerComponent,
     RoomContextMenuComponent,
+    UserContextMenuComponent,
   ],
   providers: [RoomViewService],
   templateUrl: './room-aside-list.component.html',
@@ -206,6 +201,10 @@ export class RoomAsideListComponent {
     if (this.peerClickGuard.consume()) {
       return;
     }
+    this.openPeerDialog(peer);
+  }
+
+  protected openPeerDialog(peer: TVoiceRoomPeerUser): void {
     void this.userDialogService.open(peer, {
       withFiles: false,
       withInput: true,
@@ -246,7 +245,7 @@ export class RoomAsideListComponent {
 
   protected async moveMember(
     peer: TVoiceRoomPeerUser,
-    targetRoom: IRoom,
+    targetRoom: { id: number },
   ): Promise<void> {
     try {
       await this.voiceSessionService.moveMember(peer.id, targetRoom.id);

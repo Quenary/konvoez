@@ -207,12 +207,26 @@
           appearance="flat"
           size="s"
           type="button"
+          tuiDropdownAuto
+          tuiDropdownDirection="top"
+          [tuiDropdownSided]="true"
+          [tuiDropdown]="userContextMenu"
           [iconStart]="icons['ellipsis-vertical']"
           tuiHintAppearance="floating"
           [attr.aria-label]="'GENERAL.MORE' | translate"
-          [tuiHint]="'GENERAL.MORE' | translate"
-          (click)="onOpenUserDialog()">
+          [tuiHint]="'GENERAL.MORE' | translate">
         </button>
+
+        <ng-template
+          #userContextMenu
+          let-close>
+          <app-user-context-menu
+            [canModerate]="canModeratePeer()"
+            [moveTargets]="moveTargets()"
+            (details)="onOpenUserDialog(); close()"
+            (move)="onMoveMember($event); close()"
+            (disconnect)="onDisconnectMember(); close()" />
+        </ng-template>
       </div>
     </div>
   </div>

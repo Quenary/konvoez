@@ -1,0 +1,31 @@
+<tui-data-list>
+  <button
+    tuiOption
+    type="button"
+    (click)="details.emit()">
+    {{ 'ROOMS.DETAILS' | translate }}
+  </button>
+  @if (canModerate()) {
+    @if (moveTargets().length > 0) {
+      <hr />
+      <tui-opt-group [label]="'VOICE.MOVE_TO' | translate">
+        @for (target of moveTargets(); track target.id) {
+          <button
+            tuiOption
+            type="button"
+            (click)="move.emit(target)">
+            {{ target.name }}
+          </button>
+        }
+      </tui-opt-group>
+    }
+    <hr />
+    <button
+      tuiOption
+      class="destructive"
+      type="button"
+      (click)="disconnect.emit()">
+      {{ 'VOICE.DISCONNECT_FROM_VOICE' | translate }}
+    </button>
+  }
+</tui-data-list>

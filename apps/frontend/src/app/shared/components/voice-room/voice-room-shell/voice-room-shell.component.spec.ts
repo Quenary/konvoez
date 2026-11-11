@@ -4,6 +4,7 @@ import { provideTranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
 import { EVoiceSessionType, IUserSafe } from '@konvoez/shared';
 import { PeerVideoService } from '@core/services/peer-video.service';
+import { RoomsStore } from '@core/stores/rooms.store';
 import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
@@ -104,6 +105,15 @@ describe('VoiceRoomShellComponent', () => {
           useValue: {
             peersList: remotePeers.asReadonly(),
             activeSession: activeSession.asReadonly(),
+            selectedRoomId: signal<number | null>(1).asReadonly(),
+          },
+        },
+        {
+          provide: RoomsStore,
+          useValue: {
+            voiceRooms: signal<Array<{ id: number; name: string }>>(
+              [],
+            ).asReadonly(),
           },
         },
         {

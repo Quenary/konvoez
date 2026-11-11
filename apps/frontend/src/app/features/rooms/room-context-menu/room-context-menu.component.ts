@@ -13,6 +13,7 @@ import { icons } from '@constants';
   selector: 'app-room-context-menu',
   imports: [TranslatePipe, TuiDataList, TuiOptGroup, TuiOption],
   templateUrl: './room-context-menu.component.html',
+  styleUrl: './room-context-menu.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RoomContextMenuComponent {
