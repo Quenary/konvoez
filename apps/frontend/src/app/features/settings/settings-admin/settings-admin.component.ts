@@ -47,17 +47,18 @@ import {
   TuiIcon,
   TuiInput,
   TuiLabel,
-  TuiScrollbar,
   TuiSlider,
   TuiTextfield,
   TuiTitle,
 } from '@taiga-ui/core';
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
-import { TuiInputSlider, TuiSwitch, TuiTextarea } from '@taiga-ui/kit';
+import { TuiForm, TuiHeader } from '@taiga-ui/layout';
+import { TuiFade, TuiInputSlider, TuiSwitch, TuiTextarea } from '@taiga-ui/kit';
 import { SettingsStore } from '@core/stores/settings.store';
 import { PushNotificationService } from '@core/services/push-notification.service';
 import { createZodFieldValidator } from '@shared/functions/zod-validator.function';
 import * as z from 'zod';
+import { HeaderBackButtonComponent } from '@shared/components/header-back-button/header-back-button.component';
+import { RoutePageComponent } from '@shared/components/route-page/route-page.component';
 import { icons } from '@constants';
 
 function iceServersJsonValidator(
@@ -107,18 +108,19 @@ interface AdminSettingDescriptor {
 @Component({
   selector: 'app-settings-admin',
   imports: [
+    HeaderBackButtonComponent,
+    RoutePageComponent,
     NgTemplateOutlet,
     ReactiveFormsModule,
     TranslatePipe,
     TuiButton,
-    TuiCardLarge,
     TuiError,
+    TuiFade,
     TuiForm,
     TuiHeader,
     TuiInput,
     TuiInputSlider,
     TuiLabel,
-    TuiScrollbar,
     TuiSlider,
     TuiSwitch,
     TuiTextarea,

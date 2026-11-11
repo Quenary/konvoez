@@ -29,6 +29,7 @@ import {
   TuiAvatar,
   TuiBadgedContent,
   TuiBadgeNotification,
+  TuiFade,
   TuiInitialsPipe,
 } from '@taiga-ui/kit';
 import { FileDropDirective } from '@shared/directives/file-drop.directive';
@@ -45,11 +46,13 @@ import { toChatKey } from './composer-drafts';
 import { ComposerFocusService } from './composer-focus.service';
 import { v4 } from 'uuid';
 
+import { HeaderBackButtonComponent } from '@shared/components/header-back-button/header-back-button.component';
 import { icons } from '@constants';
 
 @Component({
   selector: 'app-chat',
   imports: [
+    HeaderBackButtonComponent,
     ChatEditorComponent,
     ChatMessagesListComponent,
     TuiTitle,
@@ -64,6 +67,7 @@ import { icons } from '@constants';
     TuiAvatar,
     TuiBadgedContent,
     TuiBadgeNotification,
+    TuiFade,
     TuiInitialsPipe,
     NgOptimizedImage,
     ReactiveFormsModule,
@@ -81,6 +85,10 @@ export class ChatComponent {
   protected readonly icons = icons;
   public readonly roomId = input<number | null>(null);
   public readonly recipientId = input<number | null>(null);
+
+  protected readonly backRoute = computed(() =>
+    this.roomId() !== null ? '/text-room' : '/direct',
+  );
   public readonly title = input.required<string>();
   public readonly avatarUrl = input<string | null>(null);
   public readonly avatarIcon = input<string | null>(null);

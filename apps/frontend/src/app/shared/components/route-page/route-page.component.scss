@@ -1,0 +1,38 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.route-header {
+  flex-shrink: 0;
+  padding-block-start: 1rem;
+  margin-block-end: 1rem;
+}
+
+.body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+// Taiga sizes the scroll content to its children, so a 100% floor
+// is what lets an empty state fill the page.
+:host ::ng-deep .body > .t-content {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100%;
+}
+
+.body-content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-block-size: 100%;
+}
+
+.route-footer:has(footer) {
+  flex-shrink: 0;
+  margin-block-start: 1rem;
+}

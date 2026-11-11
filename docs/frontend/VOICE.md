@@ -156,7 +156,7 @@ flowchart TD
 
 ## Direct calls
 
-`DirectCallService` handles call signaling. The UI lives on `/direct/:id` (`DirectComponent` with `app-voice-room-shell`) and in the sidebar. The user dialog offers direct-message navigation, call initiation and per-user volume. The grid and overlay are shared with group rooms (`shared/components/voice-room/`).
+`DirectCallService` handles call signaling. The call screen is `/direct/:id` (`DirectComponent` with `app-voice-room-shell`). On a wide screen the session also appears in the sidebar. On a handset an active voice session or direct call shows a compact bar above the tab bar, except while a voice room (`/voice-room/:id`) is open. The bar follows the sidebar panel: the session name, microphone, speaker, camera and screen share while they are on, device settings, and hang up. A direct call shows the interlocutor name, or the direct-call label when that name is missing. The user dialog offers direct-message navigation, call initiation and per-user volume. The grid and overlay are shared with group rooms (`shared/components/voice-room/`).
 
 ## Code map
 

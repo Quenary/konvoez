@@ -1,11 +1,28 @@
-@use 'mixins' as mixins;
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
 
-@include mixins.scrollable-form;
+form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
 
 .scroll-content {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+}
+
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .profile {

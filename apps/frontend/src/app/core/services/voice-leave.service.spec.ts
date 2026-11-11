@@ -29,7 +29,10 @@ describe('VoiceLeaveService', () => {
       providers: [
         VoiceLeaveService,
         provideRouter([
-          { path: 'voice-room/:id', children: [] },
+          {
+            path: 'voice-room',
+            children: [{ path: ':id', children: [] }],
+          },
           { path: 'direct/:id', children: [] },
           { path: '', children: [] },
         ]),
@@ -74,6 +77,16 @@ describe('VoiceLeaveService', () => {
     expect(navigate).toHaveBeenCalledWith(['/']);
     expect(voiceSessionService.leaveSession).toHaveBeenCalledTimes(1);
     expect(directCallService.leaveCall).not.toHaveBeenCalled();
+  });
+
+  it('does not navigate when the voice room list is open', async () => {
+    await router.navigateByUrl('/voice-room');
+    const navigate = vi.spyOn(router, 'navigate');
+
+    await service.leaveFromVoiceUi();
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(voiceSessionService.leaveSession).toHaveBeenCalledTimes(1);
   });
 
   it('does not navigate when another route is open', async () => {

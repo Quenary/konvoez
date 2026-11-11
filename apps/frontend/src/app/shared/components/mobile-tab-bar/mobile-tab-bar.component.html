@@ -1,0 +1,41 @@
+@if (showCallControlsBar()) {
+  <app-call-controls-bar />
+}
+<nav tuiTabBar>
+  <a
+    tuiTabBarItem
+    type="button"
+    [icon]="icons.direct"
+    [badge]="directUnreadCount() || undefined"
+    routerLinkActive
+    [routerLinkActiveOptions]="routerLinkActiveOptions"
+    [routerLink]="'/direct'">
+    {{ 'TAB_BAR.DIRECT' | translate }}
+  </a>
+  <a
+    tuiTabBarItem
+    [icon]="icons['text-rooms']"
+    [badge]="textRoomsUnreadCount() || undefined"
+    routerLinkActive
+    [routerLinkActiveOptions]="routerLinkActiveOptions"
+    [routerLink]="'/text-room'">
+    {{ 'TAB_BAR.TEXT' | translate }}
+  </a>
+  <a
+    tuiTabBarItem
+    [icon]="icons['audio-lines']"
+    [class.in-call]="isSessionActive()"
+    routerLinkActive
+    [routerLinkActiveOptions]="routerLinkActiveOptions"
+    [routerLink]="'/voice-room'">
+    {{ 'TAB_BAR.VOICE' | translate }}
+  </a>
+  <a
+    tuiTabBarItem
+    [icon]="icons.settings"
+    routerLinkActive
+    [routerLinkActiveOptions]="routerLinkActiveOptions"
+    [routerLink]="'/settings'">
+    {{ 'TAB_BAR.SETTINGS' | translate }}
+  </a>
+</nav>

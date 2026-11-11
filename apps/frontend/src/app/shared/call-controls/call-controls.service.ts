@@ -1,41 +1,26 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-} from '@angular/core';
+import { computed, inject, Injectable } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { RoomsStore } from '@core/stores/rooms.store';
-import { RoomNavigationService } from '../room-navigation.service';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { VoiceSessionStore } from '@core/voice/voice-session.store';
-import { VoiceLeaveService } from '@core/services/voice-leave.service';
-import { PeerVideoService } from '@core/services/peer-video.service';
-import { VoiceSessionService } from '@core/services/voice-session.service';
-import { VoiceQualityService } from '@core/services/voice-quality.service';
-import { VoiceConnectionStore } from '@core/voice/voice-connection.store';
-import { TuiButton, TuiGroup, TuiHint, TuiIcon } from '@taiga-ui/core';
 import { Router } from '@angular/router';
-import { DirectCallService } from '@core/services/direct-call.service';
 import {
   EVoiceConnectionState,
   EVoiceQualityTier,
   EVoiceSessionType,
 } from '@konvoez/shared';
-import { TuiFade } from '@taiga-ui/kit';
+import { TranslateService } from '@ngx-translate/core';
+import { merge } from 'rxjs';
+import { RoomsStore } from '@core/stores/rooms.store';
+import { RoomNavigationService } from '@features/rooms/room-navigation.service';
+import { DirectCallService } from '@core/services/direct-call.service';
+import { PeerVideoService } from '@core/services/peer-video.service';
+import { VoiceLeaveService } from '@core/services/voice-leave.service';
+import { VoiceQualityService } from '@core/services/voice-quality.service';
+import { VoiceSessionService } from '@core/services/voice-session.service';
+import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
+import { VoiceConnectionStore } from '@core/voice/voice-connection.store';
+import { VoiceSessionStore } from '@core/voice/voice-session.store';
 
-import { icons } from '@constants';
-
-@Component({
-  selector: 'app-voice-room-panel',
-  imports: [TranslatePipe, TuiGroup, TuiButton, TuiHint, TuiFade, TuiIcon],
-  templateUrl: './voice-room-panel.component.html',
-  styleUrl: './voice-room-panel.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-})
-export class VoiceRoomPanelComponent {
+@Injectable()
+export class CallControlsService {
   private readonly router = inject(Router);
   private readonly roomsStore = inject(RoomsStore);
   private readonly roomNavigationService = inject(RoomNavigationService);
@@ -51,31 +36,35 @@ export class VoiceRoomPanelComponent {
   private readonly voiceConnectionStore = inject(VoiceConnectionStore);
   private readonly translateService = inject(TranslateService);
 
-  public readonly collapsed = input.required<boolean>();
-
-  protected readonly icons = icons;
-
-  protected readonly isSessionActive = computed(() => {
+  public readonly isSessionActive = computed(() => {
     const session = this.activeSession();
     const isConnected = this.directCallService.isConnected();
     return session !== null || isConnected;
   });
 
-  protected readonly sessionTitle = computed(() => {
+  public readonly sessionTitle = computed(() => {
+    this.i18nTick();
     const isDirectCall = this.isDirectCall();
+    const interlocutor = this.directCallService.interlocutor();
     const session = this.activeSession();
     const rooms = this.rooms();
 
     if (isDirectCall) {
-      return 'CALL.DIRECT_CALL';
+      return (
+        interlocutor?.fullname ||
+        interlocutor?.username ||
+        this.translateService.instant('CALL.DIRECT_CALL')
+      );
     }
+
     if (session?.type === EVoiceSessionType.GROUP_ROOM) {
       return rooms[session.roomId]?.name ?? '';
     }
+
     return '';
   });
 
-  protected readonly indicatorColor = computed(() => {
+  public readonly indicatorColor = computed(() => {
     const state = this.connectionState();
     const qualityColor = this.qualityColor();
     const qualityTier = this.qualityTier();
@@ -100,73 +89,53 @@ export class VoiceRoomPanelComponent {
     }
   });
 
-  protected readonly connectionHintKey = computed(() => {
-    const state = this.connectionState();
-    const qualityHint = this.qualityHintKey();
-    const audioSuspended = this.audioSuspended();
-
-    switch (state) {
-      case null:
-      case EVoiceConnectionState.CONNECTED:
-        return qualityHint;
-      case EVoiceConnectionState.DEGRADED:
-        if (audioSuspended) {
-          return 'CALL.CONNECTION.AUDIO_SUSPENDED';
-        }
-        return qualityHint;
-      case EVoiceConnectionState.RECONNECTING:
-        return 'CALL.CONNECTION.RECONNECTING';
-      case EVoiceConnectionState.DISCONNECTED:
-        return 'CALL.CONNECTION.DISCONNECTED';
-      case EVoiceConnectionState.DEAD:
-        return 'CALL.CONNECTION.DEAD';
-    }
+  public readonly qualityText = computed(() => {
+    this.i18nTick();
+    const hintKey = this.connectionHintKey();
+    const kbps = this.bitrateKbps();
+    return this.translateService.instant(hintKey, { kbps });
   });
 
-  protected readonly qualityBitrateKbps = this.voiceQualityService.bitrateKbps;
-
-  protected readonly qualityAriaLabel = computed(() => {
-    this.currentLang();
-    const titleKey = this.sessionTitle();
-    const hintKey = this.connectionHintKey();
-    const kbps = this.qualityBitrateKbps();
-
-    const qualityText = this.translateService.instant(hintKey, { kbps });
-    if (titleKey) {
-      const titleText = this.translateService.instant(titleKey);
-      return `${titleText}. ${qualityText}`;
+  public readonly qualityAriaLabel = computed(() => {
+    const title = this.sessionTitle();
+    const qualityText = this.qualityText();
+    if (title) {
+      return `${title}. ${qualityText}`;
     }
     return qualityText;
   });
 
-  protected readonly microphoneMuted =
+  public readonly microphoneMuted =
     this.voiceAudioPreferencesStore.microphoneMuted;
-  protected readonly speakerMuted =
-    this.voiceAudioPreferencesStore.speakerMuted;
+  public readonly speakerMuted = this.voiceAudioPreferencesStore.speakerMuted;
 
-  protected readonly micHintKey = computed(() =>
+  public readonly micLabelKey = computed(() =>
     this.microphoneMuted() ? 'CALL.UNMUTE_MICROPHONE' : 'CALL.MUTE_MICROPHONE',
   );
-  protected readonly speakerHintKey = computed(() =>
+  public readonly speakerLabelKey = computed(() =>
     this.speakerMuted() ? 'CALL.UNMUTE_SPEAKER' : 'CALL.MUTE_SPEAKER',
   );
 
-  protected readonly cameraOn = computed(
+  public readonly cameraOn = computed(
     () => this.peerVideoService.localCamTrack() !== null,
   );
-  protected readonly screenOn = computed(
+  public readonly screenOn = computed(
     () => this.peerVideoService.localScreenTrack() !== null,
   );
 
-  private readonly isDirectCall = this.directCallService.isDirectCallContext;
   private readonly activeSession = this.voiceSessionStore.activeSession;
+  private readonly isDirectCall = this.directCallService.isDirectCallContext;
   private readonly rooms = this.roomsStore.roomsDict;
-  private readonly currentLang = toSignal(this.translateService.onLangChange);
-
   private readonly connectionState = this.voiceConnectionStore.state;
   private readonly audioSuspended = this.voiceConnectionStore.audioSuspended;
-
   private readonly qualityTier = this.voiceQualityService.tier;
+  private readonly bitrateKbps = this.voiceQualityService.bitrateKbps;
+  private readonly i18nTick = toSignal(
+    merge(
+      this.translateService.onLangChange,
+      this.translateService.onTranslationChange,
+    ),
+  );
 
   private readonly qualityColor = computed(() => {
     switch (this.qualityTier()) {
@@ -194,7 +163,30 @@ export class VoiceRoomPanelComponent {
     }
   });
 
-  protected clickSession(): void {
+  private readonly connectionHintKey = computed(() => {
+    const state = this.connectionState();
+    const qualityHint = this.qualityHintKey();
+    const audioSuspended = this.audioSuspended();
+
+    switch (state) {
+      case null:
+      case EVoiceConnectionState.CONNECTED:
+        return qualityHint;
+      case EVoiceConnectionState.DEGRADED:
+        if (audioSuspended) {
+          return 'CALL.CONNECTION.AUDIO_SUSPENDED';
+        }
+        return qualityHint;
+      case EVoiceConnectionState.RECONNECTING:
+        return 'CALL.CONNECTION.RECONNECTING';
+      case EVoiceConnectionState.DISCONNECTED:
+        return 'CALL.CONNECTION.DISCONNECTED';
+      case EVoiceConnectionState.DEAD:
+        return 'CALL.CONNECTION.DEAD';
+    }
+  });
+
+  public openSession(): void {
     if (this.isDirectCall()) {
       const userId = this.directCallService.callWithUserId();
       if (userId !== null) {
@@ -212,27 +204,27 @@ export class VoiceRoomPanelComponent {
     }
   }
 
-  protected leaveSession(): void {
+  public leaveSession(): void {
     void this.voiceLeaveService.leaveFromVoiceUi();
   }
 
-  protected toggleMicrophoneMuted(): void {
+  public toggleMicrophone(): void {
     this.voiceAudioPreferencesStore.toggleMicrophoneMuted();
   }
 
-  protected toggleSpeakerMuted(): void {
+  public toggleSpeaker(): void {
     this.voiceAudioPreferencesStore.toggleSpeakerMuted();
   }
 
-  protected stopCamera(): void {
+  public stopCamera(): void {
     void this.voiceSessionService.stopCamera();
   }
 
-  protected stopScreen(): void {
+  public stopScreen(): void {
     void this.voiceSessionService.stopScreen();
   }
 
-  protected openDevicesSettings(): void {
+  public openDevicesSettings(): void {
     void this.router.navigate(['/settings/devices']);
   }
 }

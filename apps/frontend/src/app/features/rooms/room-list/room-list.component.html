@@ -1,0 +1,127 @@
+@if (type() === ERoomType.TEXT) {
+  <div class="room-rows">
+    @for (room of roomView.textRooms(); track room.id) {
+      <app-list-item
+        [tuiDropdown]="roomContextMenu"
+        tuiDropdownContext
+        [tuiDropdownSided]="true"
+        (longtap)="roomView.onRoomLongtap(room)"
+        (click)="roomView.onRoomClick(room)">
+        <span
+          listItemLeading
+          class="cell-leading">
+          <ng-container
+            [ngTemplateOutlet]="textLeading"
+            [ngTemplateOutletContext]="{ $implicit: room }" />
+        </span>
+        <span tuiFade>{{ room.name }}</span>
+      </app-list-item>
+    }
+  </div>
+} @else if (type() === ERoomType.VOICE) {
+  <div class="room-rows">
+    @for (room of voiceRooms(); track room.id) {
+      <app-list-item
+        [tuiDropdown]="roomContextMenu"
+        tuiDropdownContext
+        [tuiDropdownSided]="true"
+        (longtap)="roomView.onRoomLongtap(room)"
+        (click)="roomView.onRoomClick(room)">
+        <span
+          listItemLeading
+          class="cell-leading">
+          <ng-container
+            [ngTemplateOutlet]="voiceLeading"
+            [ngTemplateOutletContext]="{ $implicit: room }" />
+        </span>
+        <span tuiFade>{{ room.name }}</span>
+        @if (room.shownPeers.length > 0) {
+          <tui-avatar-stack listItemTrailing>
+            @for (peer of room.shownPeers; track peer.id) {
+              <app-user-avatar
+                size="xs"
+                [username]="peer.username"
+                [fullname]="peer.fullname"
+                [avatarUrl]="peer.avatarUrl" />
+            }
+            @if (room.extraLabel; as extraLabel) {
+              <div
+                tuiAvatar
+                size="xs">
+                {{ extraLabel }}
+              </div>
+            }
+          </tui-avatar-stack>
+        }
+      </app-list-item>
+    }
+  </div>
+}
+
+<ng-template
+  #textLeading
+  let-room>
+  <tui-badged-content class="room-badge">
+    @if (roomView.mentionFlags()[room.id]) {
+      <tui-badge-notification
+        size="s"
+        appearance="accent"
+        tuiSlot="top"
+        [attr.aria-label]="'ROOMS.UNREAD_MENTIONS' | translate">
+        &#64;
+      </tui-badge-notification>
+    } @else if (unreadCountsStore.roomUnreadCount(room.id); as count) {
+      <tui-badge-notification
+        size="s"
+        tuiSlot="top">
+        {{ count > 99 ? '99+' : count }}
+      </tui-badge-notification>
+    }
+    <div
+      tuiAvatar
+      size="xs">
+      @if (room.avatarUrl) {
+        <img
+          [alt]="room.name"
+          [ngSrc]="room.avatarUrl"
+          fill
+          priority />
+      } @else {
+        {{ room.name | tuiInitials }}
+      }
+    </div>
+  </tui-badged-content>
+</ng-template>
+
+<ng-template
+  #voiceLeading
+  let-room>
+  <app-pulse-indicator [isActive]="room.isUserInRoom">
+    <div
+      tuiAvatar
+      size="xs">
+      @if (room.avatarUrl) {
+        <img
+          [alt]="room.name"
+          [ngSrc]="room.avatarUrl"
+          fill
+          priority />
+      } @else {
+        {{ room.name | tuiInitials }}
+      }
+    </div>
+  </app-pulse-indicator>
+</ng-template>
+
+<ng-template
+  #roomContextMenu
+  let-close>
+  @if (roomView.contextMenuRoom(); as room) {
+    <app-room-context-menu
+      [roomName]="room.name"
+      [canManage]="roomView.canManageRooms()"
+      (details)="roomView.openRoomDetails(room); close()"
+      (edit)="roomView.editRoom(room); close()"
+      (delete)="roomView.deleteRoom(room); close()" />
+  }
+</ng-template>

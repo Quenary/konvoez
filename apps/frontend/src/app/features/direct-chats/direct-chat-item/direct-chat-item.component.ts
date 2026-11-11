@@ -9,7 +9,6 @@ import {
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { TranslatePipe } from '@ngx-translate/core';
-import { TuiCell, TuiIcon, TuiTitle } from '@taiga-ui/core';
 import {
   TuiAutoColorPipe,
   TuiAvatar,
@@ -20,6 +19,7 @@ import {
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { UsersStore } from '@core/stores/users.store';
 import { IUserSafe } from '@konvoez/shared';
+import { ListItemComponent } from '@shared/components/list-item/list-item.component';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 
 import { icons } from '@constants';
@@ -27,9 +27,7 @@ import { icons } from '@constants';
 @Component({
   selector: 'app-direct-chat-item',
   imports: [
-    TuiCell,
-    TuiIcon,
-    TuiTitle,
+    ListItemComponent,
     TuiAvatar,
     TranslatePipe,
     UserAvatarComponent,

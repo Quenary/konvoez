@@ -22,17 +22,56 @@
         padding: 0.125rem;
       }
     }
+  }
+}
 
-    [tuiNavigationMain].narrow {
-      $hbw: 0.5rem;
-      transition: border-width 0.3s ease-in-out;
-      border-left-width: $hbw;
-      border-right-width: $hbw;
-    }
+.desktop-layout {
+  display: flex;
+  box-sizing: border-box;
+  height: 100%;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+
+.mobile-layout {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+
+  .mobile-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
+    padding: 0.5rem;
+    box-sizing: border-box;
+  }
+
+  .mobile-content {
+    position: relative;
+    height: 100%;
+    min-height: 0;
   }
 }
 
 :host ::ng-deep tui-pull-to-refresh > div {
   height: 100%;
   min-height: 0;
+}
+
+// Taiga places the outlet and the page on separate auto rows.
+// Chat screens are absolutely positioned, so those rows collapse.
+main[tuiNavigationMain] {
+  grid-template-rows: minmax(0, 1fr);
+
+  > router-outlet {
+    display: none;
+  }
 }

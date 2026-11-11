@@ -1,11 +1,9 @@
-<div
-  appearance="floating"
-  tuiCardLarge
-  tuiForm="m">
+<app-route-page>
   <header tuiHeader>
+    <app-header-back-button to="/settings" />
     <h2 tuiTitle>
       <tui-icon [icon]="icons['settings-invites']" />
-      {{ 'SETTINGS.INVITES.TITLE' | translate }}
+      <span tuiFade>{{ 'SETTINGS.INVITES.TITLE' | translate }}</span>
       <span tuiSubtitle>
         {{ 'SETTINGS.INVITES.SUBTITLE' | translate }}
       </span>
@@ -27,197 +25,191 @@
     </aside>
   </header>
 
-  <tui-scrollbar>
-    <div class="table-wrapper">
-      <table
-        tuiTable
-        class="invites-table">
-        <thead>
+  <div class="table-wrapper">
+    <table
+      tuiTable
+      class="invites-table">
+      <thead>
+        <tr>
+          <th
+            tuiTh
+            class="col-status">
+            {{ 'SETTINGS.INVITES.TABLE.STATUS' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-email">
+            {{ 'SETTINGS.INVITES.TABLE.EMAIL' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-user">
+            {{ 'SETTINGS.INVITES.TABLE.AUTHOR' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-user">
+            {{ 'SETTINGS.INVITES.TABLE.USED_BY' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-progress">
+            {{ 'SETTINGS.INVITES.TABLE.PROGRESS' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-actions">
+            {{ 'SETTINGS.INVITES.TABLE.ACTIONS' | translate }}
+          </th>
+        </tr>
+      </thead>
+      <tbody tuiTbody>
+        @for (invite of invites(); track invite.id) {
           <tr>
-            <th
-              tuiTh
+            <td
+              tuiTd
               class="col-status">
-              {{ 'SETTINGS.INVITES.TABLE.STATUS' | translate }}
-            </th>
-            <th
-              tuiTh
+              <tui-icon
+                class="status-icon"
+                [appearance]="invite.statusData.appearance"
+                [icon]="invite.statusData.icon"
+                [tuiTooltip]="invite.statusData.tooltip | translate" />
+            </td>
+
+            <td
+              tuiTd
               class="col-email">
-              {{ 'SETTINGS.INVITES.TABLE.EMAIL' | translate }}
-            </th>
-            <th
-              tuiTh
-              class="col-user">
-              {{ 'SETTINGS.INVITES.TABLE.AUTHOR' | translate }}
-            </th>
-            <th
-              tuiTh
-              class="col-user">
-              {{ 'SETTINGS.INVITES.TABLE.USED_BY' | translate }}
-            </th>
-            <th
-              tuiTh
-              class="col-progress">
-              {{ 'SETTINGS.INVITES.TABLE.PROGRESS' | translate }}
-            </th>
-            <th
-              tuiTh
-              class="col-actions">
-              {{ 'SETTINGS.INVITES.TABLE.ACTIONS' | translate }}
-            </th>
-          </tr>
-        </thead>
-        <tbody tuiTbody>
-          @for (invite of invites(); track invite.id) {
-            <tr>
-              <td
-                tuiTd
-                class="col-status">
-                <tui-icon
-                  class="status-icon"
-                  [appearance]="invite.statusData.appearance"
-                  [icon]="invite.statusData.icon"
-                  [tuiTooltip]="invite.statusData.tooltip | translate" />
-              </td>
-
-              <td
-                tuiTd
-                class="col-email">
-                @if (invite.email) {
-                  <span class="email-cell">
+              @if (invite.email) {
+                <span class="email-cell">
+                  <span
+                    class="email-text"
+                    tuiFade
+                    [tuiHint]="invite.email">
+                    {{ invite.email }}
+                  </span>
+                  @if (invite.emailSent) {
                     <span
-                      class="email-text"
-                      tuiFade
-                      [tuiHint]="invite.email">
-                      {{ invite.email }}
+                      tuiBadge
+                      appearance="positive"
+                      size="s"
+                      [tuiHint]="
+                        invite.emailSentAt ? (invite.emailSentAt | dayjs) : null
+                      ">
+                      {{ 'SETTINGS.INVITES.EMAIL_SENT' | translate }}
                     </span>
-                    @if (invite.emailSent) {
-                      <span
-                        tuiBadge
-                        appearance="positive"
-                        size="s"
-                        [tuiHint]="
-                          invite.emailSentAt
-                            ? (invite.emailSentAt | dayjs)
-                            : null
-                        ">
-                        {{ 'SETTINGS.INVITES.EMAIL_SENT' | translate }}
-                      </span>
-                    }
-                  </span>
-                } @else {
-                  <span class="muted">—</span>
-                }
-              </td>
-
-              <td
-                tuiTd
-                class="col-user">
-                <span [style.color]="invite.authorUsername | tuiAutoColor">
-                  {{ invite.authorUsername }}
+                  }
                 </span>
-              </td>
+              } @else {
+                <span class="muted">—</span>
+              }
+            </td>
 
-              <td
-                tuiTd
-                class="col-user">
-                @if (invite.usedByUsername) {
-                  <span [style.color]="invite.usedByUsername | tuiAutoColor">
-                    {{ invite.usedByUsername }}
-                  </span>
-                } @else {
-                  <span class="muted">—</span>
-                }
-              </td>
+            <td
+              tuiTd
+              class="col-user">
+              <span [style.color]="invite.authorUsername | tuiAutoColor">
+                {{ invite.authorUsername }}
+              </span>
+            </td>
 
-              <td
-                tuiTd
-                class="col-progress">
-                @if (invite.isActive) {
-                  <div class="progress-cell">
-                    <tui-progress-circle
-                      size="xs"
-                      [max]="100"
-                      [style.--tui-progress-color]="invite.progressColor"
-                      [value]="invite.progress" />
-                    <span class="remaining-text">{{
-                      invite.remainingText
-                    }}</span>
-                  </div>
-                } @else {
-                  <span class="muted">—</span>
-                }
-              </td>
+            <td
+              tuiTd
+              class="col-user">
+              @if (invite.usedByUsername) {
+                <span [style.color]="invite.usedByUsername | tuiAutoColor">
+                  {{ invite.usedByUsername }}
+                </span>
+              } @else {
+                <span class="muted">—</span>
+              }
+            </td>
 
-              <td
-                tuiTd
-                class="col-actions">
-                <button
-                  appearance="flat"
-                  size="s"
-                  tuiIconButton
-                  type="button"
-                  tuiDropdownAuto
-                  [tuiDropdownSided]="true"
-                  [iconStart]="icons['ellipsis-vertical']"
-                  [tuiDropdown]="actionsMenu"
-                  tuiHintAppearance="floating"
-                  [tuiHint]="'GENERAL.MORE' | translate">
-                  {{ 'GENERAL.MORE' | translate }}
-                </button>
+            <td
+              tuiTd
+              class="col-progress">
+              @if (invite.isActive) {
+                <div class="progress-cell">
+                  <tui-progress-circle
+                    size="xs"
+                    [max]="100"
+                    [style.--tui-progress-color]="invite.progressColor"
+                    [value]="invite.progress" />
+                  <span class="remaining-text">{{ invite.remainingText }}</span>
+                </div>
+              } @else {
+                <span class="muted">—</span>
+              }
+            </td>
 
-                <ng-template
-                  #actionsMenu
-                  let-close>
-                  <tui-data-list>
+            <td
+              tuiTd
+              class="col-actions">
+              <button
+                appearance="flat"
+                size="s"
+                tuiIconButton
+                type="button"
+                tuiDropdownAuto
+                [tuiDropdownSided]="true"
+                [iconStart]="icons['ellipsis-vertical']"
+                [tuiDropdown]="actionsMenu"
+                tuiHintAppearance="floating"
+                [tuiHint]="'GENERAL.MORE' | translate">
+                {{ 'GENERAL.MORE' | translate }}
+              </button>
+
+              <ng-template
+                #actionsMenu
+                let-close>
+                <tui-data-list>
+                  <button
+                    tuiOption
+                    type="button"
+                    [iconStart]="icons.copy"
+                    (click)="copyLink(invite); close()">
+                    {{ 'SETTINGS.INVITES.COPY_LINK' | translate }}
+                  </button>
+                  @if (invite.canResendEmail) {
                     <button
                       tuiOption
                       type="button"
-                      [iconStart]="icons.copy"
-                      (click)="copyLink(invite); close()">
-                      {{ 'SETTINGS.INVITES.COPY_LINK' | translate }}
+                      [iconStart]="icons.mail"
+                      [disabled]="invite.isResendCooldown"
+                      (click)="resendEmail(invite.id); close()">
+                      {{ 'SETTINGS.INVITES.RESEND_EMAIL' | translate }}
                     </button>
-                    @if (invite.canResendEmail) {
-                      <button
-                        tuiOption
-                        type="button"
-                        [iconStart]="icons.mail"
-                        [disabled]="invite.isResendCooldown"
-                        (click)="resendEmail(invite.id); close()">
-                        {{ 'SETTINGS.INVITES.RESEND_EMAIL' | translate }}
-                      </button>
-                    }
-                    @if (invite.isActive) {
-                      <button
-                        tuiOption
-                        type="button"
-                        [iconStart]="icons.ban"
-                        (click)="revoke(invite.id); close()">
-                        {{ 'SETTINGS.INVITES.REVOKE' | translate }}
-                      </button>
-                    }
+                  }
+                  @if (invite.isActive) {
                     <button
                       tuiOption
                       type="button"
-                      [iconStart]="icons.delete"
-                      (click)="delete(invite.id); close()">
-                      {{ 'SETTINGS.INVITES.DELETE' | translate }}
+                      [iconStart]="icons.ban"
+                      (click)="revoke(invite.id); close()">
+                      {{ 'SETTINGS.INVITES.REVOKE' | translate }}
                     </button>
-                  </tui-data-list>
-                </ng-template>
-              </td>
-            </tr>
-          } @empty {
-            <tr>
-              <td
-                tuiTd
-                colspan="6"
-                class="empty-cell">
-                {{ 'SETTINGS.INVITES.NO_INVITES' | translate }}
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  </tui-scrollbar>
-</div>
+                  }
+                  <button
+                    tuiOption
+                    type="button"
+                    [iconStart]="icons.delete"
+                    (click)="delete(invite.id); close()">
+                    {{ 'SETTINGS.INVITES.DELETE' | translate }}
+                  </button>
+                </tui-data-list>
+              </ng-template>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td
+              tuiTd
+              colspan="6"
+              class="empty-cell">
+              {{ 'SETTINGS.INVITES.NO_INVITES' | translate }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</app-route-page>

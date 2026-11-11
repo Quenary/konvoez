@@ -1,18 +1,17 @@
 <form
-  appearance="floating"
-  tuiCardLarge
-  tuiForm="m"
   novalidate
+  tuiForm="m"
   [formGroup]="form"
   (ngSubmit)="onSubmit()">
-  <header tuiHeader>
-    <h2 tuiTitle>
-      <tui-icon [icon]="icons['settings-profile']" />
-      {{ 'SETTINGS.PROFILE.TITLE' | translate }}
-    </h2>
-  </header>
+  <app-route-page>
+    <header tuiHeader>
+      <app-header-back-button to="/settings" />
+      <h2 tuiTitle>
+        <tui-icon [icon]="icons['settings-profile']" />
+        <span tuiFade>{{ 'SETTINGS.PROFILE.TITLE' | translate }}</span>
+      </h2>
+    </header>
 
-  <tui-scrollbar>
     <div class="scroll-content">
       <label tuiInputFiles>
         <input
@@ -297,51 +296,51 @@
         </aside>
       }
     </div>
-  </tui-scrollbar>
 
-  <footer style="flex-wrap: wrap">
-    @let saveTitle = 'GENERAL.SAVE' | translate;
-    <button
-      tuiButton
-      appearance="primary"
-      [iconStart]="icons.save"
-      [tuiHint]="saveTitle"
-      type="submit"
-      [disabled]="isSaveDisabled()"
-      [loading]="loading()">
-      @if (!isNarrow()) {
-        {{ saveTitle }}
-      }
-    </button>
-
-    @let logOutTitle = 'GENERAL.LOG_OUT' | translate;
-    <button
-      tuiButton
-      appearance="primary-destructive"
-      [iconStart]="icons['log-out']"
-      type="button"
-      [tuiHint]="logOutTitle"
-      tuiHintAppearance="accent"
-      (click)="logout()">
-      @if (!isNarrow()) {
-        {{ logOutTitle }}
-      }
-    </button>
-
-    @if (canDeleteAccount()) {
-      @let dleeteTitle = 'SETTINGS.PROFILE.DELETE' | translate;
+    <footer class="profile-actions">
+      @let saveTitle = 'GENERAL.SAVE' | translate;
       <button
         tuiButton
-        appearance="negative"
-        [iconStart]="icons.delete"
-        type="button"
-        [tuiHint]="dleeteTitle"
-        tuiHintAppearance="negative"
-        (click)="openDelete()">
+        appearance="primary"
+        [iconStart]="icons.save"
+        [tuiHint]="saveTitle"
+        type="submit"
+        [disabled]="isSaveDisabled()"
+        [loading]="loading()">
         @if (!isNarrow()) {
-          {{ dleeteTitle }}
+          {{ saveTitle }}
         }
       </button>
-    }
-  </footer>
+
+      @let logOutTitle = 'GENERAL.LOG_OUT' | translate;
+      <button
+        tuiButton
+        appearance="primary-destructive"
+        [iconStart]="icons['log-out']"
+        type="button"
+        [tuiHint]="logOutTitle"
+        tuiHintAppearance="accent"
+        (click)="logout()">
+        @if (!isNarrow()) {
+          {{ logOutTitle }}
+        }
+      </button>
+
+      @if (canDeleteAccount()) {
+        @let dleeteTitle = 'SETTINGS.PROFILE.DELETE' | translate;
+        <button
+          tuiButton
+          appearance="negative"
+          [iconStart]="icons.delete"
+          type="button"
+          [tuiHint]="dleeteTitle"
+          tuiHintAppearance="negative"
+          (click)="openDelete()">
+          @if (!isNarrow()) {
+            {{ dleeteTitle }}
+          }
+        </button>
+      }
+    </footer>
+  </app-route-page>
 </form>

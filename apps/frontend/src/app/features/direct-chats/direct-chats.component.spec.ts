@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
@@ -53,6 +53,7 @@ describe('DirectChatsComponent', () => {
     await TestBed.configureTestingModule({
       imports: [DirectChatsComponent],
       providers: [
+        provideRouter([]),
         provideTranslateService(),
         provideStore({
           auth: () => ({ user: mockUser }),
@@ -83,6 +84,7 @@ describe('DirectChatsComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+    expect(component['hasChildRoute']()).toBe(false);
   });
 
   it('should load direct chats and users on init', () => {

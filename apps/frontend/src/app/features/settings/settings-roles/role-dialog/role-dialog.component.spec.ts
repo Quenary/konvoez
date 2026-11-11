@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
 import { provideTranslateService } from '@ngx-translate/core';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import {
   TUI_OPTIONS,
   TuiDialogContext,
@@ -19,6 +20,11 @@ describe('RoleDialogComponent', () => {
   const mockRolesApiService = {
     create: vi.fn(),
     update: vi.fn(),
+    remove: vi.fn(),
+  };
+
+  const mockResponsiveDialogService = {
+    open: vi.fn().mockReturnValue(of(false)),
   };
 
   const existingRole: IRole = {
@@ -42,6 +48,7 @@ describe('RoleDialogComponent', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    TestBed.resetTestingModule();
 
     await TestBed.configureTestingModule({
       imports: [RoleDialogComponent],
@@ -56,6 +63,10 @@ describe('RoleDialogComponent', () => {
         },
         provideTranslateService(),
         { provide: RolesApiService, useValue: mockRolesApiService },
+        {
+          provide: TuiResponsiveDialogService,
+          useValue: mockResponsiveDialogService,
+        },
         {
           provide: TuiNotificationService,
           useValue: { open: vi.fn().mockReturnValue(of(undefined)) },
@@ -138,5 +149,81 @@ describe('RoleDialogComponent', () => {
   it('completes with null on close', () => {
     component['close']();
     expect(mockDialogContext.completeWith).toHaveBeenCalledWith(null);
+  });
+
+  it('shows a delete button for a custom role', () => {
+    const footer = fixture.nativeElement.querySelector('footer');
+
+    expect(footer?.textContent).toContain('GENERAL.DELETE');
+  });
+
+  it('deletes a custom role after confirmation and closes the dialog', () => {
+    mockRolesApiService.remove.mockReturnValue(of(undefined));
+    mockResponsiveDialogService.open.mockReturnValue(of(true));
+
+    component['deleteRole']();
+
+    expect(mockRolesApiService.remove).toHaveBeenCalledWith(existingRole.id);
+    expect(mockDialogContext.completeWith).toHaveBeenCalledWith(null);
+  });
+});
+
+describe('RoleDialogComponent default role', () => {
+  const defaultRole: IRole = {
+    id: 2,
+    name: 'User',
+    color: null,
+    priority: 0,
+    isDefault: true,
+    mentionable: false,
+    permissions: [EPermission.SEND_MESSAGES],
+    createdAt: new Date(),
+    updatedAt: null,
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    TestBed.resetTestingModule();
+
+    await TestBed.configureTestingModule({
+      imports: [RoleDialogComponent],
+      providers: [
+        {
+          provide: TUI_OPTIONS,
+          useValue: {
+            apis: 'stable',
+            fontScaling: false,
+            scrollbars: 'native',
+          },
+        },
+        provideTranslateService(),
+        {
+          provide: RolesApiService,
+          useValue: { create: vi.fn(), update: vi.fn(), remove: vi.fn() },
+        },
+        {
+          provide: TuiResponsiveDialogService,
+          useValue: { open: vi.fn().mockReturnValue(of(false)) },
+        },
+        {
+          provide: TuiNotificationService,
+          useValue: { open: vi.fn().mockReturnValue(of(undefined)) },
+        },
+        {
+          provide: POLYMORPHEUS_CONTEXT,
+          useValue: { data: defaultRole, completeWith: vi.fn() },
+        },
+      ],
+    }).compileComponents();
+  });
+
+  it('does not offer deletion of a default role', async () => {
+    const fixture = TestBed.createComponent(RoleDialogComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(
+      fixture.nativeElement.querySelector('footer')?.textContent,
+    ).not.toContain('GENERAL.DELETE');
   });
 });

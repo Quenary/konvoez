@@ -24,7 +24,14 @@ import {
   TuiNotificationService,
   TuiTextfield,
 } from '@taiga-ui/core';
-import { TuiButtonLoading, TuiInputColor, TuiSwitch } from '@taiga-ui/kit';
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
+import {
+  TUI_CONFIRM,
+  TuiButtonLoading,
+  TuiConfirmData,
+  TuiInputColor,
+  TuiSwitch,
+} from '@taiga-ui/kit';
 import { TuiForm } from '@taiga-ui/layout';
 import { RolesApiService } from '@core/api/roles-api.service';
 import { ApiErrorService } from '@core/services/api-error.service';
@@ -119,10 +126,13 @@ export class RoleDialogComponent {
   private readonly apiErrorService = inject(ApiErrorService);
   private readonly notificationService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
+  private readonly responsiveDialogService = inject(TuiResponsiveDialogService);
 
   protected readonly availablePermissions = AVAILABLE_PERMISSIONS;
   protected readonly isEdit = Boolean(this.context.data?.id);
+  protected readonly canDelete = this.isEdit && !this.context.data?.isDefault;
   protected readonly loading = signal(false);
+  protected readonly deleting = signal(false);
   protected readonly selectedPermissions = signal<Set<EPermission>>(
     new Set(this.context.data?.permissions ?? []),
   );
@@ -245,5 +255,48 @@ export class RoleDialogComponent {
 
   protected close(): void {
     this.context.completeWith(null);
+  }
+
+  protected deleteRole(): void {
+    const role = this.context.data;
+    if (!role || role.isDefault || this.deleting()) {
+      return;
+    }
+
+    this.responsiveDialogService
+      .open<boolean>(TUI_CONFIRM, {
+        label: this.translateService.instant('SETTINGS.ROLES.DELETE_CONFIRM'),
+        data: {
+          yes: this.translateService.instant('GENERAL.DELETE'),
+          no: this.translateService.instant('GENERAL.CANCEL'),
+          appearance: 'negative',
+        } satisfies TuiConfirmData,
+      })
+      .subscribe((confirmed) => {
+        if (!confirmed) {
+          return;
+        }
+
+        this.deleting.set(true);
+        this.rolesApiService.remove(role.id).subscribe({
+          next: () => {
+            this.deleting.set(false);
+            this.context.completeWith(null);
+          },
+          error: (err) => {
+            this.deleting.set(false);
+            this.notify(err);
+          },
+        });
+      });
+  }
+
+  private notify(err: unknown): void {
+    this.notificationService
+      .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
+        appearance: 'negative',
+        label: this.translateService.instant('GENERAL.REQ_ERR'),
+      })
+      .subscribe();
   }
 }

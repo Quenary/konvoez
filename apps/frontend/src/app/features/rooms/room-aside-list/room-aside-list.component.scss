@@ -1,4 +1,8 @@
 :host {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
   button[tuiAsideItem] {
     // overflow-x: clip prevents badge from expanding the item width,
     // but allows badge to overflow vertically without clipping
@@ -6,6 +10,7 @@
     overflow-y: visible;
   }
 
+  .room-rows,
   .voice-rooms-group {
     display: flex;
     flex-direction: column;
@@ -47,15 +52,6 @@
     overflow: visible;
   }
 
-  // xs avatar is 1.5rem, size-s icon is 1rem. Shift half the difference
-  // so the avatar is centered on the icon, not aligned by the left edge.
-  .room-item {
-    > .aside-badge,
-    > app-pulse-indicator {
-      margin-inline-start: calc(var(--t-margin) - 0.25rem);
-    }
-  }
-
   &.collapsed {
     .hanging-call {
       // Drop the section indent, keep the size-s inline padding (0.625rem).
@@ -74,6 +70,15 @@
 
     tui-icon {
       color: currentColor;
+    }
+  }
+
+  // xs avatar is 1.5rem, size-s icon is 1rem. Shift half the difference
+  // so the avatar is centered on the icon, not aligned by the left edge.
+  .room-item {
+    > .aside-badge,
+    > app-pulse-indicator {
+      margin-inline-start: calc(var(--t-margin) - 0.25rem);
     }
   }
 }

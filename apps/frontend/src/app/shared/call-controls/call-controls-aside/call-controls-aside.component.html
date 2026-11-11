@@ -1,4 +1,4 @@
-@if (isSessionActive()) {
+@if (callControlsService.isSessionActive()) {
   <div
     tuiGroup
     [orientation]="collapsed() ? 'vertical' : 'horizontal'">
@@ -8,14 +8,14 @@
       type="button"
       tuiHintAppearance="floating"
       [tuiHint]="qualityHintTemplate"
-      [attr.aria-label]="qualityAriaLabel()"
+      [attr.aria-label]="callControlsService.qualityAriaLabel()"
       class="panel-button-spaced"
-      (click)="clickSession()">
+      (click)="callControlsService.openSession()">
       <tui-icon
         [icon]="icons['audio-lines']"
-        [style.color]="indicatorColor()"></tui-icon>
+        [style.color]="callControlsService.indicatorColor()"></tui-icon>
       @if (!collapsed()) {
-        <span tuiFade>{{ sessionTitle() | translate }}</span>
+        <span tuiFade>{{ callControlsService.sessionTitle() }}</span>
       }
     </button>
     <button
@@ -26,17 +26,15 @@
       tuiHintAppearance="floating"
       [tuiHint]="'CALL.HANGUP' | translate"
       class="panel-button-fixed"
-      (click)="leaveSession()">
+      (click)="callControlsService.leaveSession()">
     </button>
   </div>
 
   <ng-template #qualityHintTemplate>
     @if (collapsed()) {
-      <div>{{ sessionTitle() | translate }}</div>
+      <div>{{ callControlsService.sessionTitle() }}</div>
     }
-    <div>
-      {{ connectionHintKey() | translate: { kbps: qualityBitrateKbps() } }}
-    </div>
+    <div>{{ callControlsService.qualityText() }}</div>
   </ng-template>
 }
 
@@ -47,21 +45,29 @@
     tuiIconButton
     type="button"
     tuiHintAppearance="floating"
-    [tuiHint]="micHintKey() | translate"
-    [iconStart]="microphoneMuted() ? icons['mic-off'] : icons.mic"
-    [appearance]="microphoneMuted() ? 'negative' : 'neutral'"
-    (click)="toggleMicrophoneMuted()">
+    [tuiHint]="callControlsService.micLabelKey() | translate"
+    [iconStart]="
+      callControlsService.microphoneMuted() ? icons['mic-off'] : icons.mic
+    "
+    [appearance]="
+      callControlsService.microphoneMuted() ? 'negative' : 'neutral'
+    "
+    (click)="callControlsService.toggleMicrophone()">
   </button>
   <button
     tuiIconButton
     type="button"
     tuiHintAppearance="floating"
-    [tuiHint]="speakerHintKey() | translate"
-    [iconStart]="speakerMuted() ? icons['headphone-off'] : icons.headphones"
-    [appearance]="speakerMuted() ? 'negative' : 'neutral'"
-    (click)="toggleSpeakerMuted()">
+    [tuiHint]="callControlsService.speakerLabelKey() | translate"
+    [iconStart]="
+      callControlsService.speakerMuted()
+        ? icons['headphone-off']
+        : icons.headphones
+    "
+    [appearance]="callControlsService.speakerMuted() ? 'negative' : 'neutral'"
+    (click)="callControlsService.toggleSpeaker()">
   </button>
-  @if (cameraOn()) {
+  @if (callControlsService.cameraOn()) {
     <button
       tuiIconButton
       [iconStart]="icons.video"
@@ -69,10 +75,10 @@
       type="button"
       tuiHintAppearance="floating"
       [tuiHint]="'CALL.CAMERA_OFF' | translate"
-      (click)="stopCamera()">
+      (click)="callControlsService.stopCamera()">
     </button>
   }
-  @if (screenOn()) {
+  @if (callControlsService.screenOn()) {
     <button
       tuiIconButton
       [iconStart]="icons['screen-share-off']"
@@ -80,7 +86,7 @@
       type="button"
       tuiHintAppearance="floating"
       [tuiHint]="'CALL.SCREEN_OFF' | translate"
-      (click)="stopScreen()">
+      (click)="callControlsService.stopScreen()">
     </button>
   }
   <button
@@ -88,8 +94,8 @@
     type="button"
     tuiHintAppearance="floating"
     [tuiHint]="'CALL.OPEN_DEVICES_SETTINGS' | translate"
-    [iconStart]="icons.settings"
+    [iconStart]="icons['settings-devices']"
     appearance="neutral"
-    (click)="openDevicesSettings()">
+    (click)="callControlsService.openDevicesSettings()">
   </button>
 </div>
