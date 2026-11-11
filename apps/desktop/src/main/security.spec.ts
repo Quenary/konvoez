@@ -11,6 +11,8 @@ describe('security policies', () => {
       const serverPage = pathToFileURL(getLocalPagePath('server')).href;
       expect(isAllowedNavigation(serverPage, server)).toBe(true);
       expect(isAllowedNavigation(serverPage, null)).toBe(true);
+      expect(isAllowedNavigation(`${serverPage}#/server`, server)).toBe(true);
+      expect(isAllowedNavigation(`${serverPage}#/settings`, null)).toBe(true);
 
       const outsideFile = pathToFileURL('/etc/passwd').href;
       expect(isAllowedNavigation(outsideFile, server)).toBe(false);

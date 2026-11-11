@@ -25,7 +25,7 @@ Before proposing a plan, architecture, or **any** code edit in this repo:
 - Desktop Native Rust Module (`libs/desktop-native`) - `libs/desktop-native/AGENTS.md`
 - Shared contracts: Zod schemas, enums, types (`libs/shared`) — `libs/shared/README.md`
 - Client shell: validation, adapters, i18n (`libs/client-shell`) — `libs/client-shell/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)
-- Client UI kit, Lit primitives (`libs/ui-kit`) — `libs/ui-kit/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)
+- Desktop UI, local dialogs (`apps/desktop-ui`) — `apps/desktop-ui/README.md`, `docs/CONTRIBUTING.md`
 - Feature behavior (rooms, mentions, notifications, attachments, reactions, chat reading, user management, password recovery, two-factor authentication, email verification) — the matching `docs/*.md`
 - Networking, WebRTC ports, Docker — `docs/NETWORKING.md`
 

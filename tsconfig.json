@@ -8,7 +8,7 @@
       "path": "./libs/client-shell"
     },
     {
-      "path": "./libs/ui-kit"
+      "path": "./apps/desktop-ui"
     },
     {
       "path": "./apps/frontend"
@@ -25,11 +25,7 @@
     "skipLibCheck": true,
     "paths": {
       "@konvoez/shared": ["./libs/shared/src/index.ts"],
-      "@konvoez/client-shell": ["./libs/client-shell/src/index.ts"],
-      "@konvoez/ui-kit/i18n-controller": [
-        "./libs/ui-kit/src/i18n-controller/i18n-controller.ts"
-      ],
-      "@konvoez/ui-kit/*": ["./libs/ui-kit/src/*"]
+      "@konvoez/client-shell": ["./libs/client-shell/src/index.ts"]
     }
   }
 }

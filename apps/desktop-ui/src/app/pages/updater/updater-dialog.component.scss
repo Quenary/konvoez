@@ -1,0 +1,25 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+p {
+  margin: 0;
+
+  &.secondary {
+    color: var(--tui-text-secondary);
+  }
+}
+
+.content-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--tui-text-secondary);
+}

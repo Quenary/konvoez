@@ -53,17 +53,6 @@ export default defineConfig({
           '../../libs/client-shell/src/index.ts',
         ),
       },
-      {
-        find: /^@konvoez\/ui-kit\/i18n-controller$/,
-        replacement: path.resolve(
-          __dirname,
-          '../../libs/ui-kit/src/i18n-controller/i18n-controller.ts',
-        ),
-      },
-      {
-        find: /^@konvoez\/ui-kit\/(.+)$/,
-        replacement: path.resolve(__dirname, '../../libs/ui-kit/src/$1/$1.ts'),
-      },
     ],
   },
 });

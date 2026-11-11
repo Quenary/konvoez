@@ -1,0 +1,204 @@
+@switch (updaterState().status) {
+  @case ('checking') {
+    <app-dialog-layout [heading]="'updater.checking' | i18n">
+      <div class="content-column">
+        <progress
+          size="m"
+          tuiProgressBar></progress>
+        <p class="tui-text_body-s secondary">{{ 'updater.checking' | i18n }}</p>
+      </div>
+      <button
+        actions
+        tuiButton
+        appearance="secondary"
+        size="m"
+        type="button"
+        (click)="handleClose()">
+        {{ 'updater.close' | i18n }}
+      </button>
+    </app-dialog-layout>
+  }
+
+  @case ('up-to-date') {
+    <app-dialog-layout heading="Konvoez">
+      <div class="content-column">
+        <p class="tui-text_body-s">{{ 'updater.upToDate' | i18n }}</p>
+      </div>
+      <button
+        actions
+        tuiButton
+        appearance="secondary"
+        size="m"
+        type="button"
+        (click)="handleClose()">
+        {{ 'updater.close' | i18n }}
+      </button>
+    </app-dialog-layout>
+  }
+
+  @case ('available') {
+    <app-dialog-layout [heading]="'updater.updateAvailable' | i18n">
+      <div class="content-column">
+        <p class="tui-text_body-s">
+          @if (updaterState().version; as ver) {
+            {{ 'updater.version' | i18n: { version: ver } }}
+          } @else {
+            {{ 'updater.updateAvailable' | i18n }}
+          }
+        </p>
+      </div>
+      <button
+        actions
+        tuiButton
+        appearance="secondary"
+        size="m"
+        type="button"
+        (click)="handleLater()">
+        {{ 'updater.remindLater' | i18n }}
+      </button>
+      <button
+        actions
+        tuiButton
+        appearance="primary"
+        size="m"
+        type="button"
+        (click)="handleDownload()">
+        {{ 'updater.downloadAndUpdate' | i18n }}
+      </button>
+    </app-dialog-layout>
+  }
+
+  @case ('downloading') {
+    <app-dialog-layout [heading]="'updater.downloading' | i18n">
+      <div class="content-column">
+        <progress
+          size="m"
+          tuiProgressBar
+          [max]="100"
+          [attr.value]="updaterState().progress?.percent ?? 0"></progress>
+        @if (progressDetails(); as details) {
+          <div class="progress-info">
+            <span>{{ details }}</span>
+          </div>
+        }
+        <p class="tui-text_body-s secondary">{{
+          'updater.downloadingHint' | i18n
+        }}</p>
+      </div>
+      <button
+        actions
+        tuiButton
+        appearance="secondary"
+        size="m"
+        type="button"
+        (click)="handleClose()">
+        {{ 'updater.close' | i18n }}
+      </button>
+    </app-dialog-layout>
+  }
+
+  @case ('ready-deferred') {
+    <app-dialog-layout [heading]="'updater.ready' | i18n">
+      <div class="content-column">
+        <p class="tui-text_body-s">{{ 'updater.readyDeferred' | i18n }}</p>
+      </div>
+      <button
+        actions
+        tuiButton
+        appearance="secondary"
+        size="m"
+        type="button"
+        (click)="handleLater()">
+        {{ 'updater.later' | i18n }}
+      </button>
+      <button
+        actions
+        tuiButton
+        appearance="primary"
+        size="m"
+        type="button"
+        (click)="handleRestart()">
+        {{ 'updater.restartNow' | i18n }}
+      </button>
+    </app-dialog-layout>
+  }
+
+  @case ('ready') {
+    <app-dialog-layout heading="Konvoez">
+      <div class="content-column">
+        <p class="tui-text_body-s">{{ 'updater.ready' | i18n }}</p>
+        @if (updaterState().version; as ver) {
+          <p class="tui-text_body-s secondary">
+            {{ 'updater.version' | i18n: { version: ver } }}
+          </p>
+        }
+      </div>
+      <button
+        actions
+        tuiButton
+        appearance="secondary"
+        size="m"
+        type="button"
+        (click)="handleLater()">
+        {{ 'updater.later' | i18n }}
+      </button>
+      <button
+        actions
+        tuiButton
+        appearance="primary"
+        size="m"
+        type="button"
+        (click)="handleRestart()">
+        {{ 'updater.restartNow' | i18n }}
+      </button>
+    </app-dialog-layout>
+  }
+
+  @case ('error') {
+    <app-dialog-layout heading="Konvoez">
+      <div class="content-column">
+        <aside
+          tuiNotification
+          appearance="negative"
+          role="alert">
+          {{ updaterState().error || 'updater.checkFailed' | i18n }}
+        </aside>
+      </div>
+      <button
+        actions
+        tuiButton
+        appearance="secondary"
+        size="m"
+        type="button"
+        (click)="handleClose()">
+        {{ 'updater.close' | i18n }}
+      </button>
+      <button
+        actions
+        tuiButton
+        appearance="primary"
+        size="m"
+        type="button"
+        (click)="handleRetry()">
+        {{ 'updater.retry' | i18n }}
+      </button>
+    </app-dialog-layout>
+  }
+
+  @case ('disabled') {
+    <app-dialog-layout heading="Konvoez">
+      <div class="content-column">
+        <p class="tui-text_body-s">{{ 'updater.disabled' | i18n }}</p>
+      </div>
+      <button
+        actions
+        tuiButton
+        appearance="secondary"
+        size="m"
+        type="button"
+        (click)="handleClose()">
+        {{ 'updater.close' | i18n }}
+      </button>
+    </app-dialog-layout>
+  }
+}

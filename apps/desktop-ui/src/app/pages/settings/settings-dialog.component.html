@@ -1,0 +1,66 @@
+<app-dialog-layout [heading]="'settings.title' | i18n">
+  <section class="section">
+    <h2 tuiTitle>{{ 'settings.hotkeys' | i18n }}</h2>
+    <p class="tui-text_body-s">{{ hotkeysHintKey() | i18n }}</p>
+
+    <div class="hotkeys-group">
+      <app-hotkey-input
+        [label]="'settings.toggleMic' | i18n"
+        [value]="micKey()"
+        [recordingPlaceholder]="'settings.pressKey' | i18n"
+        [clearHint]="'settings.clear' | i18n"
+        [error]="micError()"
+        [hint]="micHint()"
+        (valueChange)="micKey.set($event)"
+        (recordingStart)="handleRecordingStart()"
+        (recordingStop)="handleRecordingStop()" />
+
+      <app-hotkey-input
+        [label]="'settings.toggleSpeaker' | i18n"
+        [value]="speakerKey()"
+        [recordingPlaceholder]="'settings.pressKey' | i18n"
+        [clearHint]="'settings.clear' | i18n"
+        [error]="speakerError()"
+        [hint]="speakerHint()"
+        (valueChange)="speakerKey.set($event)"
+        (recordingStart)="handleRecordingStart()"
+        (recordingStop)="handleRecordingStop()" />
+    </div>
+  </section>
+
+  <section class="section">
+    <label class="autostart-label">
+      <input
+        tuiCheckbox
+        type="checkbox"
+        [checked]="autostart()"
+        (change)="onAutostartChange($event)" />
+      <span>{{ 'settings.autostart' | i18n }}</span>
+    </label>
+  </section>
+
+  @if (saveMessage(); as msg) {
+    <aside
+      tuiNotification
+      role="status"
+      [appearance]="msg.variant === 'success' ? 'positive' : 'negative'">
+      {{ msg.text }}
+    </aside>
+  }
+
+  <button
+    actions
+    tuiButton
+    appearance="primary"
+    size="m"
+    type="button"
+    [disabled]="loading()"
+    (click)="handleSave()">
+    @if (loading()) {
+      <tui-loader
+        size="s"
+        class="btn-loader" />
+    }
+    {{ 'settings.save' | i18n }}
+  </button>
+</app-dialog-layout>
