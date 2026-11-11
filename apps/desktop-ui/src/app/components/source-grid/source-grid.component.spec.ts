@@ -55,4 +55,31 @@ describe('SourceGridComponent', () => {
 
     expect(onSelect).toHaveBeenCalledWith('window:1');
   });
+
+  it('moves vertically by the rendered column count', () => {
+    const sources = ['a', 'b', 'c', 'd'].map((id) => ({
+      id,
+      name: id,
+      thumbnailUrl: '',
+      appIconUrl: null,
+    }));
+    fixture = TestBed.createComponent(SourceGridComponent);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('sources', sources);
+    fixture.componentRef.setInput('value', 'a');
+    fixture.detectChanges();
+
+    const grid = (fixture.nativeElement as HTMLElement).querySelector(
+      '.grid',
+    ) as HTMLElement;
+    grid.style.gridTemplateColumns = '80px 80px';
+
+    const onSelect = vi.fn();
+    component.sourceSelect.subscribe(onSelect);
+
+    const host = fixture.nativeElement as HTMLElement;
+    host.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+
+    expect(onSelect).toHaveBeenCalledWith('c');
+  });
 });

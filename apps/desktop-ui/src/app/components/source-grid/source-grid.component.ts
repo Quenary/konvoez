@@ -1,8 +1,10 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
   input,
   output,
+  viewChild,
   viewChildren,
 } from '@angular/core';
 import type { ISerializableSource } from '@konvoez/client-shell';
@@ -18,6 +20,7 @@ import { SourceCardComponent } from '../source-card/source-card.component';
       </div>
     } @else {
       <div
+        #grid
         class="grid"
         role="listbox">
         @for (source of sources(); track source.id; let idx = $index) {
@@ -50,6 +53,7 @@ export class SourceGridComponent {
   public readonly sourceActivate = output<string>();
 
   private readonly cardComponents = viewChildren(SourceCardComponent);
+  private readonly grid = viewChild<ElementRef<HTMLElement>>('grid');
 
   protected onCardSelect(sourceId: string): void {
     this.sourceSelect.emit(sourceId);
@@ -76,10 +80,13 @@ export class SourceGridComponent {
       nextIndex = (validCurrent - 1 + srcList.length) % srcList.length;
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      nextIndex = Math.min(validCurrent + 2, srcList.length - 1);
+      nextIndex = Math.min(
+        validCurrent + this.columnCount(),
+        srcList.length - 1,
+      );
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      nextIndex = Math.max(validCurrent - 2, 0);
+      nextIndex = Math.max(validCurrent - this.columnCount(), 0);
     } else {
       return;
     }
@@ -92,5 +99,14 @@ export class SourceGridComponent {
         cards[nextIndex]?.focus();
       });
     }
+  }
+
+  private columnCount(): number {
+    const element = this.grid()?.nativeElement;
+    if (!element) return 1;
+    const tracks = getComputedStyle(element)
+      .gridTemplateColumns.split(' ')
+      .filter((track) => track.endsWith('px'));
+    return Math.max(tracks.length, 1);
   }
 }
