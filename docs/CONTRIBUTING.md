@@ -41,7 +41,7 @@ flowchart LR
   desktop --> native
 ```
 
-`apps/frontend` must not import desktop code. `nx build desktop` builds `desktop-ui` first; the packaged app includes a `.node` only when `desktop-native` was built separately. Desktop dialogs are rendered by `apps/desktop-ui` and talk to the host only through adapter contracts from `@konvoez/client-shell`.
+`apps/frontend` must not import desktop code. `nx build desktop` and `nx test desktop` build `desktop-ui` first; the packaged app includes a `.node` only when `desktop-native` was built separately. Desktop dialogs are rendered by `apps/desktop-ui` and talk to the host only through adapter contracts from `@konvoez/client-shell`.
 
 ## Getting started
 

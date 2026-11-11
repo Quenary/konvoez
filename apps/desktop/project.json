@@ -25,6 +25,7 @@
     },
     "test": {
       "executor": "nx:run-commands",
+      "dependsOn": ["desktop-ui:build"],
       "options": {
         "command": "vitest run",
         "cwd": "apps/desktop"

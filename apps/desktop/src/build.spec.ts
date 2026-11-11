@@ -107,6 +107,12 @@ describe('desktop build', () => {
     }
   });
 
+  it('places icon.ico and icon.png in dist/icons', () => {
+    const distIconsDir = path.resolve(desktopDir, 'dist/icons');
+    expect(fs.existsSync(path.join(distIconsDir, 'icon.ico'))).toBe(true);
+    expect(fs.existsSync(path.join(distIconsDir, 'icon.png'))).toBe(true);
+  });
+
   it('ensures desktop-ui component sources only reference inherited Taiga variables', () => {
     const desktopUiAppDir = path.resolve(desktopDir, '../desktop-ui/src/app');
     const localTokenRegex = /--tui-[a-z0-9-]+\s*:/;
