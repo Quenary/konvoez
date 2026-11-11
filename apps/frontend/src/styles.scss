@@ -47,3 +47,14 @@ body {
     flex-shrink: 0;
   }
 }
+
+// Taiga cells keep an end border after dropping the start edge.
+// Settings tables only use horizontal separators.
+table[tuiTable] {
+  th[tuiTh],
+  td[tuiTd] {
+    border-inline: none;
+    border-left: none;
+    border-right: none;
+  }
+}

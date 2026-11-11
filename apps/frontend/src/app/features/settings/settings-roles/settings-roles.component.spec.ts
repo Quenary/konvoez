@@ -110,22 +110,23 @@ describe('SettingsRolesComponent', () => {
     expect(mockResponsiveDialogService.open).toHaveBeenCalled();
   });
 
-  it('prevents deleting a default role', async () => {
-    await setupTestBed([defaultRole]);
-    component['deleteRole'](defaultRole);
-
-    expect(mockNotificationService.open).toHaveBeenCalled();
-    expect(mockRolesApiService.remove).not.toHaveBeenCalled();
-  });
-
-  it('deletes custom role after confirmation', async () => {
-    mockRolesApiService.remove.mockReturnValue(of(undefined));
-    mockResponsiveDialogService.open.mockReturnValue(of(true));
+  it('opens the edit dialog when a role row is clicked', async () => {
     await setupTestBed([sampleRole]);
+    const row = fixture.nativeElement.querySelector(
+      '.role-row',
+    ) as HTMLTableRowElement;
 
-    component['deleteRole'](sampleRole);
+    row.click();
+    await fixture.whenStable();
 
     expect(mockResponsiveDialogService.open).toHaveBeenCalled();
-    expect(mockRolesApiService.remove).toHaveBeenCalledWith(sampleRole.id);
+  });
+
+  it('renders role rows without action buttons', async () => {
+    await setupTestBed([sampleRole, defaultRole]);
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('.actions-cell')).toBeNull();
+    expect(compiled.querySelectorAll('tbody button').length).toBe(0);
   });
 });

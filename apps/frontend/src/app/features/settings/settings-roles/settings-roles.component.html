@@ -46,16 +46,15 @@
             class="col-permissions">
             {{ 'SETTINGS.ROLES.TABLE.PERMISSIONS' | translate }}
           </th>
-          <th
-            tuiTh
-            class="col-actions">
-            {{ 'SETTINGS.ROLES.TABLE.ACTIONS' | translate }}
-          </th>
         </tr>
       </thead>
       <tbody tuiTbody>
         @for (role of rolesResource.value(); track role.id) {
-          <tr>
+          <tr
+            class="role-row"
+            tabindex="0"
+            (click)="openEditDialog(role)"
+            (keydown.enter)="openEditDialog(role)">
             <td
               tuiTd
               class="col-name">
@@ -101,39 +100,12 @@
                 }}
               </span>
             </td>
-
-            <td
-              tuiTd
-              class="col-actions">
-              <div class="actions-cell">
-                <button
-                  appearance="flat"
-                  size="xs"
-                  tuiButton
-                  [iconStart]="icons.edit"
-                  type="button"
-                  (click)="openEditDialog(role)">
-                  {{ 'GENERAL.EDIT' | translate }}
-                </button>
-                @if (!role.isDefault) {
-                  <button
-                    appearance="action-grayscale"
-                    size="xs"
-                    tuiButton
-                    [iconStart]="icons.delete"
-                    type="button"
-                    (click)="deleteRole(role)">
-                    {{ 'GENERAL.DELETE' | translate }}
-                  </button>
-                }
-              </div>
-            </td>
           </tr>
         } @empty {
           <tr>
             <td
               tuiTd
-              colspan="4"
+              colspan="3"
               class="empty-cell">
               {{ 'SETTINGS.ROLES.NO_ROLES' | translate }}
             </td>

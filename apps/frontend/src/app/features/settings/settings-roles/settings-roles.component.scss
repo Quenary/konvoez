@@ -29,10 +29,8 @@
       font-weight: 500;
     }
 
-    .actions-cell {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+    .role-row {
+      cursor: pointer;
     }
 
     .empty-cell {

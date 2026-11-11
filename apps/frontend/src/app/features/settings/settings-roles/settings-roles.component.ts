@@ -18,7 +18,6 @@ import {
 import { TuiBadge, TuiFade } from '@taiga-ui/kit';
 import { TuiHeader } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
-import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { catchError, finalize, of } from 'rxjs';
 import { RolesApiService } from '@core/api/roles-api.service';
@@ -108,40 +107,6 @@ export class SettingsRolesComponent {
       )
       .pipe(finalize(() => this.rolesResource.reload()))
       .subscribe();
-  }
-
-  protected deleteRole(role: IRole): void {
-    if (role.isDefault) {
-      this.notificationService
-        .open(
-          this.translateService.instant('SETTINGS.ROLES.CANNOT_DELETE_DEFAULT'),
-          { appearance: 'negative' },
-        )
-        .subscribe();
-      return;
-    }
-
-    this.responsiveDialogService
-      .open<boolean>(TUI_CONFIRM, {
-        label: this.translateService.instant('SETTINGS.ROLES.DELETE_CONFIRM'),
-        data: {
-          yes: this.translateService.instant('GENERAL.DELETE'),
-          no: this.translateService.instant('GENERAL.CANCEL'),
-          appearance: 'negative',
-        } satisfies TuiConfirmData,
-      })
-      .subscribe((confirmed) => {
-        if (!confirmed) return;
-
-        this.rolesApiService.remove(role.id).subscribe({
-          next: () => {
-            this.rolesResource.reload();
-          },
-          error: (err) => {
-            this.notify(err);
-          },
-        });
-      });
   }
 
   private notify(err: unknown): void {
