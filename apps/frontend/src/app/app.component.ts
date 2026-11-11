@@ -25,13 +25,13 @@ import {
   selectCurrentUser,
   selectIsAuthorized,
 } from '@core/auth/auth.selectors';
-import { TuiChevron } from '@taiga-ui/kit';
 import { TuiNavigation } from '@taiga-ui/layout';
 import { rxResource, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, filter, of } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
 import { CallControlsAsideComponent } from '@shared/call-controls/call-controls-aside/call-controls-aside.component';
 import { RoomAsideListComponent } from '@features/rooms/room-aside-list/room-aside-list.component';
+import { SettingsAsideListComponent } from '@features/settings/settings-aside-list/settings-aside-list.component';
 import { MobileTabBarComponent } from '@shared/components/mobile-tab-bar/mobile-tab-bar.component';
 import { LogoComponent } from '@shared/components/logo/logo.component';
 import { EPermission } from '@konvoez/shared';
@@ -58,6 +58,7 @@ const DEFAULT_VERSION_INFO = {
     RouterOutlet,
     TranslatePipe,
     RoomAsideListComponent,
+    SettingsAsideListComponent,
     CallControlsAsideComponent,
     MobileTabBarComponent,
     RouterLink,
@@ -66,7 +67,6 @@ const DEFAULT_VERSION_INFO = {
     PullToRefreshDirective,
     TuiButton,
     TuiNavigation,
-    TuiChevron,
     LogoComponent,
     ConnectionStateNotificationComponent,
     VoiceConnectionNotificationComponent,
@@ -111,46 +111,13 @@ export class App {
 
   protected readonly isAuthenticated =
     this.store.selectSignal(selectIsAuthorized);
-  protected readonly currentUser = this.store.selectSignal(selectCurrentUser);
-
-  protected readonly isOwner = computed(() => {
-    return Boolean(this.currentUser()?.isOwner);
-  });
-
-  protected readonly canManageInvites = computed(() => {
-    const user = this.currentUser();
-    return Boolean(
-      user?.isOwner || user?.permissions?.includes(EPermission.MANAGE_INVITES),
-    );
-  });
-
-  protected readonly canManageUsers = computed(() => {
-    const user = this.currentUser();
-    return Boolean(
-      user?.isOwner || user?.permissions?.includes(EPermission.MANAGE_USERS),
-    );
-  });
-
-  protected readonly canManageRoles = computed(() => {
-    const user = this.currentUser();
-    return Boolean(
-      user?.isOwner || user?.permissions?.includes(EPermission.MANAGE_ROLES),
-    );
-  });
+  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   protected readonly canManageSettings = computed(() => {
     const user = this.currentUser();
     return Boolean(
       user?.isOwner || user?.permissions?.includes(EPermission.MANAGE_SETTINGS),
     );
-  });
-
-  protected readonly canSeeAdminSection = computed(() => {
-    const invites = this.canManageInvites();
-    const users = this.canManageUsers();
-    const roles = this.canManageRoles();
-    const settings = this.canManageSettings();
-    return invites || users || roles || settings;
   });
 
   protected readonly isMobile = this.layoutService.isMobile;

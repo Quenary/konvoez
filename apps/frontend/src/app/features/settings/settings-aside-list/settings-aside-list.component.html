@@ -1,0 +1,22 @@
+<tui-aside-group>
+  <button
+    tuiAsideItem
+    automation-id="setting"
+    type="button"
+    [iconStart]="icons['settings']"
+    tuiChevron>
+    {{ 'MENU.SETTINGS.TITLE' | translate }}
+
+    <ng-template>
+      @for (entry of settingsList.entries(); track entry.link) {
+        <button
+          tuiAsideItem
+          type="button"
+          [iconStart]="entry.icon"
+          [routerLink]="entry.link">
+          {{ entry.labelKey | translate }}
+        </button>
+      }
+    </ng-template>
+  </button>
+</tui-aside-group>

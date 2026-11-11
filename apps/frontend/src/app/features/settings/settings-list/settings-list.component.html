@@ -7,7 +7,7 @@
   </header>
 
   <div class="settings-list">
-    @for (entry of entries(); track entry.link) {
+    @for (entry of settingsList.entries(); track entry.link) {
       <app-list-item [link]="entry.link">
         <tui-icon
           listItemLeading

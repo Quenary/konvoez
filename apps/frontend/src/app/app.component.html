@@ -40,90 +40,9 @@
                   [collapsed]="collapsed()"></app-call-controls-aside>
               }
 
-              <tui-aside-group>
-                <button
-                  tuiAsideItem
-                  automation-id="setting"
-                  type="button"
-                  [iconStart]="icons['settings']"
-                  tuiChevron>
-                  {{ 'MENU.SETTINGS.TITLE' | translate }}
-
-                  <ng-template>
-                    <button
-                      tuiAsideItem
-                      type="button"
-                      [iconStart]="icons['settings-profile']"
-                      [routerLink]="'/settings/profile'">
-                      {{ 'MENU.SETTINGS.PROFILE' | translate }}
-                    </button>
-
-                    <button
-                      tuiAsideItem
-                      type="button"
-                      [iconStart]="icons['settings-security']"
-                      [routerLink]="'/settings/security'">
-                      {{ 'MENU.SETTINGS.SECURITY' | translate }}
-                    </button>
-
-                    <button
-                      tuiAsideItem
-                      type="button"
-                      [iconStart]="icons['settings-devices']"
-                      [routerLink]="'/settings/devices'">
-                      {{ 'MENU.SETTINGS.DEVICES' | translate }}
-                    </button>
-
-                    <button
-                      tuiAsideItem
-                      type="button"
-                      [iconStart]="icons['settings-notifications']"
-                      [routerLink]="'/settings/notifications'">
-                      {{ 'MENU.SETTINGS.NOTIFICATIONS' | translate }}
-                    </button>
-
-                    @if (canManageInvites()) {
-                      <button
-                        tuiAsideItem
-                        type="button"
-                        [iconStart]="icons['settings-invites']"
-                        [routerLink]="'/settings/invites'">
-                        {{ 'MENU.SETTINGS.INVITES' | translate }}
-                      </button>
-                    }
-
-                    @if (canManageUsers()) {
-                      <button
-                        tuiAsideItem
-                        type="button"
-                        [iconStart]="icons['settings-users']"
-                        [routerLink]="'/settings/users'">
-                        {{ 'MENU.SETTINGS.USERS' | translate }}
-                      </button>
-                    }
-
-                    @if (canManageRoles()) {
-                      <button
-                        tuiAsideItem
-                        type="button"
-                        [iconStart]="icons['settings-roles']"
-                        [routerLink]="'/settings/roles'">
-                        {{ 'MENU.SETTINGS.ROLES' | translate }}
-                      </button>
-                    }
-
-                    @if (canManageSettings()) {
-                      <button
-                        tuiAsideItem
-                        type="button"
-                        [iconStart]="icons['settings-admin']"
-                        [routerLink]="'/settings/admin'">
-                        {{ 'MENU.SETTINGS.ADMIN' | translate }}
-                      </button>
-                    }
-                  </ng-template>
-                </button>
-              </tui-aside-group>
+              @defer {
+                <app-settings-aside-list></app-settings-aside-list>
+              }
 
               @if (versionInfo.value(); as v) {
                 @if (v.currentVersion) {
