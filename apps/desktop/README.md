@@ -27,7 +27,7 @@ Release tags `desktop-v*` publish installers via GitHub Actions. `electron-updat
 
 ## Usage
 
-- **Server URL**: Required on first launch; validated via `/api/v1/public/version`. Production URLs must use `https://` (`http://` only for `localhost` / `127.0.0.1`). Change via tray **Change server…** or Settings.
+- **Server URL**: Required on first launch; validated via `/api/v1/public/version`. Production URLs must use `https://` (`http://` only for `localhost` / `127.0.0.1`). Change via tray **Change server…** or Settings. Addresses added in the dialog stay on the device and can be joined later; joining validates the address the same way as a typed one.
 - **Tray**: Closing the window hides to tray (`--hidden`); voice stays active. Tray shows mute/deafen state; menu: open, mute mic, deafen, settings, change server, check updates, quit (leaves voice first). Power suspend is blocked while in a voice channel or direct call.
 - **Hotkeys**: Global toggle mic / deafen in Settings. Uses a non-blocking low-level hook on Windows (`WH_KEYBOARD_LL`) and Linux X11 (`XRecord`), ensuring keys are never blocked or swallowed. Held keys are forgotten when the hook restarts, the session locks, or a key-down arrives long after the last event for that key. On Wayland, when the native module is missing, or when the hook cannot be installed, falls back to `globalShortcut`, which captures a bound key in all apps. The settings hint follows the active mode.
 - **Notifications**: DM/call alerts over the app WebSocket as native OS notifications; Web Push is disabled in the desktop shell to avoid duplicates. Click focuses the window and navigates to the corresponding chat.

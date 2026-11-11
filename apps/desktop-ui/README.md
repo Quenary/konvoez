@@ -8,6 +8,7 @@ Standalone Angular application rendering local Electron dialog windows for the d
 - Styled with the Taiga UI theme and system UI fonts. `taiga-ui-fonts.less` is not loaded.
 - Built without inline scripts under a strict Content Security Policy (`connect-src 'none'`).
 - Communicates with Electron solely via `IKonvoezLocalBridge` injected through `KONVOEZ_LOCAL_BRIDGE` (`app.config.ts`). The production factory reads `window.konvoezLocal`.
+- The server dialog stores added addresses in `localStorage` on the device. Adding an address does not connect. Joining a saved address uses `server.saveServer`, the same path as the typed address.
 
 ## Local preview
 

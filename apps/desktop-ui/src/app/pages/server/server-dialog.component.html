@@ -1,20 +1,35 @@
 <app-dialog-layout [heading]="'server.title' | i18n">
-  <p class="tui-text_body-s">{{ 'server.subtitle' | i18n }}</p>
-
-  <tui-textfield
-    class="server-input"
-    tuiTextfieldSize="m"
-    [tuiTextfieldCleaner]="false">
-    <input
-      #inputEl
-      tuiInput
-      type="url"
-      [disabled]="loading()"
-      [placeholder]="'server.placeholder' | i18n"
-      [value]="serverUrl()"
-      (input)="onUrlInput($event)"
-      (keydown.enter)="handleConnect()" />
-  </tui-textfield>
+  <label
+    tuiLabel
+    class="server-field">
+    {{ 'server.addressLabel' | i18n }}
+    <div class="server-row">
+      <tui-textfield
+        class="server-input"
+        tuiTextfieldSize="m"
+        [tuiTextfieldCleaner]="false">
+        <input
+          #inputEl
+          tuiInput
+          type="url"
+          [disabled]="loading()"
+          [placeholder]="'server.placeholder' | i18n"
+          [value]="serverUrl()"
+          (input)="onUrlInput($event)"
+          (keydown.enter)="handleConnect()" />
+      </tui-textfield>
+      <button
+        tuiIconButton
+        appearance="secondary"
+        size="m"
+        type="button"
+        [iconStart]="'@tui.plus'"
+        [disabled]="!canAdd()"
+        tuiHintAppearance="floating"
+        [tuiHint]="'server.add' | i18n"
+        (click)="handleAdd()"></button>
+    </div>
+  </label>
 
   @if (error(); as err) {
     <aside
@@ -23,6 +38,39 @@
       role="alert">
       {{ err }}
     </aside>
+  }
+
+  @if (savedServers().length) {
+    <section class="saved-servers">
+      <h2 tuiTitle>{{ 'server.savedServers' | i18n }}</h2>
+      <ul class="saved-server-list">
+        @for (server of savedServers(); track server) {
+          <li class="saved-server">
+            <span class="saved-server-address">{{ server }}</span>
+            <button
+              tuiIconButton
+              appearance="negative"
+              size="s"
+              type="button"
+              [iconStart]="'@tui.trash'"
+              [disabled]="loading()"
+              tuiHintAppearance="floating"
+              [tuiHint]="'server.remove' | i18n"
+              (click)="handleRemove(server)"></button>
+            <button
+              tuiIconButton
+              appearance="primary"
+              size="s"
+              type="button"
+              [iconStart]="'@tui.log-in'"
+              [disabled]="loading()"
+              tuiHintAppearance="floating"
+              [tuiHint]="'server.join' | i18n"
+              (click)="handleConnect(server)"></button>
+          </li>
+        }
+      </ul>
+    </section>
   }
 
   <button
