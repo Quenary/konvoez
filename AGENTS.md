@@ -37,6 +37,7 @@ Apply a principle only when it makes this change simpler. Do not reshape the cod
 
 - **SOLID, KISS, DRY, YAGNI.** Follow the design already in the touched code. Prefer a clear, small change over a new abstraction, a copied variant, or behavior the task does not need.
 - **Scope.** Make the smallest change that fully solves the problem. Do not refactor unrelated code. Keep the existing architecture unless there is a strong reason to change it.
+- **Helpers.** Move a function into its own file or a shared helper only when more than one class or module uses it. Otherwise keep it as a private method of the class that needs it.
 - **Comments.** Only for non-obvious intent or constraints. Do not use deprecated APIs.
 
 ## Documentation style
