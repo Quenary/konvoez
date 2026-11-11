@@ -12,7 +12,7 @@ nav[tuiTabBar] {
   padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
 }
 
-button[tuiTabBarItem].in-call {
+a[tuiTabBarItem].in-call {
   position: relative;
 
   &::after {
