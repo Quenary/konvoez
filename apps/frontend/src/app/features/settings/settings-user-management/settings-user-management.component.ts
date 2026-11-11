@@ -18,7 +18,7 @@ import {
   TuiTitle,
 } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { TuiAutoColorPipe, TuiBadge } from '@taiga-ui/kit';
+import { TuiAutoColorPipe, TuiBadge, TuiFade } from '@taiga-ui/kit';
 import { TuiHeader } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { catchError, finalize, of } from 'rxjs';
@@ -38,6 +38,7 @@ import { icons } from '@constants';
     UserAvatarComponent,
     TuiAutoColorPipe,
     TuiBadge,
+    TuiFade,
     TuiHeader,
     TuiHint,
     TuiTable,

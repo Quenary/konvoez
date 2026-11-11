@@ -15,7 +15,7 @@ import {
   TuiNotificationService,
   TuiTitle,
 } from '@taiga-ui/core';
-import { TuiButtonLoading, TuiSwitch } from '@taiga-ui/kit';
+import { TuiButtonLoading, TuiFade, TuiSwitch } from '@taiga-ui/kit';
 import { TuiForm, TuiHeader } from '@taiga-ui/layout';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -39,6 +39,7 @@ import { icons } from '@constants';
     TranslatePipe,
     TuiButton,
     TuiButtonLoading,
+    TuiFade,
     TuiForm,
     TuiHeader,
     TuiIcon,

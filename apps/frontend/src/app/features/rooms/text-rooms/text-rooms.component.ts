@@ -14,6 +14,7 @@ import {
 import { filter } from 'rxjs/operators';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiHint, TuiIcon, TuiTitle } from '@taiga-ui/core';
+import { TuiFade } from '@taiga-ui/kit';
 import { TuiHeader } from '@taiga-ui/layout';
 import { ERoomType } from '@konvoez/shared';
 import { LayoutService } from '@core/services/layout.service';
@@ -28,6 +29,7 @@ import { icons } from '@constants';
     RouterOutlet,
     TranslatePipe,
     TuiButton,
+    TuiFade,
     TuiHint,
     TuiIcon,
     TuiTitle,

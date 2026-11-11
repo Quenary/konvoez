@@ -274,7 +274,7 @@ CHAT:
 SETTINGS:
   TITLE: Настройки
   PROFILE:
-    TITLE: Настройки профиля
+    TITLE: Профиль
     DELETE: Удалить аккаунт
     EMAIL_VERIFICATION:
       VERIFIED: Подтвержден
@@ -341,7 +341,7 @@ SETTINGS:
     UPDATE_ERROR: Не удалось сохранить настройки уведомлений
     LOAD_ERROR: Не удалось загрузить настройки уведомлений
   DEVICES:
-    TITLE: Настройки устройств
+    TITLE: Устройства
     AUDIO_INPUT: Микрофон
     AUDIO_OUTPUT: Выходное устройство
     DEVICE_UNAVAILABLE: Устройство недоступно

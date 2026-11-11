@@ -17,6 +17,7 @@ import { filter } from 'rxjs/operators';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { TuiButton, TuiHint, TuiIcon, TuiTitle } from '@taiga-ui/core';
+import { TuiFade } from '@taiga-ui/kit';
 import { TuiHeader } from '@taiga-ui/layout';
 import { DirectChatsStore } from './direct-chats.store';
 import { DirectChatItemComponent } from './direct-chat-item/direct-chat-item.component';
@@ -33,6 +34,7 @@ import { icons } from '@constants';
     RouterOutlet,
     TranslatePipe,
     TuiButton,
+    TuiFade,
     TuiIcon,
     TuiHeader,
     TuiTitle,

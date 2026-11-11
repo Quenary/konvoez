@@ -15,7 +15,7 @@ import {
   TuiNotificationService,
   TuiTitle,
 } from '@taiga-ui/core';
-import { TuiBadge } from '@taiga-ui/kit';
+import { TuiBadge, TuiFade } from '@taiga-ui/kit';
 import { TuiHeader } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit';
@@ -36,6 +36,7 @@ import { icons } from '@constants';
     TranslatePipe,
     TuiBadge,
     TuiButton,
+    TuiFade,
     TuiHeader,
     TuiTable,
     TuiTitle,

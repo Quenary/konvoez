@@ -17,6 +17,11 @@ body {
   flex-wrap: wrap;
 
   [tuiTitle] {
+    // Basis 0 keeps the title on the accessories' row. Taiga's fit-content
+    // max and 60% basis would wrap the row before the text can fade.
+    flex: 1 1 0;
+    min-inline-size: 0;
+    max-inline-size: 100%;
     flex-direction: row;
     gap: 0.5rem;
     flex-wrap: wrap;
@@ -24,6 +29,12 @@ body {
 
     tui-icon {
       flex-shrink: 0;
+    }
+
+    [tuiFade] {
+      flex: 1 1 0;
+      min-inline-size: 0;
+      white-space: nowrap;
     }
 
     [tuiSubtitle] {

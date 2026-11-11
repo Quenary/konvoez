@@ -53,10 +53,6 @@
     cursor: pointer;
     user-select: none;
     pointer-events: auto;
-
-    > span[tuiFade] {
-      min-width: 0;
-    }
   }
 
   .header-avatar {

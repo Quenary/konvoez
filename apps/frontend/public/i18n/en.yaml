@@ -266,7 +266,7 @@ CHAT:
 SETTINGS:
   TITLE: Settings
   PROFILE:
-    TITLE: Profile settings
+    TITLE: Profile
     DELETE: Delete account
     EMAIL_VERIFICATION:
       VERIFIED: Verified
@@ -333,7 +333,7 @@ SETTINGS:
     UPDATE_ERROR: Could not save notification settings
     LOAD_ERROR: Could not load notification settings
   DEVICES:
-    TITLE: Device settings
+    TITLE: Devices
     AUDIO_INPUT: Microphone
     AUDIO_OUTPUT: Audio output
     DEVICE_UNAVAILABLE: Device unavailable

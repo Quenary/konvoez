@@ -7,9 +7,9 @@ import {
 } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { TuiButton, TuiIcon } from '@taiga-ui/core';
+import { TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { TuiBadge } from '@taiga-ui/kit';
+import { TuiBadge, TuiFade } from '@taiga-ui/kit';
 import { TuiHeader } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { AuthActions } from '@core/auth/auth.actions';
@@ -36,8 +36,10 @@ import { RoutePageComponent } from '@shared/components/route-page/route-page.com
     TranslatePipe,
     TuiBadge,
     TuiButton,
+    TuiFade,
     TuiHeader,
     TuiIcon,
+    TuiTitle,
   ],
   templateUrl: './settings-security.component.html',
   styleUrl: './settings-security.component.scss',

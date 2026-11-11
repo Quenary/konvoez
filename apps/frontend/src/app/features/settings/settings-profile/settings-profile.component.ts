@@ -26,10 +26,12 @@ import {
   TuiNotification,
   TuiNotificationService,
   TuiTextfield,
+  TuiTitle,
 } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { TuiForm, TuiHeader } from '@taiga-ui/layout';
 import {
+  TuiFade,
   TuiSwitch,
   TuiFiles,
   TuiAvatar,
@@ -83,6 +85,7 @@ import { RoutePageComponent } from '@shared/components/route-page/route-page.com
     TuiButton,
     TuiTextfield,
     TuiError,
+    TuiFade,
     TuiForm,
     TuiHeader,
     TuiFiles,
@@ -95,6 +98,7 @@ import { RoutePageComponent } from '@shared/components/route-page/route-page.com
     TuiIcon,
     TuiHint,
     TuiNotification,
+    TuiTitle,
   ],
   templateUrl: './settings-profile.component.html',
   styleUrl: './settings-profile.component.scss',

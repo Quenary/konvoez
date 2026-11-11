@@ -52,7 +52,7 @@ import {
   TuiTitle,
 } from '@taiga-ui/core';
 import { TuiForm, TuiHeader } from '@taiga-ui/layout';
-import { TuiInputSlider, TuiSwitch, TuiTextarea } from '@taiga-ui/kit';
+import { TuiFade, TuiInputSlider, TuiSwitch, TuiTextarea } from '@taiga-ui/kit';
 import { SettingsStore } from '@core/stores/settings.store';
 import { PushNotificationService } from '@core/services/push-notification.service';
 import { createZodFieldValidator } from '@shared/functions/zod-validator.function';
@@ -115,6 +115,7 @@ interface AdminSettingDescriptor {
     TranslatePipe,
     TuiButton,
     TuiError,
+    TuiFade,
     TuiForm,
     TuiHeader,
     TuiInput,
