@@ -12,6 +12,7 @@ import { ConsumerRegistry } from '@core/services/consumer-registry';
 import { RemoteVideoViewService } from '@core/services/remote-video-view.service';
 import { SettingsStore } from '@core/stores/settings.store';
 import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/local-settings.schema';
+import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
 import { VoiceRoomTileComponent } from './voice-room-tile.component';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceRoomViewService } from '../voice-room-view.service';
@@ -31,6 +32,7 @@ describe('VoiceRoomTileComponent', () => {
   let quality: ReturnType<
     typeof signal<'auto' | { height: number; fps: number }>
   >;
+  let openUserDialog: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     currentUser = signal(user(1));
@@ -42,6 +44,7 @@ describe('VoiceRoomTileComponent', () => {
     setQuality = vi.fn();
     layersById = signal({});
     quality = signal('auto');
+    openUserDialog = vi.fn();
     vi.stubGlobal(
       'MediaStream',
       class MediaStream {
@@ -115,6 +118,10 @@ describe('VoiceRoomTileComponent', () => {
         {
           provide: ConsumerRegistry,
           useValue: { layersById: layersById.asReadonly() },
+        },
+        {
+          provide: UserDialogService,
+          useValue: { open: openUserDialog },
         },
         {
           provide: RemoteVideoViewService,
@@ -271,6 +278,33 @@ describe('VoiceRoomTileComponent', () => {
       expect(badges.length).toBe(expectedCount);
     },
   );
+
+  it.each([
+    { id: 1, label: 'the local participant' },
+    { id: 2, label: 'a remote participant' },
+  ])('opens the user dialog from the tile menu for $label', ({ id }) => {
+    const fixture = TestBed.createComponent(VoiceRoomTileComponent);
+    const peer = user(id);
+    fixture.componentRef.setInput('peer', peer);
+    fixture.componentRef.setInput('streamKind', null);
+    fixture.detectChanges();
+
+    const button = fixture.nativeElement.querySelector(
+      '.info-actions > button[aria-label="GENERAL.MORE"]',
+    ) as HTMLButtonElement | null;
+    expect(button).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector(
+        'button[aria-label="CALL.VOLUME"], #peer-volume-' + id,
+      ),
+    ).toBeNull();
+
+    button?.click();
+    expect(openUserDialog).toHaveBeenCalledWith(peer, {
+      withFiles: false,
+      withInput: true,
+    });
+  });
 
   it('puts quality selection after screen volume and drops the theatre button', () => {
     const fixture = TestBed.createComponent(VoiceRoomTileComponent);

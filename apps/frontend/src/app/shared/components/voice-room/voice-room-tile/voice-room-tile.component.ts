@@ -33,6 +33,7 @@ import {
 import { TuiAutoColorPipe, TuiBadge } from '@taiga-ui/kit';
 import { TranslatePipe } from '@ngx-translate/core';
 import { VideoTrackDirective } from '@shared/directives/video-track.directive';
+import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
 import { distinctFullname } from '../voice-peer-label';
 import type { TVoiceStreamKind } from '../voice-room-tiles';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
@@ -80,6 +81,7 @@ export class VoiceRoomTileComponent {
   private readonly consumerRegistry = inject(ConsumerRegistry);
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly remoteVideoViewService = inject(RemoteVideoViewService);
+  private readonly userDialogService = inject(UserDialogService);
 
   protected readonly icons = icons;
   protected readonly quality = this.remoteVideoViewService.quality;
@@ -166,27 +168,10 @@ export class VoiceRoomTileComponent {
     return isLocal ? speakerMuted : peerDeafened;
   });
 
-  protected readonly volume = computed(() => {
-    const levels = this.voiceAudioPreferencesStore.peerGainLevels();
-    const gain = levels[this.peer().id] ?? 1;
-    return Math.round(gain * 100);
-  });
-
   protected readonly screenVolume = computed(() => {
     const levels = this.voiceAudioPreferencesStore.peerScreenGainLevels();
     const gain = levels[this.peer().id] ?? 1;
     return Math.round(gain * 100);
-  });
-
-  protected readonly volumeIcon = computed(() => {
-    const volume = this.volume();
-    if (volume === 0) {
-      return '@tui.volume-off';
-    }
-    if (volume < 50) {
-      return '@tui.volume-1';
-    }
-    return '@tui.volume-2';
   });
 
   protected readonly showStreamRow = computed(
@@ -218,12 +203,11 @@ export class VoiceRoomTileComponent {
       !this.previewPaused(),
   );
 
-  protected readonly showInfoActions = computed(
-    () => this.showPausePreviewButton() || !this.isLocal(),
-  );
-
-  protected onVolumeChange(value: number): void {
-    this.voiceAudioPreferencesStore.setPeerGain(this.peer().id, value / 100);
+  protected onOpenUserDialog(): void {
+    void this.userDialogService.open(this.peer(), {
+      withFiles: false,
+      withInput: true,
+    });
   }
 
   protected onScreenVolumeChange(value: number): void {
