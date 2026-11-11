@@ -1,11 +1,10 @@
 <app-dialog-layout [heading]="'server.title' | i18n">
-  <label
-    tuiLabel
-    class="server-field">
-    {{ 'server.addressLabel' | i18n }}
-    <div class="server-row">
+  <div class="server-row">
+    <label
+      tuiLabel
+      class="server-input">
+      {{ 'server.addressLabel' | i18n }}
       <tui-textfield
-        class="server-input"
         tuiTextfieldSize="m"
         [tuiTextfieldCleaner]="false">
         <input
@@ -14,22 +13,23 @@
           type="url"
           [disabled]="loading()"
           [placeholder]="'server.placeholder' | i18n"
-          [value]="serverUrl()"
-          (input)="onUrlInput($event)"
+          [(ngModel)]="serverUrl"
+          (ngModelChange)="clearUrlError()"
           (keydown.enter)="handleConnect()" />
       </tui-textfield>
-      <button
-        tuiIconButton
-        appearance="secondary"
-        size="m"
-        type="button"
-        [iconStart]="'@tui.plus'"
-        [disabled]="!canAdd()"
-        tuiHintAppearance="floating"
-        [tuiHint]="'server.add' | i18n"
-        (click)="handleAdd()"></button>
-    </div>
-  </label>
+    </label>
+    <button
+      tuiIconButton
+      appearance="secondary"
+      size="m"
+      type="button"
+      [iconStart]="'@tui.plus'"
+      [disabled]="!canAdd()"
+      [attr.aria-label]="'server.add' | i18n"
+      tuiHintAppearance="floating"
+      [tuiHint]="'server.add' | i18n"
+      (click)="handleAdd()"></button>
+  </div>
 
   @if (error(); as err) {
     <aside
@@ -54,6 +54,7 @@
               type="button"
               [iconStart]="'@tui.trash'"
               [disabled]="loading()"
+              [attr.aria-label]="'server.remove' | i18n"
               tuiHintAppearance="floating"
               [tuiHint]="'server.remove' | i18n"
               (click)="handleRemove(server)"></button>
@@ -64,6 +65,7 @@
               type="button"
               [iconStart]="'@tui.log-in'"
               [disabled]="loading()"
+              [attr.aria-label]="'server.join' | i18n"
               tuiHintAppearance="floating"
               [tuiHint]="'server.join' | i18n"
               (click)="handleConnect(server)"></button>

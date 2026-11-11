@@ -80,9 +80,6 @@ class AudioStreamLabels {
   ],
   templateUrl: './source-picker-dialog.component.html',
   styleUrl: './source-picker-dialog.component.scss',
-  host: {
-    '(window:keydown)': 'handleWindowKeyDown($event)',
-  },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SourcePickerDialogComponent implements OnInit {
@@ -105,7 +102,7 @@ export class SourcePickerDialogComponent implements OnInit {
   public readonly audioSupported = signal<boolean>(true);
   public readonly nativeAudio = signal<boolean>(false);
   public readonly audioStreams = signal<IAudioStreamInfo[]>([]);
-  public readonly selectedAudioStreamId = signal<string | null>(null);
+  public readonly selectedAudioStreamId = signal<string>('');
 
   public readonly currentSources = computed(() => {
     const isScreens = this.activeTab() === 'screens';
@@ -143,7 +140,7 @@ export class SourcePickerDialogComponent implements OnInit {
       this.nativeAudio.set(initial.nativeAudio);
       this.audioStreams.set(initial.audioStreams ?? []);
       this.audioStreamLabels.streams.set(initial.audioStreams ?? []);
-      this.selectedAudioStreamId.set(null);
+      this.selectedAudioStreamId.set('');
 
       const current = this.currentSources();
       this.selectedId.set(current.length > 0 ? current[0].id : null);
@@ -183,15 +180,7 @@ export class SourcePickerDialogComponent implements OnInit {
     this.activeTab.set(tab);
     const current = this.currentSources();
     this.selectedId.set(current.length > 0 ? current[0].id : null);
-    this.selectedAudioStreamId.set(null);
-  }
-
-  protected handleArrowNavigation(step: number): void {
-    const currentIndex = this.activeTabIndex();
-    const nextIndex = Math.max(0, Math.min(1, currentIndex + step));
-    if (nextIndex !== currentIndex) {
-      this.onActiveTabIndexChange(nextIndex);
-    }
+    this.selectedAudioStreamId.set('');
   }
 
   protected handleTabChange(tab: 'screens' | 'windows'): void {
@@ -201,29 +190,16 @@ export class SourcePickerDialogComponent implements OnInit {
 
   protected onSourceSelected(sourceId: string): void {
     this.selectedId.set(sourceId);
-    this.selectedAudioStreamId.set(null);
+    this.selectedAudioStreamId.set('');
   }
 
   protected onSourceActivated(sourceId: string): void {
     this.selectedId.set(sourceId);
-    this.selectedAudioStreamId.set(null);
+    this.selectedAudioStreamId.set('');
     this.handleShare();
   }
 
-  protected handleAudioToggle(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    this.shareAudio.set(input.checked);
-    this.konvoezLocalBridge.picker.setShareAudio(input.checked);
-  }
-
-  protected onAudioStreamChange(value: string): void {
-    this.selectedAudioStreamId.set(value || null);
-  }
-
-  protected handleWindowKeyDown(e: KeyboardEvent): void {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      this.handleCancel();
-    }
+  protected handleAudioToggle(shareAudio: boolean): void {
+    this.konvoezLocalBridge.picker.setShareAudio(shareAudio);
   }
 }

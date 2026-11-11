@@ -6,23 +6,21 @@
     <div class="hotkeys-group">
       <app-hotkey-input
         [label]="'settings.toggleMic' | i18n"
-        [value]="micKey()"
+        [(value)]="micKey"
         [recordingPlaceholder]="'settings.pressKey' | i18n"
         [clearHint]="'settings.clear' | i18n"
         [error]="micError()"
         [hint]="micHint()"
-        (valueChange)="micKey.set($event)"
         (recordingStart)="handleRecordingStart()"
         (recordingStop)="handleRecordingStop()" />
 
       <app-hotkey-input
         [label]="'settings.toggleSpeaker' | i18n"
-        [value]="speakerKey()"
+        [(value)]="speakerKey"
         [recordingPlaceholder]="'settings.pressKey' | i18n"
         [clearHint]="'settings.clear' | i18n"
         [error]="speakerError()"
         [hint]="speakerHint()"
-        (valueChange)="speakerKey.set($event)"
         (recordingStart)="handleRecordingStart()"
         (recordingStop)="handleRecordingStop()" />
     </div>
@@ -33,8 +31,7 @@
       <input
         tuiCheckbox
         type="checkbox"
-        [checked]="autostart()"
-        (change)="onAutostartChange($event)" />
+        [(ngModel)]="autostart" />
       <span>{{ 'settings.autostart' | i18n }}</span>
     </label>
   </section>

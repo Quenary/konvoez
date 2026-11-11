@@ -139,6 +139,9 @@ describe('SettingsDialogComponent', () => {
     await component.ngOnInit();
     fixture.detectChanges();
 
+    const onSaved = vi.fn();
+    component.saved.subscribe(onSaved);
+
     const saveBtn = (fixture.nativeElement as HTMLElement).querySelector(
       'button[tuiButton]',
     ) as HTMLButtonElement;
@@ -148,6 +151,8 @@ describe('SettingsDialogComponent', () => {
 
     expect(component.micError()).toBe('Shortcut conflict with another app');
     expect(component.speakerHint()).toBe('Registered');
+    expect(component.saveMessage()).toBeNull();
+    expect(onSaved).not.toHaveBeenCalled();
   });
 
   it('save rejection shows settings.saveFailed', async () => {

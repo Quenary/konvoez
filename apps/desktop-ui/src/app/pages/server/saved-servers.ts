@@ -1,3 +1,5 @@
+import { normalizeServerOrigin } from '@konvoez/client-shell';
+
 const SAVED_SERVERS_STORAGE_KEY = 'konvoez.savedServers';
 
 export function readSavedServers(
@@ -9,9 +11,17 @@ export function readSavedServers(
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (item): item is string => typeof item === 'string' && item.length > 0,
-    );
+    const origins: string[] = [];
+    for (const item of parsed) {
+      if (typeof item !== 'string' || item.length === 0) continue;
+      try {
+        const origin = normalizeServerOrigin(item);
+        if (!origins.includes(origin)) origins.push(origin);
+      } catch {
+        // Drop addresses that cannot be joined.
+      }
+    }
+    return origins;
   } catch {
     return [];
   }

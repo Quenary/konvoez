@@ -7,6 +7,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import {
   TuiButton,
   TuiLoader,
@@ -26,6 +27,7 @@ import { HotkeyInputComponent } from '../../components/hotkey-input/hotkey-input
   selector: 'app-settings-dialog',
   imports: [
     DialogLayoutComponent,
+    FormsModule,
     HotkeyInputComponent,
     I18nPipe,
     TuiButton,
@@ -110,6 +112,8 @@ export class SettingsDialogComponent implements OnInit {
       this.speakerError.set(speakerMapped.error);
       this.speakerHint.set(speakerMapped.hint);
 
+      if (micMapped.error || speakerMapped.error) return;
+
       this.saveMessage.set({
         variant: 'success',
         text: this.desktopI18nService.translate('settings.saved'),
@@ -130,11 +134,6 @@ export class SettingsDialogComponent implements OnInit {
 
   protected handleRecordingStop(): void {
     this.konvoezLocalBridge.settings.resumeHotkeys();
-  }
-
-  protected onAutostartChange(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    this.autostart.set(input.checked);
   }
 
   private mapHotkeyStatus(status: THotkeyStatus): {

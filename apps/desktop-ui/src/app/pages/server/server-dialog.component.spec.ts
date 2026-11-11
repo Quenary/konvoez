@@ -79,12 +79,15 @@ describe('ServerDialogComponent', () => {
     return found;
   };
 
-  it('loads initial origin and submits on connect button click', async () => {
+  it('keeps the address field empty and submits the typed address', async () => {
     setup();
     await component.ngOnInit();
     fixture.detectChanges();
 
-    expect(component.serverUrl()).toBe('https://initial.konvoez.com');
+    expect(component.serverUrl()).toBe('');
+
+    component.serverUrl.set('https://typed.example');
+    fixture.detectChanges();
 
     const onDone = vi.fn();
     component.done.subscribe(onDone);
@@ -94,7 +97,7 @@ describe('ServerDialogComponent', () => {
     fixture.detectChanges();
 
     expect(mockBridge.server.saveServer).toHaveBeenCalledWith(
-      'https://initial.konvoez.com',
+      'https://typed.example',
     );
     expect(onDone).toHaveBeenCalledWith({ origin: 'https://saved.org' });
     expect(component.savedServers()).toEqual([]);
@@ -103,6 +106,7 @@ describe('ServerDialogComponent', () => {
   it('INSECURE maps to server.errorInsecure', async () => {
     setup({ saveServerResult: Promise.reject(new Error('INSECURE')) });
     await component.ngOnInit();
+    component.serverUrl.set('http://insecure.example');
     fixture.detectChanges();
 
     connectButton().click();
@@ -117,6 +121,7 @@ describe('ServerDialogComponent', () => {
   it('HTTP_500 maps to server.errorUnreachable', async () => {
     setup({ saveServerResult: Promise.reject(new Error('HTTP_500')) });
     await component.ngOnInit();
+    component.serverUrl.set('https://down.example');
     fixture.detectChanges();
 
     connectButton().click();
@@ -129,6 +134,7 @@ describe('ServerDialogComponent', () => {
   it('Enter key triggers connect', async () => {
     setup();
     await component.ngOnInit();
+    component.serverUrl.set('https://typed.example');
     fixture.detectChanges();
 
     const onDone = vi.fn();
@@ -142,7 +148,7 @@ describe('ServerDialogComponent', () => {
     fixture.detectChanges();
 
     expect(mockBridge.server.saveServer).toHaveBeenCalledWith(
-      'https://initial.konvoez.com',
+      'https://typed.example',
     );
   });
 
@@ -167,9 +173,32 @@ describe('ServerDialogComponent', () => {
       'https://old.example',
     ]);
 
+    component.serverUrl.set('https://new.example/room');
+    fixture.detectChanges();
+    button('.server-row button').click();
+    expect(component.savedServers()).toEqual([
+      'https://new.example',
+      'https://old.example',
+    ]);
+
     component.serverUrl.set('   ');
     fixture.detectChanges();
     expect(button('.server-row button').disabled).toBe(true);
+  });
+
+  it('rejects an insecure address without storing it', async () => {
+    setup();
+    await component.ngOnInit();
+    component.serverUrl.set('http://insecure.example');
+    fixture.detectChanges();
+
+    button('.server-row button').click();
+    fixture.detectChanges();
+
+    expect(component.savedServers()).toEqual([]);
+    expect(component.error()).toBe(
+      'HTTPS is required (HTTP allowed for localhost only)',
+    );
   });
 
   it('keeps the address when removal is declined', async () => {

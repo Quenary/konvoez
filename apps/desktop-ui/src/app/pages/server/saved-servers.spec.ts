@@ -42,4 +42,23 @@ describe('saved servers storage', () => {
     storage.setItem('konvoez.savedServers', JSON.stringify({ url: 'nope' }));
     expect(readSavedServers(storage)).toEqual([]);
   });
+
+  it('stores origins, drops addresses that cannot be joined, and skips duplicates', () => {
+    const storage = memoryStorage();
+    storage.setItem(
+      'konvoez.savedServers',
+      JSON.stringify([
+        'https://a.example/room',
+        'a.example',
+        'http://localhost:3000/chat',
+        'http://insecure.example',
+        'not a url',
+      ]),
+    );
+
+    expect(readSavedServers(storage)).toEqual([
+      'https://a.example',
+      'http://localhost:3000',
+    ]);
+  });
 });

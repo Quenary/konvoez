@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   OnInit,
   computed,
@@ -9,6 +10,8 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
 import {
   TuiButton,
   TuiDialogService,
@@ -21,6 +24,7 @@ import {
   TuiTitle,
 } from '@taiga-ui/core';
 import { TUI_CONFIRM, type TuiConfirmData } from '@taiga-ui/kit';
+import { normalizeServerOrigin } from '@konvoez/client-shell';
 import { KONVOEZ_LOCAL_BRIDGE } from '../../app.config';
 import { DialogLayoutComponent } from '../../components/dialog-layout/dialog-layout.component';
 import { DesktopI18nService } from '../../core/i18n/desktop-i18n.service';
@@ -31,6 +35,7 @@ import { readSavedServers, writeSavedServers } from './saved-servers';
   selector: 'app-server-dialog',
   imports: [
     DialogLayoutComponent,
+    FormsModule,
     I18nPipe,
     TuiButton,
     TuiHint,
@@ -49,6 +54,7 @@ export class ServerDialogComponent implements OnInit {
   private readonly konvoezLocalBridge = inject(KONVOEZ_LOCAL_BRIDGE);
   private readonly desktopI18nService = inject(DesktopI18nService);
   private readonly tuiDialogService = inject(TuiDialogService);
+  private readonly destroyRef = inject(DestroyRef);
 
   public readonly done = output<{ origin: string }>();
 
@@ -65,14 +71,13 @@ export class ServerDialogComponent implements OnInit {
   private readonly inputEl = viewChild<ElementRef<HTMLInputElement>>('inputEl');
 
   public async ngOnInit(): Promise<void> {
-    this.savedServers.set(readSavedServers(localStorage));
+    const servers = readSavedServers(localStorage);
+    this.savedServers.set(servers);
+    writeSavedServers(localStorage, servers);
     try {
       const initial = await this.konvoezLocalBridge.server.getInitial();
       if (initial.locale) {
         this.desktopI18nService.setLanguage(initial.locale);
-      }
-      if (initial.serverOrigin) {
-        this.serverUrl.set(initial.serverOrigin);
       }
       setTimeout(() => {
         this.inputEl()?.nativeElement.focus();
@@ -100,30 +105,25 @@ export class ServerDialogComponent implements OnInit {
       this.done.emit({ origin: res.origin });
     } catch (err: unknown) {
       this.loading.set(false);
-      const errMsg = err instanceof Error ? err.message : String(err);
-      if (errMsg.includes('INSECURE')) {
-        this.error.set(
-          this.desktopI18nService.translate('server.errorInsecure'),
-        );
-      } else if (
-        errMsg.includes('INVALID_URL') ||
-        errMsg.includes('INVALID_RESPONSE')
-      ) {
-        this.error.set(
-          this.desktopI18nService.translate('server.errorInvalid'),
-        );
-      } else {
-        this.error.set(
-          this.desktopI18nService.translate('server.errorUnreachable'),
-        );
-      }
+      this.error.set(this.serverErrorMessage(err));
     }
   }
 
   protected handleAdd(): void {
     const url = this.serverUrl().trim();
-    if (!url || this.savedServers().includes(url)) return;
-    this.persistServers([url, ...this.savedServers()]);
+    if (!url || this.loading()) return;
+
+    let origin: string;
+    try {
+      origin = normalizeServerOrigin(url);
+    } catch (err: unknown) {
+      this.error.set(this.serverErrorMessage(err));
+      return;
+    }
+
+    this.error.set('');
+    if (this.savedServers().includes(origin)) return;
+    this.persistServers([origin, ...this.savedServers()]);
   }
 
   protected handleRemove(origin: string): void {
@@ -136,6 +136,7 @@ export class ServerDialogComponent implements OnInit {
           appearance: 'negative',
         } satisfies TuiConfirmData,
       })
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((confirmed) => {
         if (!confirmed) return;
         this.persistServers(
@@ -144,14 +145,23 @@ export class ServerDialogComponent implements OnInit {
       });
   }
 
-  protected onUrlInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    this.serverUrl.set(input.value);
+  protected clearUrlError(): void {
     this.error.set('');
   }
 
   private persistServers(servers: readonly string[]): void {
     this.savedServers.set(servers);
     writeSavedServers(localStorage, servers);
+  }
+
+  private serverErrorMessage(err: unknown): string {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    if (errMsg.includes('INSECURE')) {
+      return this.desktopI18nService.translate('server.errorInsecure');
+    }
+    if (errMsg.includes('INVALID_URL') || errMsg.includes('INVALID_RESPONSE')) {
+      return this.desktopI18nService.translate('server.errorInvalid');
+    }
+    return this.desktopI18nService.translate('server.errorUnreachable');
   }
 }

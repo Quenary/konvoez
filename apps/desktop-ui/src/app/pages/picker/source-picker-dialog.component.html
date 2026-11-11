@@ -4,9 +4,7 @@
   <tui-tabs
     class="tabs-bar"
     [(activeItemIndex)]="activeTabIndex"
-    (activeItemIndexChange)="onActiveTabIndexChange($event)"
-    (keydown.arrowRight)="handleArrowNavigation(1)"
-    (keydown.arrowLeft)="handleArrowNavigation(-1)">
+    (activeItemIndexChange)="onActiveTabIndexChange($event)">
     <button
       tuiTab
       type="button"
@@ -42,8 +40,8 @@
         <input
           tuiCheckbox
           type="checkbox"
-          [checked]="shareAudio()"
-          (change)="handleAudioToggle($event)" />
+          [(ngModel)]="shareAudio"
+          (ngModelChange)="handleAudioToggle($event)" />
         <span>{{ 'picker.shareAudio' | i18n }}</span>
       </label>
 
@@ -65,9 +63,8 @@
             <input
               id="audio-stream-select"
               tuiSelect
-              [ngModel]="selectedAudioStreamId() ?? ''"
-              [ngModelOptions]="{ standalone: true }"
-              (ngModelChange)="onAudioStreamChange($event)" />
+              [(ngModel)]="selectedAudioStreamId"
+              [ngModelOptions]="{ standalone: true }" />
             <tui-data-list-wrapper
               *tuiDropdown
               [items]="audioStreamIds()" />

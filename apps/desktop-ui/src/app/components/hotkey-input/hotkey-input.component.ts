@@ -7,7 +7,6 @@ import {
   input,
   output,
   signal,
-  viewChild,
 } from '@angular/core';
 import { TuiInput, TuiLabel, TuiTextfield } from '@taiga-ui/core';
 import { formatKeyboardEventToAccelerator } from '@konvoez/client-shell';
@@ -27,7 +26,6 @@ import { formatKeyboardEventToAccelerator } from '@konvoez/client-shell';
         [class.recording]="recording()"
         [class.has-error]="error().length > 0">
         <input
-          #inputEl
           tuiInput
           type="text"
           [readonly]="true"
@@ -54,7 +52,7 @@ import { formatKeyboardEventToAccelerator } from '@konvoez/client-shell';
       class="sr-only"
       aria-live="polite"
       role="status">
-      {{ recording() ? recordingPlaceholder() || 'Recording shortcut' : '' }}
+      {{ recording() ? recordingPlaceholder() : '' }}
     </div>
   `,
   styleUrl: './hotkey-input.component.scss',
@@ -90,12 +88,6 @@ export class HotkeyInputComponent {
       ? this.clearHint()
       : this.hint();
   });
-
-  private readonly inputEl = viewChild<ElementRef<HTMLInputElement>>('inputEl');
-
-  public focus(): void {
-    this.inputEl()?.nativeElement.focus();
-  }
 
   public startRecording(): void {
     if (this.disabled() || this.recording()) return;

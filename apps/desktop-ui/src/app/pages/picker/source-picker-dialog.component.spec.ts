@@ -122,35 +122,6 @@ describe('SourcePickerDialogComponent', () => {
     expect(component.selectedId()).toBe('screen:0:1');
   });
 
-  it('navigating tabs via keyboard arrows updates activeTab and preselects first item', async () => {
-    setup();
-    await component.ngOnInit();
-    fixture.detectChanges();
-
-    expect(component.activeTab()).toBe('screens');
-
-    const tabsEl = (fixture.nativeElement as HTMLElement).querySelector(
-      'tui-tabs',
-    );
-    tabsEl?.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
-    );
-    fixture.detectChanges();
-
-    expect(component.activeTab()).toBe('windows');
-    expect(component.activeTabIndex()).toBe(1);
-    expect(component.selectedId()).toBe('window:42');
-
-    tabsEl?.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }),
-    );
-    fixture.detectChanges();
-
-    expect(component.activeTab()).toBe('screens');
-    expect(component.activeTabIndex()).toBe(0);
-    expect(component.selectedId()).toBe('screen:0:0');
-  });
-
   it('activeItemIndexChange updates activeTab and preselects first item', async () => {
     setup();
     await component.ngOnInit();
@@ -180,7 +151,7 @@ describe('SourcePickerDialogComponent', () => {
     expect(component.shareAudio()).toBe(false);
   });
 
-  it('Share calls pick(id, withAudio), Cancel and Escape call pick(null, withAudio)', async () => {
+  it('Share calls pick(id, withAudio) and Cancel calls pick(null, withAudio)', async () => {
     setup();
     await component.ngOnInit();
     fixture.detectChanges();
@@ -203,10 +174,6 @@ describe('SourcePickerDialogComponent', () => {
     (buttons[0] as HTMLButtonElement).click();
     expect(mockBridge.picker.pick).toHaveBeenCalledWith(null, true);
     expect(onCancelled).toHaveBeenCalledTimes(1);
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    expect(mockBridge.picker.pick).toHaveBeenCalledWith(null, true);
-    expect(onCancelled).toHaveBeenCalledTimes(2);
   });
 
   it('audioSupported:false hides the checkbox and the loopback hint', async () => {
@@ -263,7 +230,7 @@ describe('SourcePickerDialogComponent', () => {
     );
     expect(select).not.toBeNull();
 
-    component['onAudioStreamChange']('node-1');
+    component.selectedAudioStreamId.set('node-1');
     fixture.detectChanges();
 
     const shareBtn = (fixture.nativeElement as HTMLElement).querySelectorAll(
