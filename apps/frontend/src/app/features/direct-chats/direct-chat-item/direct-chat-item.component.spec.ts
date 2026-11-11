@@ -132,7 +132,7 @@ describe('DirectChatItemComponent', () => {
     const el: HTMLElement = fixture.nativeElement;
     const badge = el.querySelector('.online-badge');
     expect(badge).toBeTruthy();
-    expect(badge?.getAttribute('size')).toBe('xs');
+    expect(badge?.getAttribute('size')).toBe('s');
     expect(badge?.getAttribute('tuislot')).toBe('bottom');
   });
 
