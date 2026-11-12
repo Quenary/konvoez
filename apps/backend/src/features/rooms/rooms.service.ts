@@ -5,6 +5,7 @@ import {
   ApiErrorCode,
   canAccessRoomSnapshot,
   EPermission,
+  roomAvatarKeyRegexp,
 } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { ensureRequestContext } from '@shared/utils/request-context.util';
@@ -357,7 +358,7 @@ export class RoomsService {
   private async deleteStoredFile(
     key: string | null | undefined,
   ): Promise<void> {
-    if (!key) {
+    if (!key || !roomAvatarKeyRegexp.test(key)) {
       return;
     }
     await this.fileService.delete(key, ROOM_AVATARS_BUCKET);

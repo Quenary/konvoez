@@ -346,6 +346,20 @@ describe('UsersService', () => {
       )?.[1];
       expect(emitted).not.toHaveProperty('email');
     });
+
+    it('should not delete avatar file if avatar key contains path traversal', async () => {
+      const target = {
+        ...mockUser,
+        id: 6,
+        email: 'user6@example.com',
+        emailVerified: false,
+        avatar: '../attachments/secret.png',
+      } as UserEntity;
+
+      await service.anonymizeLoaded(target);
+
+      expect(fileService.delete).not.toHaveBeenCalled();
+    });
   });
 
   describe('removeLoaded', () => {

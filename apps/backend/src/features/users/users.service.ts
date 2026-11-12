@@ -3,7 +3,11 @@ import { InjectRepository } from '@mikro-orm/nestjs';
 import { Inject, Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository, FilterQuery } from '@mikro-orm/core';
-import { ApiErrorCode, EPermission } from '@konvoez/shared';
+import {
+  ApiErrorCode,
+  EPermission,
+  userAvatarKeyRegexp,
+} from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { ensureRequestContext } from '@shared/utils/request-context.util';
 import { HashService } from '@shared/services/hash.service';
@@ -449,7 +453,7 @@ export class UsersService {
     key: string | null | undefined,
     bucket: string,
   ): Promise<void> {
-    if (!key) {
+    if (!key || !userAvatarKeyRegexp.test(key)) {
       return;
     }
     await this.fileService.delete(key, bucket);

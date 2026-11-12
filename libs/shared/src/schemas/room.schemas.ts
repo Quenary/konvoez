@@ -5,7 +5,7 @@ import {
   SCHEMA_ERROR,
   stringSchema,
 } from './base.schemas';
-import { roomNameSchema } from './fields.schemas';
+import { roomAvatarKeySchema, roomNameSchema } from './fields.schemas';
 import { ERoomType } from '../enums';
 import { userBriefSchema } from './user.schemas';
 
@@ -16,7 +16,7 @@ export const roomTypeSchema = z.enum(ERoomType, {
 export const roomCreateSchema = z.object({
   name: roomNameSchema,
   type: roomTypeSchema,
-  avatar: stringSchema.optional(),
+  avatar: roomAvatarKeySchema.optional(),
   isPrivate: z.boolean().optional(),
   allowedRoleIds: z.array(z.number().int()).optional(),
   allowedUserIds: z.array(z.number().int()).optional(),
@@ -24,7 +24,7 @@ export const roomCreateSchema = z.object({
 
 export const roomUpdateSchema = z.object({
   name: roomNameSchema.optional(),
-  avatar: stringSchema.nullish(),
+  avatar: roomAvatarKeySchema.nullish(),
   isPrivate: z.boolean().optional(),
   allowedRoleIds: z.array(z.number().int()).optional(),
   allowedUserIds: z.array(z.number().int()).optional(),

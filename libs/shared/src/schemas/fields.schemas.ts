@@ -7,8 +7,10 @@ import {
   passwordMaxLength,
   passwordMinLength,
   passwordRegexp,
+  roomAvatarKeyRegexp,
   roomNameMaxLength,
   roomNameMinLength,
+  userAvatarKeyRegexp,
   usernameMaxLength,
   usernameMinLength,
 } from '../const';
@@ -55,3 +57,11 @@ export const roomNameSchema = lengthString(
   roomNameMaxLength,
   SCHEMA_ERROR.ROOM_NAME_LENGTH,
 );
+
+export const userAvatarKeySchema = stringSchema
+  .max(255)
+  .regex(userAvatarKeyRegexp, { error: SCHEMA_ERROR.INVALID_SCHEMA });
+
+export const roomAvatarKeySchema = stringSchema
+  .max(255)
+  .regex(roomAvatarKeyRegexp, { error: SCHEMA_ERROR.INVALID_SCHEMA });
