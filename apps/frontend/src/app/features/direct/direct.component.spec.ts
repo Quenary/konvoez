@@ -22,6 +22,7 @@ class MockChatComponent {
   public readonly roomId = input<number | null>(null);
   public readonly recipientId = input<number | null>(null);
   public readonly title = input.required<string>();
+  public readonly initialsSource = input<string | null>(null);
   public readonly avatarUrl = input<string | null>(null);
   public readonly avatarIcon = input<string | null>(null);
   public readonly isOnline = input<boolean>(false);
@@ -33,6 +34,8 @@ class MockChatComponent {
 @Component({ selector: 'app-voice-room-shell', template: '' })
 class MockVoiceRoomShellComponent {
   public readonly title = input<string>('');
+  public readonly initialsSource = input<string | null>(null);
+  public readonly isDirect = input<boolean>(false);
   public readonly avatarUrl = input<string | null>(null);
   public readonly backRoute = input<string>('/voice-room');
   public readonly headerActions = input<unknown>(null);
@@ -57,6 +60,7 @@ describe('DirectComponent', () => {
   const canRejoinCall = signal(false);
   const preferChat = signal(false);
   const title = signal('bob');
+  const initialsSource = signal<string | null>('Bob');
   const avatarUrl = signal<string | null>(null);
   const avatarIcon = signal<string | null>(null);
   const isOnline = signal(false);
@@ -70,6 +74,7 @@ describe('DirectComponent', () => {
     canRejoinCall,
     preferChat,
     title,
+    initialsSource,
     avatarUrl,
     avatarIcon,
     isOnline,
@@ -98,6 +103,7 @@ describe('DirectComponent', () => {
     canRejoinCall.set(false);
     preferChat.set(false);
     title.set('bob');
+    initialsSource.set('Bob');
     avatarUrl.set(null);
     avatarIcon.set(null);
     isOnline.set(false);
@@ -252,6 +258,17 @@ describe('DirectComponent', () => {
     isOnline.set(false);
     fixture.detectChanges();
     expect(chatDebugEl.componentInstance.isOnline()).toBe(false);
+  });
+
+  it('binds initialsSource to app-chat', () => {
+    initialsSource.set('Bob Ross');
+    fixture.detectChanges();
+
+    const chatDebugEl = fixture.debugElement.query(
+      (de) => de.componentInstance instanceof MockChatComponent,
+    );
+    expect(chatDebugEl).toBeTruthy();
+    expect(chatDebugEl.componentInstance.initialsSource()).toBe('Bob Ross');
   });
 
   it('opens the user dialog for the direct peer', () => {

@@ -74,6 +74,7 @@ export class TextRoomComponent {
   });
 
   protected readonly title = computed(() => this.room()?.name ?? '');
+  protected readonly initialsSource = computed(() => this.room()?.name ?? '');
   protected readonly avatarUrl = computed(() => this.room()?.avatarUrl ?? null);
 
   private readonly roomsDict = this.roomsStore.roomsDict;

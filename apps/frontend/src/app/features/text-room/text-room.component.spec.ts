@@ -16,6 +16,7 @@ class MockChatComponent {
   public readonly roomId = input<number | null>(null);
   public readonly recipientId = input<number | null>(null);
   public readonly title = input.required<string>();
+  public readonly initialsSource = input<string | null>(null);
   public readonly avatarUrl = input<string | null>(null);
   public readonly initialMessageId = input<string | null>(null);
   public readonly headerClick = output<void>();

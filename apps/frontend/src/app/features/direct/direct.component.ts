@@ -51,6 +51,7 @@ export class DirectComponent {
     this.directStore.isCurrentDirectCallActive;
   protected readonly preferChat = this.directStore.preferChat;
   protected readonly title = this.directStore.title;
+  protected readonly initialsSource = this.directStore.initialsSource;
   protected readonly avatarUrl = this.directStore.avatarUrl;
   protected readonly avatarIcon = this.directStore.avatarIcon;
   protected readonly isOnline = this.directStore.isOnline;

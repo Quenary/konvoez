@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { provideTranslateService } from '@ngx-translate/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TuiBadgeNotification } from '@taiga-ui/kit';
+import { tuiAutoColor, TuiBadgeNotification } from '@taiga-ui/kit';
 import { ChatComponent } from './chat.component';
 import { ChatStore } from './chat.store';
 import type { ChatTarget } from './chat-target';
@@ -128,25 +128,25 @@ describe('ChatComponent', () => {
       roomId: 1 as number | null,
       recipientId: null as number | null,
       avatarIcon: null as string | null,
-      color: false,
+      expectedColor: null,
     },
     {
       name: 'direct nickname',
       roomId: null as number | null,
       recipientId: 2 as number | null,
       avatarIcon: null as string | null,
-      color: true,
+      expectedColor: tuiAutoColor('title'),
     },
     {
       name: 'saved messages',
       roomId: null as number | null,
       recipientId: 1 as number | null,
       avatarIcon: '@tui.bookmark',
-      color: false,
+      expectedColor: null,
     },
   ])(
-    'colorTitle is $color for $name',
-    ({ roomId, recipientId, avatarIcon, color }) => {
+    'identityColor is $expectedColor for $name',
+    ({ roomId, recipientId, avatarIcon, expectedColor }) => {
       fixture = TestBed.createComponent(ChatComponent);
       fixture.componentRef.setInput('roomId', roomId);
       fixture.componentRef.setInput('recipientId', recipientId);
@@ -154,9 +154,19 @@ describe('ChatComponent', () => {
       fixture.componentRef.setInput('title', 'title');
       fixture.detectChanges();
 
-      expect(fixture.componentInstance['colorTitle']()).toBe(color);
+      expect(fixture.componentInstance['identityColor']()).toBe(expectedColor);
     },
   );
+
+  it('binds initialsSource input', () => {
+    fixture = TestBed.createComponent(ChatComponent);
+    fixture.componentRef.setInput('recipientId', 2);
+    fixture.componentRef.setInput('title', 'bob');
+    fixture.componentRef.setInput('initialsSource', 'Bob Ross');
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.initialsSource()).toBe('Bob Ross');
+  });
 
   it('triggers jumpToMessage when initialMessageId changes while already joined', () => {
     target.set({ kind: 'room', id: 1 });

@@ -29,14 +29,16 @@
               fill
               priority />
           } @else {
-            {{ currentTitle | tuiInitials }}
+            <span [style.color]="identityColor()">
+              {{ initialsSource() || currentTitle | tuiInitials }}
+            </span>
           }
         </div>
       </tui-badged-content>
 
       <span
         tuiFade
-        [style.color]="colorTitle() ? (currentTitle | tuiAutoColor) : null">
+        [style.color]="identityColor()">
         {{ currentTitle }}
       </span>
     </h2>

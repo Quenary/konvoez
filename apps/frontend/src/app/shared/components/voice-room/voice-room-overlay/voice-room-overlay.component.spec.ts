@@ -341,6 +341,22 @@ describe('VoiceRoomOverlayComponent', () => {
     expect(
       fixture.nativeElement.querySelector('.header-avatar img'),
     ).toBeNull();
+    const span = fixture.nativeElement.querySelector('.header-avatar span');
+    expect(span?.textContent?.trim()).toBe('L');
+    expect(span?.style.color).toBe('');
+  });
+
+  it('renders initialsSource and user color when is direct call', () => {
+    const fixture = TestBed.createComponent(VoiceRoomOverlayComponent);
+    fixture.componentRef.setInput('title', 'bob');
+    fixture.componentRef.setInput('initialsSource', 'Bob Ross');
+    fixture.componentRef.setInput('isDirect', true);
+    fixture.componentRef.setInput('avatarUrl', null);
+    fixture.detectChanges();
+
+    const span = fixture.nativeElement.querySelector('.header-avatar span');
+    expect(span?.textContent?.trim()).toBe('BR');
+    expect(span?.style.color).toBeTruthy();
   });
 
   it('renders avatar image with alt title when avatarUrl is provided', () => {

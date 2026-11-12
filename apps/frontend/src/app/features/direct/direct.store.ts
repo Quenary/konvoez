@@ -86,6 +86,15 @@ export const DirectStore = signalStore(
         return directUser?.username ?? '';
       });
 
+      const initialsSource = computed(() => {
+        const self = isSelf();
+        const directUser = user();
+        if (self) {
+          return '';
+        }
+        return directUser?.fullname ?? directUser?.username ?? '';
+      });
+
       const avatarUrl = computed(() => {
         const self = isSelf();
         const directUser = user();
@@ -119,6 +128,7 @@ export const DirectStore = signalStore(
         isCurrentDirectCallActive,
         canRejoinCall,
         title,
+        initialsSource,
         avatarUrl,
         avatarIcon,
         isOnline,
