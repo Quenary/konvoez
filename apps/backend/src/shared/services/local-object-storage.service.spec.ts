@@ -180,11 +180,27 @@ describe('LocalObjectStorageService', () => {
     await expect(service.delete('../../etc/passwd')).rejects.toMatchObject({
       code: ApiErrorCode.BAD_REQUEST,
     });
+    await expect(service.delete('/etc/passwd')).rejects.toMatchObject({
+      code: ApiErrorCode.BAD_REQUEST,
+    });
+    await expect(service.delete('C:\\boot.ini')).rejects.toMatchObject({
+      code: ApiErrorCode.BAD_REQUEST,
+    });
+    await expect(
+      service.delete(path.join(tempDir, 'file.txt')),
+    ).rejects.toMatchObject({
+      code: ApiErrorCode.BAD_REQUEST,
+    });
   });
 
   it('should throw BadRequestException when accessing another bucket (isolation violation)', async () => {
     await expect(
       service.getStream('message-attachments/secret.pdf', 'users-avatars'),
+    ).rejects.toMatchObject({
+      code: ApiErrorCode.BAD_REQUEST,
+    });
+    await expect(
+      service.getStream('message-attachments\\secret.pdf', 'users-avatars'),
     ).rejects.toMatchObject({
       code: ApiErrorCode.BAD_REQUEST,
     });
@@ -195,6 +211,11 @@ describe('LocalObjectStorageService', () => {
     });
     await expect(
       service.delete('message-attachments/secret.pdf', 'users-avatars'),
+    ).rejects.toMatchObject({
+      code: ApiErrorCode.BAD_REQUEST,
+    });
+    await expect(
+      service.delete('message-attachments\\secret.pdf', 'users-avatars'),
     ).rejects.toMatchObject({
       code: ApiErrorCode.BAD_REQUEST,
     });

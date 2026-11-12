@@ -184,7 +184,9 @@ export class LocalObjectStorageService implements FileService {
       for (const otherBucket of FILE_BUCKETS) {
         if (
           otherBucket !== bucket &&
-          (key === otherBucket || key.startsWith(`${otherBucket}/`))
+          (key === otherBucket ||
+            key.startsWith(`${otherBucket}/`) ||
+            key.startsWith(`${otherBucket}\\`))
         ) {
           throw AppException.badRequest(
             ApiErrorCode.BAD_REQUEST,
@@ -192,7 +194,11 @@ export class LocalObjectStorageService implements FileService {
           );
         }
       }
-      if (key === bucket || key.startsWith(`${bucket}/`)) {
+      if (
+        key === bucket ||
+        key.startsWith(`${bucket}/`) ||
+        key.startsWith(`${bucket}\\`)
+      ) {
         return key;
       }
       return `${bucket}/${key}`;
@@ -220,6 +226,11 @@ export class LocalObjectStorageService implements FileService {
   private resolveSafePath(relativePath: string, bucket?: string): string {
     if (
       relativePath.includes('\0') ||
+      path.isAbsolute(relativePath) ||
+      path.posix.isAbsolute(relativePath) ||
+      path.win32.isAbsolute(relativePath) ||
+      relativePath.startsWith('/') ||
+      relativePath.startsWith('\\') ||
       relativePath.split(/[/\\]/).some((part) => part === '..' || part === '.')
     ) {
       throw AppException.badRequest(
