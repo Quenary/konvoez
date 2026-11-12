@@ -146,7 +146,13 @@ export class AuthService implements OnApplicationBootstrap {
     const user = await this.createUser(dto, false);
 
     if (invite) {
-      await this.invitesService.consume(invite, user);
+      try {
+        await this.invitesService.consume(invite, user);
+      } catch (error) {
+        this.em.remove(user);
+        await this.em.flush();
+        throw error;
+      }
     }
 
     if (this.mailService.isConfigured) {

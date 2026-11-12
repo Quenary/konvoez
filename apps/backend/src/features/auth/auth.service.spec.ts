@@ -147,6 +147,7 @@ describe('AuthService', () => {
       persist: jest.fn(),
       flush: jest.fn().mockResolvedValue(undefined),
       fork: jest.fn(),
+      remove: jest.fn(),
     };
     recoveryCodeRepo = {
       find: jest.fn().mockResolvedValue([]),
@@ -1031,6 +1032,41 @@ describe('AuthService', () => {
       });
       expect(userRepo.create).not.toHaveBeenCalled();
       expect(invitesService.consume).not.toHaveBeenCalled();
+    });
+
+    it('should remove created user and throw if invite consumption fails', async () => {
+      usersService.count.mockResolvedValue(1);
+      settingsService.getValue.mockResolvedValue(true);
+
+      const mockInvite = {
+        code: 'valid-code-123',
+      } as unknown as InviteEntity;
+      invitesService.validate.mockResolvedValueOnce(mockInvite);
+
+      const createdMember = {
+        ...mockUserEntity,
+      } as unknown as UserEntity;
+      userRepo.create.mockReturnValueOnce(createdMember);
+      hashService.hash.mockResolvedValueOnce('hashed_password');
+
+      invitesService.consume.mockRejectedValueOnce(
+        AppException.forbidden(
+          ApiErrorCode.INVITE_USED,
+          'Invite code has already been used or expired',
+        ),
+      );
+
+      const dtoWithCode = { ...createDto, inviteCode: 'valid-code-123' };
+
+      await expect(service.register(dtoWithCode)).rejects.toMatchObject({
+        code: ApiErrorCode.INVITE_USED,
+      });
+      expect(em.remove).toHaveBeenCalledWith(createdMember);
+      expect(em.flush).toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        UsersDomainEvents.USER_CREATED,
+        expect.anything(),
+      );
     });
   });
 
