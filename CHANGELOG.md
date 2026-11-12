@@ -1,3 +1,19 @@
+## 1.32.1 (2026-11-12)
+
+### Bug Fixes
+
+- **frontend:** consistant user/room avatar initials and title coloring ([d810ad1d](https://github.com/Quenary/konvoez/commit/d810ad1d))
+- **security:** prevent absolute path traversal and verify recovery migration ([bc58ae50](https://github.com/Quenary/konvoez/commit/bc58ae50))
+- **security:** prevent toctou race condition in single-use invite consumption ([860b0c30](https://github.com/Quenary/konvoez/commit/860b0c30))
+- **security:** add attempt tracking and lockout for password recovery ([1594926e](https://github.com/Quenary/konvoez/commit/1594926e))
+- **security:** enforce room access check on message readers and reactions ([db1212e3](https://github.com/Quenary/konvoez/commit/db1212e3))
+- **security:** prevent path traversal and bucket isolation bypass in avatar storage ([840e9942](https://github.com/Quenary/konvoez/commit/840e9942))
+
+### Code Refactoring
+
+- **frontend:** mv shared room/user context menus logic to components insel ([3591be1a](https://github.com/Quenary/konvoez/commit/3591be1a))
+- **frontend:** user context menu nested dropdowns for volume and move ([155d0a9d](https://github.com/Quenary/konvoez/commit/155d0a9d))
+
 ## 1.32.0 (2026-11-12)
 
 ### Features
