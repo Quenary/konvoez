@@ -139,7 +139,7 @@
             [cdkDragDisabled]="!peer.canMove"
             [cdkDragStartDelay]="dragStartDelay"
             (cdkDragEnded)="onMemberDragEnded()"
-            [tuiDropdown]="peer.canMove ? peerContextMenu : null"
+            [tuiDropdown]="peerContextMenu"
             [tuiDropdownSided]="true"
             tuiDropdownContext
             (longtap)="onPeerLongtap(peer, room)"
@@ -217,8 +217,10 @@
   let-close>
   @if (selectedPeerForMenu(); as selected) {
     <app-user-context-menu
-      [canModerate]="true"
-      [moveTargets]="moveTargetRooms()"
+      [username]="selected.peer.username"
+      [userId]="selected.peer.id"
+      [canModerate]="selected.peer.canMove"
+      [moveTargets]="selected.peer.canMove ? moveTargetRooms() : []"
       (details)="openPeerDialog(selected.peer); close()"
       (move)="moveMember(selected.peer, $event); close()"
       (disconnect)="

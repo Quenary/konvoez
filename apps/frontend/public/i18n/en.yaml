@@ -189,7 +189,7 @@ VOICE:
   CONNECTION_RESTORED: Voice connection restored
   REJOIN: Reconnect
   MOVED_BY: You were moved by {{name}}
-  MOVE_TO: Move to...
+  MOVE_TO: Move
   DISCONNECTED_BY: You were disconnected from the voice room by {{name}}
   DISCONNECT_FROM_VOICE: Disconnect from voice
 ROOMS:

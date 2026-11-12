@@ -189,7 +189,7 @@ VOICE:
   CONNECTION_RESTORED: Голосовая связь восстановлена
   REJOIN: Переподключиться
   MOVED_BY: Вас переместил {{name}}
-  MOVE_TO: Переместить в...
+  MOVE_TO: Переместить
   DISCONNECTED_BY: Вас отключил от голосовой комнаты {{name}}
   DISCONNECT_FROM_VOICE: Отключить от голосовой комнаты
 ROOMS:

@@ -1,31 +1,64 @@
-<tui-data-list>
-  <button
-    tuiOption
-    type="button"
-    (click)="details.emit()">
-    {{ 'ROOMS.DETAILS' | translate }}
-  </button>
+<tui-data-list tuiDataListDropdownManager>
+  <tui-opt-group [label]="username() || ''">
+    <button
+      tuiOption
+      [iconEnd]="icons.info"
+      type="button"
+      (click)="details.emit()">
+      {{ 'ROOMS.DETAILS' | translate }}
+    </button>
+    @if (showVolume()) {
+      <button
+        tuiOption
+        [iconEnd]="volumeIcon()"
+        tuiDropdownAlign="end"
+        tuiDropdownSided
+        type="button"
+        [tuiDropdown]="volumeDropdown">
+        {{ 'CALL.VOLUME' | translate }}
+      </button>
+    }
+  </tui-opt-group>
   @if (canModerate()) {
     @if (moveTargets().length > 0) {
-      <hr />
-      <tui-opt-group [label]="'VOICE.MOVE_TO' | translate">
-        @for (target of moveTargets(); track target.id) {
-          <button
-            tuiOption
-            type="button"
-            (click)="move.emit(target)">
-            {{ target.name }}
-          </button>
-        }
-      </tui-opt-group>
+      <button
+        tuiOption
+        [iconEnd]="icons['arrow-down-up']"
+        tuiDropdownAlign="end"
+        tuiDropdownSided
+        type="button"
+        [tuiDropdown]="moveTargetsMenu">
+        {{ 'VOICE.MOVE_TO' | translate }}
+      </button>
     }
-    <hr />
     <button
       tuiOption
       class="destructive"
+      [iconEnd]="icons['circle-x']"
       type="button"
       (click)="disconnect.emit()">
       {{ 'VOICE.DISCONNECT_FROM_VOICE' | translate }}
     </button>
   }
 </tui-data-list>
+
+<ng-template #volumeDropdown>
+  <app-volume-control
+    [id]="'user-context-volume-' + userId()"
+    [value]="volume()"
+    [label]="'CALL.VOLUME' | translate"
+    (valueChange)="onVolumeChange($event)" />
+</ng-template>
+
+<ng-template #moveTargetsMenu>
+  <tui-data-list>
+    @for (target of moveTargets(); track target.id) {
+      <button
+        tuiOption
+        type="button"
+        (click)="move.emit(target)">
+        {{ target.name }}
+      </button>
+    }
+  </tui-data-list>
+</ng-template>

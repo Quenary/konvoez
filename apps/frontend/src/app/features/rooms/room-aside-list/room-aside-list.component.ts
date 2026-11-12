@@ -190,9 +190,6 @@ export class RoomAsideListComponent {
     peer: IRoomPeerWithCanMove,
     room: IRoomWithPeers,
   ): void {
-    if (!peer.canMove) {
-      return;
-    }
     this.selectedPeerForMenu.set({ peer, roomId: room.id });
     this.peerClickGuard.arm();
   }
