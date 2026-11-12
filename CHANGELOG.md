@@ -1,3 +1,26 @@
+## 1.32.0 (2026-11-12)
+
+### Features
+
+- **server:** attachment retention policy with configurable keep days ([3bee348b](https://github.com/Quenary/konvoez/commit/3bee348b))
+- **frontend:** open the member menu from voice tiles ([aec1c2b6](https://github.com/Quenary/konvoez/commit/aec1c2b6))
+- **frontend:** mobile ui ([#86](https://github.com/Quenary/konvoez/issues/86))
+
+### Bug Fixes
+
+- **frontend:** voice room peer context menu size on edge ([bc0ddd03](https://github.com/Quenary/konvoez/commit/bc0ddd03))
+- **frontend:** keep voice tile actions clear of the name on short tiles ([6c860d2b](https://github.com/Quenary/konvoez/commit/6c860d2b))
+- **invites:** return the sign-up link only while the invite is active ([99726c23](https://github.com/Quenary/konvoez/commit/99726c23))
+
+### Code Refactoring
+
+- **frontend:** voice room tile with open user dialog button ([53e5cc92](https://github.com/Quenary/konvoez/commit/53e5cc92))
+
+### Styles
+
+- **frontend:** call controls state icon for dead state ([25d448be](https://github.com/Quenary/konvoez/commit/25d448be))
+- **frontend:** change direct chats icon ([7348e4c9](https://github.com/Quenary/konvoez/commit/7348e4c9))
+
 ## 1.31.0 (2026-11-09)
 
 ### Features

@@ -1,3 +1,14 @@
+## 0.15.0 (2026-11-12)
+
+### Features
+
+- **desktop:** bind any key under the native hook ([09ab96de](https://github.com/Quenary/konvoez/commit/09ab96de))
+- **desktop:** save server list in desktop server dialog ([#90](https://github.com/Quenary/konvoez/issues/90))
+
+### Code Refactoring
+
+- **desktop:** migrate desktop local windows to Angular ([#84](https://github.com/Quenary/konvoez/issues/84))
+
 ## 0.14.0 (2026-11-09)
 
 This was a version bump only for desktop to align it with other projects, there were no code changes.
