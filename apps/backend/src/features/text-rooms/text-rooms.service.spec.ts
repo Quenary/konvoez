@@ -2353,6 +2353,24 @@ describe('TextRoomsService', () => {
       });
     });
 
+    it('should throw ForbiddenException when user cannot access the room', async () => {
+      roomsFacade.canAccessRoom.mockReturnValueOnce(false);
+      messageRepository.findOne.mockResolvedValue({
+        id: parse(v7()),
+        sender: { id: 9, username: 'other' },
+        recipient: null,
+        room: { id: 10, isPrivate: true },
+      } as unknown as MessageEntity);
+
+      await expect(service.getReaders(mockUser, v7())).rejects.toMatchObject({
+        code: ApiErrorCode.MESSAGE_ACCESS_DENIED,
+      });
+      expect(roomsFacade.canAccessRoom).toHaveBeenCalledWith(
+        mockUser,
+        expect.objectContaining({ id: 10 }),
+      );
+    });
+
     it('should return readers for a participant', async () => {
       const msgId = v7();
       const reader = { id: 2, username: 'bob' } as unknown as UserEntity;
@@ -2400,6 +2418,26 @@ describe('TextRoomsService', () => {
       ).rejects.toMatchObject({
         code: ApiErrorCode.MESSAGE_ACCESS_DENIED,
       });
+    });
+
+    it('should throw ForbiddenException if user cannot access the room', async () => {
+      roomsFacade.canAccessRoom.mockReturnValueOnce(false);
+      messageRepository.findOne.mockResolvedValue({
+        id: parse(v7()),
+        sender: { id: 99, username: 'stranger' },
+        recipient: null,
+        room: { id: 10, isPrivate: true },
+      } as unknown as MessageEntity);
+
+      await expect(
+        service.toggleReaction(mockUser, v7(), '👍'),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.MESSAGE_ACCESS_DENIED,
+      });
+      expect(roomsFacade.canAccessRoom).toHaveBeenCalledWith(
+        mockUser,
+        expect.objectContaining({ id: 10 }),
+      );
     });
 
     it('should add reaction when user has no reaction on message', async () => {
@@ -2705,7 +2743,7 @@ describe('TextRoomsService', () => {
       messageRepository.findOne.mockResolvedValue(message);
       messageReactionRepository.findOne.mockResolvedValueOnce(null);
       messageReactionRepository.find.mockResolvedValueOnce([]);
-      roomsFacade.canAccessRoom.mockReturnValueOnce(false);
+      roomsFacade.canAccessRoom.mockImplementation((u) => u.id === mockUser.id);
 
       await service.toggleReaction(mockUser, msgId, '👍');
 
