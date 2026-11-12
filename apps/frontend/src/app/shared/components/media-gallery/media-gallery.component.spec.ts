@@ -4,6 +4,7 @@ import { of, Subject } from 'rxjs';
 import { provideTranslateService } from '@ngx-translate/core';
 import {
   EAttachmentKind,
+  EAttachmentStatus,
   IMediaCounts,
   IMediaGalleryItem,
 } from '@konvoez/shared';
@@ -127,6 +128,7 @@ describe('MediaGalleryComponent', () => {
 
     const item = {
       id: 'att-1',
+      status: EAttachmentStatus.ATTACHED,
       messageId: 'msg-target-1',
       kind: EAttachmentKind.IMAGE,
       name: 'pic.jpg',
@@ -170,6 +172,7 @@ describe('MediaGalleryComponent', () => {
   it('downloads file via downloadService', () => {
     const item = {
       id: 'att-file',
+      status: EAttachmentStatus.ATTACHED,
       messageId: 'msg-1',
       kind: EAttachmentKind.FILE,
       name: 'doc.pdf',
@@ -258,6 +261,7 @@ function mediaPage(
     items: [
       {
         id,
+        status: EAttachmentStatus.ATTACHED,
         messageId: 'msg-1',
         kind,
         name: `${id}.bin`,

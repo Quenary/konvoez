@@ -11,7 +11,7 @@ import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiHint, TuiTitle } from '@taiga-ui/core';
 import { TuiHeader } from '@taiga-ui/layout';
-import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
+import { TuiAvatar, TuiFade, TuiInitialsPipe } from '@taiga-ui/kit';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
@@ -26,6 +26,7 @@ import {
 } from '../voice-room-tiles';
 import { VoiceRoomLocalScreenPreviewPauseButtonComponent } from '../voice-room-local-screen-preview-pause-button/voice-room-local-screen-preview-pause-button.component';
 
+import { HeaderBackButtonComponent } from '@shared/components/header-back-button/header-back-button.component';
 import { icons } from '@constants';
 
 @Component({
@@ -36,10 +37,12 @@ import { icons } from '@constants';
     '[class.with-hide]': 'withHide()',
   },
   imports: [
+    HeaderBackButtonComponent,
     NgOptimizedImage,
     NgTemplateOutlet,
     TranslatePipe,
     TuiAvatar,
+    TuiFade,
     TuiButton,
     TuiHeader,
     TuiHint,
@@ -65,6 +68,7 @@ export class VoiceRoomOverlayComponent {
 
   public readonly title = input<string>('');
   public readonly avatarUrl = input<string | null>(null);
+  public readonly backRoute = input<string>('/voice-room');
   public readonly participantsCount = input(0);
   public readonly fullscreenTarget = input<HTMLElement | null>(null);
   public readonly headerActions = input<TemplateRef<unknown> | null>(null);

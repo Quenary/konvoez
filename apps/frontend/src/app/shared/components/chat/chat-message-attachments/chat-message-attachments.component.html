@@ -6,38 +6,57 @@
   <ng-template
     #tile
     let-item>
-    <app-file-thumbnail
-      fill
-      interactive
-      [errorText]="item.errorText ? (item.errorText | translate) : null"
-      [durationMs]="item.durationMs"
-      [kind]="item.kind"
-      [name]="item.name"
-      [progress]="item.progress"
-      [removable]="item.removable"
-      [serverVideo]="item.serverVideo"
-      [size]="item.size"
-      [src]="item.src"
-      [status]="item.status"
-      (activate)="open(item)"
-      (remove)="removeFile.emit(item.key)" />
+    @if (item.deleted) {
+      <div class="deleted-tile">
+        <tui-icon [icon]="icons.delete" />
+        <span>{{ 'CHAT.ATTACHMENT_DELETED' | translate }}</span>
+      </div>
+    } @else {
+      <app-file-thumbnail
+        fill
+        interactive
+        [errorText]="item.errorText ? (item.errorText | translate) : null"
+        [durationMs]="item.durationMs"
+        [kind]="item.kind"
+        [name]="item.name"
+        [progress]="item.progress"
+        [removable]="item.removable"
+        [serverVideo]="item.serverVideo"
+        [size]="item.size"
+        [src]="item.src"
+        [status]="item.status"
+        (activate)="open(item)"
+        (remove)="removeFile.emit(item.key)" />
+    }
   </ng-template>
 }
 
 @for (item of audio(); track item.key) {
-  <div class="audio-row">
-    <span>{{ item.name }}</span>
-    @if (item.fullSrc) {
-      <audio
-        controls
-        preload="none"
-        [src]="item.fullSrc"></audio>
-    }
-  </div>
+  @if (item.deleted) {
+    <div class="deleted-file-row">
+      <tui-icon [icon]="icons.delete" />
+      <span>{{ 'CHAT.ATTACHMENT_DELETED' | translate }}</span>
+    </div>
+  } @else {
+    <div class="audio-row">
+      <span>{{ item.name }}</span>
+      @if (item.fullSrc) {
+        <audio
+          controls
+          preload="none"
+          [src]="item.fullSrc"></audio>
+      }
+    </div>
+  }
 }
 
 @for (item of files(); track item.key) {
-  @if (item.downloadUrl) {
+  @if (item.deleted) {
+    <div class="deleted-file-row">
+      <tui-icon [icon]="icons.delete" />
+      <span>{{ 'CHAT.ATTACHMENT_DELETED' | translate }}</span>
+    </div>
+  } @else if (item.downloadUrl) {
     <a
       tuiFile
       [file]="{ name: item.name, size: item.size, type: '' }"

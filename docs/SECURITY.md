@@ -33,6 +33,7 @@ flowchart TD
 Invite rules:
 
 - The server allows one active invite per email address; the check and the insert run in one transaction.
+- The server returns the invite code and sign-up link only while the invite is active. Used, revoked and expired invites omit both.
 - An invite bound to an email can be sent by email only when SMTP is configured and `APP_URL` is set. The link in the message is built from `APP_URL` only, never from request headers, so a forged `Host` or `Origin` cannot redirect invite codes.
 - If sending fails on creation, the invite is kept and the response carries a warning so the link can be shared manually.
 - Resending is limited by a cooldown. The server claims the send slot atomically before sending and restores it when sending fails.

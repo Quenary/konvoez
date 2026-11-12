@@ -1,0 +1,27 @@
+:root {
+  --tui-typography-family-text:
+    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+  --tui-typography-family-display:
+    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  box-sizing: border-box;
+  background: var(--tui-background-base);
+  color: var(--tui-text-primary);
+  font-family: var(--tui-typography-family-text);
+}
+
+*,
+*:before,
+*:after {
+  box-sizing: inherit;
+}

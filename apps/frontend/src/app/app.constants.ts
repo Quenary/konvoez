@@ -25,7 +25,7 @@ export const icons = {
   save: '@tui.save',
   delete: '@tui.trash',
   refresh: '@tui.refresh-cw',
-  direct: '@tui.messages-square',
+  direct: '@tui.message-circle-heart',
   settings: '@tui.settings',
   'settings-profile': '@tui.user-pen',
   'settings-security': '@tui.shield-user',
@@ -48,6 +48,7 @@ export const icons = {
   /* Rooms menu */
   'text-rooms': '@tui.message-circle-more',
   'audio-lines': '@tui.audio-lines',
+  'audio-lines-x': '@tui.audio-lines-x',
   /* Auth / forms */
   user: '@tui.user',
   lock: '@tui.lock',

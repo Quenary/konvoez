@@ -4,6 +4,7 @@ import { provideTranslateService } from '@ngx-translate/core';
 import {
   attachmentsAnimatedInlineMaxSize,
   EAttachmentKind,
+  EAttachmentStatus,
   IAttachment,
 } from '@konvoez/shared';
 import { MediaPreviewService } from '@shared/components/media-preview/media-preview.service';
@@ -17,6 +18,7 @@ function attachment(
   overrides: Partial<IAttachment> & Pick<IAttachment, 'id' | 'kind'>,
 ): IAttachment {
   return {
+    status: EAttachmentStatus.ATTACHED,
     name: overrides.id,
     mime: 'application/octet-stream',
     size: 10,
@@ -31,6 +33,7 @@ function attachment(
 
 describe('ChatMessageAttachmentsComponent', () => {
   let fixture: ComponentFixture<ChatMessageAttachmentsComponent>;
+  let component: ChatMessageAttachmentsComponent;
   const open = vi.fn(() => of(undefined));
   const downloadUrl = vi.fn();
   const downloads = { usesShareDialog: false, downloadUrl };
@@ -48,6 +51,7 @@ describe('ChatMessageAttachmentsComponent', () => {
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(ChatMessageAttachmentsComponent);
+    component = fixture.componentInstance;
   });
 
   it('splits media, audio and files', () => {
@@ -313,6 +317,96 @@ describe('ChatMessageAttachmentsComponent', () => {
 
       expect(event.defaultPrevented).toBe(false);
       expect(downloadUrl).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleted attachments', () => {
+    it('displays "File deleted" instead of thumbnail for deleted media', () => {
+      fixture.componentRef.setInput('attachments', [
+        attachment({
+          id: 'photo',
+          kind: EAttachmentKind.IMAGE,
+          status: EAttachmentStatus.DELETED,
+          url: '',
+        }),
+      ]);
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.querySelectorAll('app-file-thumbnail')).toHaveLength(0);
+      const deletedTile = root.querySelector('.deleted-tile');
+      expect(deletedTile).toBeTruthy();
+      expect(deletedTile?.textContent).toContain('CHAT.ATTACHMENT_DELETED');
+    });
+
+    it('displays "File deleted" instead of file row for deleted file', () => {
+      fixture.componentRef.setInput('attachments', [
+        attachment({
+          id: 'doc',
+          kind: EAttachmentKind.FILE,
+          status: EAttachmentStatus.DELETED,
+          url: '',
+        }),
+      ]);
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.querySelector('a[tuiFile]')).toBeNull();
+      expect(root.querySelector('tui-file')).toBeNull();
+      const deletedRow = root.querySelector('.deleted-file-row');
+      expect(deletedRow).toBeTruthy();
+      expect(deletedRow?.textContent).toContain('CHAT.ATTACHMENT_DELETED');
+    });
+
+    it('displays "File deleted" instead of audio player for deleted audio', () => {
+      fixture.componentRef.setInput('attachments', [
+        attachment({
+          id: 'audio-clip',
+          kind: EAttachmentKind.AUDIO,
+          status: EAttachmentStatus.DELETED,
+          url: '',
+        }),
+      ]);
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.querySelector('audio')).toBeNull();
+      const deletedRow = root.querySelector('.deleted-file-row');
+      expect(deletedRow).toBeTruthy();
+      expect(deletedRow?.textContent).toContain('CHAT.ATTACHMENT_DELETED');
+    });
+
+    it('does not open media preview for deleted media', () => {
+      const item = attachment({
+        id: 'photo',
+        kind: EAttachmentKind.IMAGE,
+        status: EAttachmentStatus.DELETED,
+        url: '',
+      });
+      fixture.componentRef.setInput('attachments', [item]);
+      fixture.detectChanges();
+      const view = component['views']()[0];
+      component['open'](view);
+      expect(open).not.toHaveBeenCalled();
+    });
+
+    it('uses the aspect ratio of the first non-deleted media item', () => {
+      const deletedPhoto = attachment({
+        id: 'photo-deleted',
+        kind: EAttachmentKind.IMAGE,
+        status: EAttachmentStatus.DELETED,
+        width: 1000,
+        height: 500,
+        url: '',
+      });
+      const activePhoto = attachment({
+        id: 'photo-active',
+        kind: EAttachmentKind.IMAGE,
+        status: EAttachmentStatus.ATTACHED,
+        width: 800,
+        height: 600,
+        url: '/photo',
+      });
+      fixture.componentRef.setInput('attachments', [deletedPhoto, activePhoto]);
+      fixture.detectChanges();
+      expect(component['aspect']()).toEqual({ width: 800, height: 600 });
     });
   });
 });

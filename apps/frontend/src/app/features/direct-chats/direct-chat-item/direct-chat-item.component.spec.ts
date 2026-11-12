@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
+import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
 import { provideStore } from '@ngrx/store';
@@ -60,6 +61,7 @@ describe('DirectChatItemComponent', () => {
     await TestBed.configureTestingModule({
       imports: [DirectChatItemComponent],
       providers: [
+        provideRouter([]),
         provideTranslateService(),
         provideStore({
           auth: () => ({ user: currentUser }),
@@ -130,7 +132,7 @@ describe('DirectChatItemComponent', () => {
     const el: HTMLElement = fixture.nativeElement;
     const badge = el.querySelector('.online-badge');
     expect(badge).toBeTruthy();
-    expect(badge?.getAttribute('size')).toBe('xs');
+    expect(badge?.getAttribute('size')).toBe('s');
     expect(badge?.getAttribute('tuislot')).toBe('bottom');
   });
 

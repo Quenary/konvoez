@@ -1,0 +1,95 @@
+<app-dialog-layout [heading]="'server.title' | i18n">
+  <div class="server-row">
+    <label
+      tuiLabel
+      class="server-input">
+      {{ 'server.addressLabel' | i18n }}
+      <tui-textfield
+        tuiTextfieldSize="m"
+        [tuiTextfieldCleaner]="false">
+        <input
+          #inputEl
+          tuiInput
+          type="url"
+          [disabled]="loading()"
+          [placeholder]="'server.placeholder' | i18n"
+          [(ngModel)]="serverUrl"
+          (ngModelChange)="clearUrlError()"
+          (keydown.enter)="handleConnect()" />
+      </tui-textfield>
+    </label>
+    <button
+      tuiIconButton
+      appearance="secondary"
+      size="m"
+      type="button"
+      [iconStart]="'@tui.plus'"
+      [disabled]="!canAdd()"
+      [attr.aria-label]="'server.add' | i18n"
+      tuiHintAppearance="floating"
+      [tuiHint]="'server.add' | i18n"
+      (click)="handleAdd()"></button>
+  </div>
+
+  @if (error(); as err) {
+    <aside
+      tuiNotification
+      appearance="negative"
+      role="alert">
+      {{ err }}
+    </aside>
+  }
+
+  @if (savedServers().length) {
+    <section class="saved-servers">
+      <h2 tuiTitle>{{ 'server.savedServers' | i18n }}</h2>
+      <ul class="saved-server-list">
+        @for (server of savedServers(); track server) {
+          <li class="saved-server">
+            <span class="saved-server-address">{{ server }}</span>
+            <button
+              tuiIconButton
+              appearance="negative"
+              size="s"
+              type="button"
+              [iconStart]="'@tui.trash'"
+              [disabled]="loading()"
+              [attr.aria-label]="'server.remove' | i18n"
+              tuiHintAppearance="floating"
+              [tuiHint]="'server.remove' | i18n"
+              (click)="handleRemove(server)"></button>
+            <button
+              tuiIconButton
+              appearance="primary"
+              size="s"
+              type="button"
+              [iconStart]="'@tui.log-in'"
+              [disabled]="loading()"
+              [attr.aria-label]="'server.join' | i18n"
+              tuiHintAppearance="floating"
+              [tuiHint]="'server.join' | i18n"
+              (click)="handleConnect(server)"></button>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  <button
+    actions
+    tuiButton
+    appearance="primary"
+    size="m"
+    type="button"
+    [disabled]="loading()"
+    (click)="handleConnect()">
+    @if (loading()) {
+      <tui-loader
+        size="s"
+        class="btn-loader" />
+      {{ 'server.connecting' | i18n }}
+    } @else {
+      {{ 'server.connect' | i18n }}
+    }
+  </button>
+</app-dialog-layout>

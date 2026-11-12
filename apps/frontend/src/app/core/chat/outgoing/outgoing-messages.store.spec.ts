@@ -11,6 +11,7 @@ import { TuiNotificationService } from '@taiga-ui/core';
 import {
   ApiErrorCode,
   EAttachmentKind,
+  EAttachmentStatus,
   IAttachment,
   ITextRoomMessage,
   IUserFull,
@@ -63,6 +64,7 @@ describe('OutgoingMessagesStore', () => {
   function attachment(id: string, name: string): IAttachment {
     return {
       id,
+      status: EAttachmentStatus.ATTACHED,
       kind: EAttachmentKind.FILE,
       name,
       mime: 'text/plain',

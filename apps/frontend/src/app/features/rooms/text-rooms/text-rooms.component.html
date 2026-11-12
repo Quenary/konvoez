@@ -1,0 +1,31 @@
+@if (!hasChildRoute()) {
+  <app-route-page>
+    <header tuiHeader>
+      <h2 tuiTitle>
+        <tui-icon [icon]="icons['text-rooms']" />
+        <span tuiFade>{{ 'ROOMS.TEXT_TITLE' | translate }}</span>
+      </h2>
+
+      <aside tuiAccessories>
+        @if (canManageRooms()) {
+          @let createTitle = 'ROOMS.ADD_TEXT_ROOM' | translate;
+          <button
+            tuiButton
+            appearance="primary"
+            size="m"
+            [iconStart]="icons.add"
+            type="button"
+            [tuiHint]="createTitle"
+            (click)="createRoom()">
+            @if (!isNarrow()) {
+              {{ createTitle }}
+            }
+          </button>
+        }
+      </aside>
+    </header>
+
+    <app-room-list [type]="ERoomType.TEXT" />
+  </app-route-page>
+}
+<router-outlet />

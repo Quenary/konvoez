@@ -25,6 +25,7 @@ import { parse, v7 } from 'uuid';
 import {
   ApiErrorCode,
   EAttachmentKind,
+  EAttachmentStatus,
   EPermission,
   ESettingKey,
   attachmentFileNameMaxLength,
@@ -32,7 +33,6 @@ import {
 import { MESSAGE_ATTACHMENTS_BUCKET } from '@shared/services/file.service';
 import { AttachmentsService } from './attachments.service';
 import { sanitizeAttachmentName } from './attachments.http';
-import { EAttachmentStatus } from './attachments.const';
 import { MessageAttachmentEntity } from './attachments.entity';
 import { GetUserSafeDto } from '../users/users.dto';
 
@@ -760,6 +760,23 @@ describe('AttachmentsService', () => {
       });
     });
 
+    it('rejects reading a deleted attachment', async () => {
+      const id = '00000000-0000-7000-8000-000000000099';
+      repo.findOne.mockResolvedValue(
+        row({
+          id: parse(id),
+          status: EAttachmentStatus.DELETED,
+          message: { room: { id: 4 }, sender: { id: 9 }, recipient: null },
+        }),
+      );
+
+      await expect(
+        service.resolveReadable(id, author, false),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.FILE_NOT_FOUND,
+      });
+    });
+
     it('deletes a pending upload owned by the caller', async () => {
       const id = '00000000-0000-7000-8000-000000000005';
       const pending = row({ id: parse(id) });
@@ -1049,6 +1066,77 @@ describe('AttachmentsService', () => {
       expect(res.items).toHaveLength(0);
       expect(res.hasMore).toBe(false);
       expect(res.nextCursor).toBeNull();
+    });
+  });
+
+  describe('toDto and findAttachedByMessageIds', () => {
+    function row(
+      overrides: Record<string, unknown> = {},
+    ): MessageAttachmentEntity {
+      return {
+        id: parse(v7()),
+        status: EAttachmentStatus.ATTACHED,
+        kind: EAttachmentKind.FILE,
+        mime: 'application/octet-stream',
+        size: 3,
+        originalName: 'a.txt',
+        storageKey: 'message-attachments/a',
+        thumbnailKey: null,
+        width: null,
+        height: null,
+        uploader: { id: author.id },
+        message: null,
+        ...overrides,
+      } as unknown as MessageAttachmentEntity;
+    }
+
+    it('maps an attached entity to DTO with status and URLs', () => {
+      const id = '00000000-0000-7000-8000-000000000010';
+      const entity = row({
+        id: parse(id),
+        status: EAttachmentStatus.ATTACHED,
+        kind: EAttachmentKind.IMAGE,
+        originalName: 'photo.jpg',
+        thumbnailKey: 'message-attachments/thumb',
+      });
+      const dto = service.toDto(entity);
+      expect(dto.id).toBe(id);
+      expect(dto.status).toBe(EAttachmentStatus.ATTACHED);
+      expect(dto.url).toBe(`/api/v1/attachments/${id}/content`);
+      expect(dto.thumbnailUrl).toBe(`/api/v1/attachments/${id}/thumbnail`);
+    });
+
+    it('maps a deleted entity to DTO with empty url and null thumbnailUrl', () => {
+      const id = '00000000-0000-7000-8000-000000000011';
+      const entity = row({
+        id: parse(id),
+        status: EAttachmentStatus.DELETED,
+        kind: EAttachmentKind.IMAGE,
+        originalName: 'photo.jpg',
+        thumbnailKey: 'message-attachments/thumb',
+      });
+      const dto = service.toDto(entity);
+      expect(dto.id).toBe(id);
+      expect(dto.status).toBe(EAttachmentStatus.DELETED);
+      expect(dto.url).toBe('');
+      expect(dto.thumbnailUrl).toBeNull();
+    });
+
+    it('queries for both ATTACHED and DELETED in findAttachedByMessageIds', async () => {
+      const msgId = new Uint8Array(16);
+      repo.find.mockResolvedValue([]);
+
+      await service.findAttachedByMessageIds([msgId]);
+
+      expect(repo.find).toHaveBeenCalledWith(
+        {
+          message: { $in: [msgId] },
+          status: {
+            $in: [EAttachmentStatus.ATTACHED, EAttachmentStatus.DELETED],
+          },
+        },
+        { orderBy: { position: 'ASC' } },
+      );
     });
   });
 });

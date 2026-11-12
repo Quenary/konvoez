@@ -65,6 +65,11 @@ MENU:
     USERS: Пользователи
     ROLES: Роли
     ADMIN: Администрирование
+TAB_BAR:
+  DIRECT: Личные
+  TEXT: Текстовые
+  VOICE: Голосовые
+  SETTINGS: Настройки
 USER_DIALOG:
   OPEN_CHAT: Открыть чат
   CALL: Позвонить
@@ -188,6 +193,12 @@ VOICE:
   DISCONNECTED_BY: Вас отключил от голосовой комнаты {{name}}
   DISCONNECT_FROM_VOICE: Отключить от голосовой комнаты
 ROOMS:
+  TEXT_TITLE: Текстовые
+  VOICE_TITLE: Голосовые
+  ADD_TEXT_ROOM: Создать текстовую комнату
+  ADD_VOICE_ROOM: Создать голосовую комнату
+  EMPTY_TEXT_ROOMS: Нет текстовых комнат
+  EMPTY_VOICE_ROOMS: Нет голосовых комнат
   UNREAD_MENTIONS: Непрочитанные упоминания
   SEARCH_MESSAGES: Поиск сообщений...
   DELETED_MESSAGE: Удаленное сообщение
@@ -257,12 +268,14 @@ ROOMS:
       MANY: '{{count}} аудио'
       OTHER: '{{count}} аудио'
 CHAT:
+  ATTACHMENT_DELETED: Файл удален
   MENTION_EVERYONE_HINT: Уведомить всех в комнате
   MENTION_UNKNOWN: неизвестно
   UNREAD_MESSAGES: Непрочитанные сообщения
 SETTINGS:
+  TITLE: Настройки
   PROFILE:
-    TITLE: Настройки профиля
+    TITLE: Профиль
     DELETE: Удалить аккаунт
     EMAIL_VERIFICATION:
       VERIFIED: Подтвержден
@@ -329,7 +342,7 @@ SETTINGS:
     UPDATE_ERROR: Не удалось сохранить настройки уведомлений
     LOAD_ERROR: Не удалось загрузить настройки уведомлений
   DEVICES:
-    TITLE: Настройки устройств
+    TITLE: Устройства
     AUDIO_INPUT: Микрофон
     AUDIO_OUTPUT: Выходное устройство
     DEVICE_UNAVAILABLE: Устройство недоступно
@@ -477,6 +490,8 @@ SETTINGS:
     ATTACHMENTS_MAX_FILES_PER_MESSAGE_DESC: Сколько файлов можно прикрепить к одному сообщению (1–10)
     ATTACHMENTS_STRIP_IMAGE_METADATA: Удалять метаданные изображений
     ATTACHMENTS_STRIP_IMAGE_METADATA_DESC: По умолчанию выключено, получатели скачивают исходный файл. Применяется только к новым загрузкам; уже сохранённые файлы не меняются.
+    ATTACHMENTS_KEEP_DAYS: Срок хранения вложений (дни)
+    ATTACHMENTS_KEEP_DAYS_DESC: Количество дней хранения файлов вложений. 0 — хранить бессрочно. При истечении срока файлы удаляются, а в сообщении отображается «Файл удален».
     VOICE: Голос
     VOICE_MAX_BITRATE: Битрейт голоса (кбит/с)
     VOICE_MAX_BITRATE_DESC: 'Базовый (максимальный) битрейт микрофона, от 8 до 384, по умолчанию 64. Нагрузка на исходящий канал сервера — битрейт × число слушателей: при 64 кбит/с и 9 слушателях это около 0,6 Мбит/с на одного говорящего. Действует для новых подключений; открытые клиенты подхватят значение после перезагрузки приложения.'
@@ -514,6 +529,7 @@ VALIDATION:
   MESSAGE_TO_SELF: Нельзя отправить сообщение самому себе
   ATTACHMENTS_MAX_FILE_SIZE_RANGE: Лимит размера файла должен быть от 1 МиБ до 1 ГиБ
   ATTACHMENTS_MAX_FILES_RANGE: Количество файлов должно быть от 1 до 10
+  ATTACHMENTS_KEEP_DAYS_RANGE: Срок хранения должен быть 0 или больше дней
   SETUP_TOKEN_REQUIRED: Токен настройки обязателен для первой регистрации
   INVITE_CODE_REQUIRED: Код приглашения обязателен для регистрации
   INVALID_SCHEMA: Неверный формат схемы

@@ -15,6 +15,7 @@ import { SpeakerService } from '@core/services/speaker.service';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
 import {
+  attachmentsDefaultKeepDays,
   attachmentsDefaultMaxFileSize,
   attachmentsDefaultMaxFilesPerMessage,
   ESettingKey,
@@ -155,6 +156,7 @@ describe('SettingsStore', () => {
       attachmentsDefaultMaxFilesPerMessage,
     );
     expect(store.attachmentsStripImageMetadata()).toBe(false);
+    expect(store.attachmentsKeepDays()).toBe(attachmentsDefaultKeepDays);
     expect(store.needsInitialSetup()).toBe(true);
     expect(store.cameraCodec()).toBeNull();
     expect(store.screenCodec()).toBeNull();

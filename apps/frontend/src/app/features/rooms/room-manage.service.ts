@@ -2,7 +2,13 @@ import { computed, inject, Injectable, Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { RoomsStore } from '@core/stores/rooms.store';
 import { TranslateService } from '@ngx-translate/core';
-import { EPermission, IRoom, IRoomUpdate } from '@konvoez/shared';
+import {
+  EPermission,
+  ERoomType,
+  IRoom,
+  IRoomCreate,
+  IRoomUpdate,
+} from '@konvoez/shared';
 import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
@@ -96,6 +102,43 @@ export class RoomManageService {
         if (!res) return;
 
         this.roomsStore.remove(room.id);
+      });
+  }
+
+  public async createRoom(type: ERoomType): Promise<void> {
+    const { RoomDialogComponent } =
+      await import('./room-dialog/room-dialog.component');
+
+    this.tuiResponsiveDialogService
+      .open<RoomDialogData>(
+        new PolymorpheusComponent(RoomDialogComponent, this.injector),
+        {
+          closable: true,
+          data: { type },
+          label: this.translateService.instant('ROOMS.DIALOG.ADD_HEADER'),
+        },
+      )
+      .subscribe({
+        next: (room) => {
+          if (!room?.name || !room.type) return;
+
+          const body: IRoomCreate = {
+            name: room.name,
+            type: room.type,
+            ...(room.avatar ? { avatar: room.avatar } : {}),
+            ...(room.isPrivate !== undefined
+              ? { isPrivate: room.isPrivate }
+              : {}),
+            ...(room.allowedRoleIds !== undefined
+              ? { allowedRoleIds: room.allowedRoleIds }
+              : {}),
+            ...(room.allowedUserIds !== undefined
+              ? { allowedUserIds: room.allowedUserIds }
+              : {}),
+          };
+
+          this.roomsStore.create(body);
+        },
       });
   }
 }

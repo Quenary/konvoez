@@ -25,12 +25,13 @@ import {
   TuiLink,
   TuiNotification,
   TuiNotificationService,
-  TuiScrollbar,
   TuiTextfield,
+  TuiTitle,
 } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
+import { TuiForm, TuiHeader } from '@taiga-ui/layout';
 import {
+  TuiFade,
   TuiSwitch,
   TuiFiles,
   TuiAvatar,
@@ -68,10 +69,14 @@ import { getProfileFormSchema } from '@shared/schemas/forms.schema';
 import { finalize, map, startWith } from 'rxjs';
 import { icons } from '@constants';
 import { LayoutService } from '@core/services/layout.service';
+import { HeaderBackButtonComponent } from '@shared/components/header-back-button/header-back-button.component';
+import { RoutePageComponent } from '@shared/components/route-page/route-page.component';
 
 @Component({
   selector: 'app-settings-profile',
   imports: [
+    HeaderBackButtonComponent,
+    RoutePageComponent,
     FormsModule,
     ReactiveFormsModule,
     TranslatePipe,
@@ -79,11 +84,10 @@ import { LayoutService } from '@core/services/layout.service';
     NgOptimizedImage,
     TuiButton,
     TuiTextfield,
-    TuiCardLarge,
     TuiError,
+    TuiFade,
     TuiForm,
     TuiHeader,
-    TuiScrollbar,
     TuiFiles,
     TuiInput,
     TuiSwitch,
@@ -94,6 +98,7 @@ import { LayoutService } from '@core/services/layout.service';
     TuiIcon,
     TuiHint,
     TuiNotification,
+    TuiTitle,
   ],
   templateUrl: './settings-profile.component.html',
   styleUrl: './settings-profile.component.scss',

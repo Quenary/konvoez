@@ -43,6 +43,7 @@ export class VoiceRoomShellComponent {
 
   public readonly title = input<string>('');
   public readonly avatarUrl = input<string | null>(null);
+  public readonly backRoute = input<string>('/voice-room');
   public readonly headerActions = input<TemplateRef<unknown> | null>(null);
   public readonly headerClick = output<void>();
 

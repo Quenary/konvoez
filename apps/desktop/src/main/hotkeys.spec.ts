@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EDesktopCommand } from '@konvoez/shared';
 import {
   applyHotkeys,
-  normalizeAccelerator,
   resetHotkeyStateForTests,
   resumeHotkeys,
   suspendHotkeys,
@@ -13,7 +12,7 @@ describe('applyHotkeys', () => {
   beforeEach(async () => {
     resetHotkeyStateForTests();
     // A built addon on the dev machine must not switch these tests to the native hook.
-    const nativeMod = await import('./native');
+    const nativeMod = await import('./native.js');
     vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue(null);
   });
   it('registers accelerators and returns ok on success', () => {
@@ -87,6 +86,28 @@ describe('applyHotkeys', () => {
     });
   });
 
+  it('rejects a sided modifier and a modifier alone for globalShortcut', () => {
+    const register = vi.fn().mockReturnValue(true);
+    const mockManager = {
+      unregisterAll: vi.fn(),
+      register,
+    } as unknown as typeof globalShortcut;
+
+    const statuses = applyHotkeys(
+      {
+        toggleMic: 'ControlRight',
+        toggleSpeaker: 'ControlLeft+M',
+      },
+      mockManager,
+    );
+
+    expect(register).not.toHaveBeenCalled();
+    expect(statuses).toEqual({
+      toggleMic: 'invalid',
+      toggleSpeaker: 'invalid',
+    });
+  });
+
   it('suspend unregisters and resume re-registers stored hotkeys', () => {
     const unregisterAll = vi.fn();
     const register = vi.fn().mockReturnValue(true);
@@ -113,7 +134,7 @@ describe('applyHotkeys', () => {
 
   describe('native key hook integration', () => {
     it('uses native key hook when supported, dispatches hotkeys without auto-repeat', async () => {
-      const nativeMod = await import('./native');
+      const nativeMod = await import('./native.js');
       const stopHook = vi.fn();
       let hookListener:
         ((event: { code: string; down: boolean }) => void) | null = null;
@@ -206,7 +227,7 @@ describe('applyHotkeys', () => {
     it('fires again when a held key is pressed after a long gap', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
-      const nativeMod = await import('./native');
+      const nativeMod = await import('./native.js');
       let hookListener:
         ((event: { code: string; down: boolean }) => void) | null = null;
       vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
@@ -244,7 +265,7 @@ describe('applyHotkeys', () => {
     });
 
     it('falls back to globalShortcut when the native hook fails to start', async () => {
-      const nativeMod = await import('./native');
+      const nativeMod = await import('./native.js');
       vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
         isAudioSupported: () => false,
         isKeyHookSupported: () => true,
@@ -280,7 +301,7 @@ describe('applyHotkeys', () => {
     });
 
     it('matches stored hotkeys using modifier synonyms like Ctrl or CmdOrCtrl', async () => {
-      const nativeMod = await import('./native');
+      const nativeMod = await import('./native.js');
       let hookListener:
         ((event: { code: string; down: boolean }) => void) | null = null;
       vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
@@ -328,20 +349,168 @@ describe('applyHotkeys', () => {
       listener({ code: 'KeyD', down: true });
       expect(onCommand).toHaveBeenCalledWith(EDesktopCommand.TOGGLE_SPEAKER);
     });
-  });
 
-  describe('normalizeAccelerator', () => {
-    it('normalizes modifier synonyms and casing', () => {
-      expect(normalizeAccelerator('Ctrl+Shift+M')).toBe(
-        'CommandOrControl+Shift+M',
+    it('fires a right-side modifier alone and keeps the other side distinct', async () => {
+      const nativeMod = await import('./native.js');
+      let hookListener:
+        ((event: { code: string; down: boolean }) => void) | null = null;
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
+        isAudioSupported: () => false,
+        isKeyHookSupported: () => true,
+        getAudioStreams: () => [],
+        startAudioCapture: vi.fn(),
+        startKeyHook: vi.fn().mockImplementation((cb) => {
+          hookListener = cb;
+          return { stop: vi.fn() };
+        }),
+      });
+
+      const onCommand = vi.fn();
+      const mockManager = {
+        unregisterAll: vi.fn(),
+        register: vi.fn(),
+      } as unknown as typeof globalShortcut;
+
+      const statuses = applyHotkeys(
+        {
+          toggleMic: 'ControlRight',
+          toggleSpeaker: 'ControlLeft+M',
+        },
+        mockManager,
+        onCommand,
       );
-      expect(normalizeAccelerator('cmdorctrl+m')).toBe('CommandOrControl+M');
-      expect(normalizeAccelerator('Command+Option+f9')).toBe(
-        'Alt+CommandOrControl+F9',
+      expect(statuses).toEqual({
+        toggleMic: 'ok',
+        toggleSpeaker: 'ok',
+      });
+
+      const listener = hookListener as unknown as (event: {
+        code: string;
+        down: boolean;
+      }) => void;
+
+      listener({ code: 'ControlLeft', down: true });
+      expect(onCommand).not.toHaveBeenCalled();
+      listener({ code: 'ControlLeft', down: false });
+
+      listener({ code: 'ControlRight', down: true });
+      expect(onCommand).toHaveBeenCalledWith(EDesktopCommand.TOGGLE_MIC);
+      listener({ code: 'ControlRight', down: false });
+
+      listener({ code: 'ControlLeft', down: true });
+      listener({ code: 'KeyM', down: true });
+      expect(onCommand).toHaveBeenCalledWith(EDesktopCommand.TOGGLE_SPEAKER);
+      expect(onCommand).toHaveBeenCalledTimes(2);
+
+      listener({ code: 'KeyM', down: false });
+      listener({ code: 'ControlLeft', down: false });
+      listener({ code: 'ControlRight', down: true });
+      listener({ code: 'KeyM', down: true });
+      expect(onCommand).toHaveBeenCalledTimes(3);
+      expect(onCommand).toHaveBeenLastCalledWith(EDesktopCommand.TOGGLE_MIC);
+    });
+
+    it('matches a legacy unsided chord from either side and rejects an extra modifier', async () => {
+      const nativeMod = await import('./native.js');
+      let hookListener:
+        ((event: { code: string; down: boolean }) => void) | null = null;
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
+        isAudioSupported: () => false,
+        isKeyHookSupported: () => true,
+        getAudioStreams: () => [],
+        startAudioCapture: vi.fn(),
+        startKeyHook: vi.fn().mockImplementation((cb) => {
+          hookListener = cb;
+          return { stop: vi.fn() };
+        }),
+      });
+
+      const onCommand = vi.fn();
+      applyHotkeys(
+        {
+          toggleMic: 'CommandOrControl+Shift+M',
+          toggleSpeaker: null,
+        },
+        {
+          unregisterAll: vi.fn(),
+          register: vi.fn(),
+        } as unknown as typeof globalShortcut,
+        onCommand,
       );
-      expect(normalizeAccelerator('Meta+Shift+Z')).toBe('Shift+Super+Z');
-      expect(normalizeAccelerator(null)).toBeNull();
-      expect(normalizeAccelerator('   ')).toBeNull();
+
+      const listener = hookListener as unknown as (event: {
+        code: string;
+        down: boolean;
+      }) => void;
+
+      listener({ code: 'ControlLeft', down: true });
+      listener({ code: 'ShiftRight', down: true });
+      listener({ code: 'KeyM', down: true });
+      expect(onCommand).toHaveBeenCalledTimes(1);
+
+      listener({ code: 'KeyM', down: false });
+      listener({ code: 'ShiftRight', down: false });
+      listener({ code: 'ControlLeft', down: false });
+
+      listener({ code: 'ControlRight', down: true });
+      listener({ code: 'ShiftLeft', down: true });
+      listener({ code: 'KeyM', down: true });
+      expect(onCommand).toHaveBeenCalledTimes(2);
+
+      listener({ code: 'KeyM', down: false });
+      listener({ code: 'ShiftLeft', down: false });
+      listener({ code: 'ControlRight', down: false });
+
+      listener({ code: 'ControlLeft', down: true });
+      listener({ code: 'AltLeft', down: true });
+      listener({ code: 'KeyM', down: true });
+      expect(onCommand).toHaveBeenCalledTimes(2);
+    });
+
+    it('treats Left Ctrl sent with Right Alt as Right Alt alone', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+      const nativeMod = await import('./native.js');
+      let hookListener:
+        ((event: { code: string; down: boolean }) => void) | null = null;
+      vi.spyOn(nativeMod, 'getNativeModule').mockReturnValue({
+        isAudioSupported: () => false,
+        isKeyHookSupported: () => true,
+        getAudioStreams: () => [],
+        startAudioCapture: vi.fn(),
+        startKeyHook: vi.fn().mockImplementation((cb) => {
+          hookListener = cb;
+          return { stop: vi.fn() };
+        }),
+      });
+
+      const onCommand = vi.fn();
+      applyHotkeys(
+        { toggleMic: 'AltRight', toggleSpeaker: null },
+        {
+          unregisterAll: vi.fn(),
+          register: vi.fn(),
+        } as unknown as typeof globalShortcut,
+        onCommand,
+      );
+      const listener = hookListener as unknown as (event: {
+        code: string;
+        down: boolean;
+      }) => void;
+
+      listener({ code: 'ControlLeft', down: true });
+      listener({ code: 'AltRight', down: true });
+      expect(onCommand).toHaveBeenCalledTimes(1);
+      expect(onCommand).toHaveBeenCalledWith(EDesktopCommand.TOGGLE_MIC);
+
+      listener({ code: 'AltRight', down: false });
+      listener({ code: 'ControlLeft', down: false });
+      vi.setSystemTime(new Date('2026-01-01T00:00:00.200Z'));
+      listener({ code: 'ControlLeft', down: true });
+      vi.setSystemTime(new Date('2026-01-01T00:00:00.400Z'));
+      listener({ code: 'AltRight', down: true });
+      expect(onCommand).toHaveBeenCalledTimes(1);
+      vi.useRealTimers();
     });
   });
 });

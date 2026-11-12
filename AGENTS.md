@@ -12,7 +12,7 @@ Before proposing a plan, architecture, or **any** code edit in this repo:
 
 1. Use the Read tool to load **every** document below that applies to the task (full file, not skim). If several apply, read all of them.
 2. Do not rely on prior sessions or summaries in this file — linked docs are authoritative.
-3. When your change affects behavior, configuration, architecture, or contracts between packages, **update the matching documentation in the same change** — do not leave docs stale. Follow [Documentation style](#documentation-style).
+3. When a change makes an existing document false, update that document in the same change. Do not add documentation for behavior the current text does not state. A non-obvious constraint stays in a code comment. Follow [Documentation style](#documentation-style).
 
 - Repo-wide conventions, Nx, scripts, env — `docs/CONTRIBUTING.md`
 - Security, auth, encryption, secrets — `docs/SECURITY.md`, `docs/backend/KEY_ROTATION.md`
@@ -25,11 +25,11 @@ Before proposing a plan, architecture, or **any** code edit in this repo:
 - Desktop Native Rust Module (`libs/desktop-native`) - `libs/desktop-native/AGENTS.md`
 - Shared contracts: Zod schemas, enums, types (`libs/shared`) — `libs/shared/README.md`
 - Client shell: validation, adapters, i18n (`libs/client-shell`) — `libs/client-shell/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)
-- Client UI kit, Lit primitives (`libs/ui-kit`) — `libs/ui-kit/README.md`, `docs/CONTRIBUTING.md` (Client Libraries Rules)
+- Desktop UI, local dialogs (`apps/desktop-ui`) — `apps/desktop-ui/README.md`, `docs/CONTRIBUTING.md`
 - Feature behavior (rooms, mentions, notifications, attachments, reactions, chat reading, user management, password recovery, two-factor authentication, email verification) — the matching `docs/*.md`
 - Networking, WebRTC ports, Docker — `docs/NETWORKING.md`
 
-General and cross-cutting docs live in `docs/`. App and library docs live beside the code. The root `README.md` is the product overview and doc index. Extend the matching doc above rather than duplicating long explanations in comments only.
+General and cross-cutting docs live in `docs/`. App and library docs live beside the code. The root `README.md` is the product overview and doc index.
 
 ## Code principles
 
@@ -37,13 +37,15 @@ Apply a principle only when it makes this change simpler. Do not reshape the cod
 
 - **SOLID, KISS, DRY, YAGNI.** Follow the design already in the touched code. Prefer a clear, small change over a new abstraction, a copied variant, or behavior the task does not need.
 - **Scope.** Make the smallest change that fully solves the problem. Do not refactor unrelated code. Keep the existing architecture unless there is a strong reason to change it.
+- **Helpers.** Move a function into its own file or a shared helper only when more than one class or module uses it. Otherwise keep it as a private method of the class that needs it.
+- **No leftovers.** Delete the old implementation, unused helpers, dead code, aliases and re-exports. Keep only when a public contract must stay stable — e.g. a shared schema consumed by both the backend and the frontend.
 - **Comments.** Only for non-obvious intent or constraints. Do not use deprecated APIs.
 
 ## Documentation style
 
 Keep every doc (`README.md`, `docs/*`, app and library docs) in the style of the existing ones when creating or updating it.
 
-- **Compact and readable.** Short sections, lists and tables instead of long prose. Extend an existing doc rather than adding a new one, and remove text that the change made stale.
+- **Compact and readable.** Short sections, lists and tables instead of long prose. Extend an existing doc rather than adding a new one, and remove text that the change made stale. Do not lengthen a short usage note with an implementation rule.
 - **Business logic and flow only.** Describe what the feature does, the rules and permissions, and how the parts interact. Do not document request/response schemas, DTO fields, error codes, timeouts, magic numbers, algorithm internals or file-by-file code maps. The code, the shared Zod schemas and Swagger are the source for those.
 - **Technical voice.** Third person, present tense, one style everywhere: "The app supports…", "The server stores…". Do not address the reader ("You can…") and do not use marketing wording.
 - **Diagrams.** Show flows, state decisions, and component relations with Mermaid (`flowchart`, `sequenceDiagram`) instead of describing them in paragraphs. Keep each diagram small and make sure it parses.

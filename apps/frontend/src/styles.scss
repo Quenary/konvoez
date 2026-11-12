@@ -6,7 +6,7 @@ body {
   width: 100dvw;
   overflow: hidden;
   overscroll-behavior: none;
-  background-color: var(--tui-theme-color, #000);
+  background-color: var(--tui-background-base);
 }
 
 body {
@@ -17,6 +17,11 @@ body {
   flex-wrap: wrap;
 
   [tuiTitle] {
+    // Basis 0 keeps the title on the accessories' row. Taiga's fit-content
+    // max and 60% basis would wrap the row before the text can fade.
+    flex: 1 1 0;
+    min-inline-size: 0;
+    max-inline-size: 100%;
     flex-direction: row;
     gap: 0.5rem;
     flex-wrap: wrap;
@@ -24,6 +29,12 @@ body {
 
     tui-icon {
       flex-shrink: 0;
+    }
+
+    [tuiFade] {
+      flex: 1 1 0;
+      min-inline-size: 0;
+      white-space: nowrap;
     }
 
     [tuiSubtitle] {
@@ -34,5 +45,16 @@ body {
   [tuiAccessories] {
     flex-wrap: wrap;
     flex-shrink: 0;
+  }
+}
+
+// Taiga cells keep an end border after dropping the start edge.
+// Settings tables only use horizontal separators.
+table[tuiTable] {
+  th[tuiTh],
+  td[tuiTd] {
+    border-inline: none;
+    border-left: none;
+    border-right: none;
   }
 }

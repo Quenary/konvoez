@@ -1,0 +1,241 @@
+<button
+  tuiAsideItem
+  routerLink="/direct"
+  routerLinkActive="active">
+  <tui-badged-content class="aside-badge aside-badge--icon">
+    @if (unreadCountsStore.directTotal(); as count) {
+      <tui-badge-notification
+        size="s"
+        tuiSlot="top">
+        <ng-container
+          [ngTemplateOutlet]="countTmpl"
+          [ngTemplateOutletContext]="{ $implicit: count }"></ng-container>
+      </tui-badge-notification>
+    }
+    <tui-icon [icon]="icons.direct" />
+  </tui-badged-content>
+  {{ 'MENU.DIRECT' | translate }}
+</button>
+
+@if (hangingCallPeer(); as peer) {
+  <button
+    class="hanging-call"
+    tuiAsideItem
+    type="button"
+    [ariaLabel]="'CALL.DIRECT_CALL' | translate"
+    (click)="openHangingCall(peer)">
+    <app-pulse-indicator variant="glow">
+      <app-user-avatar
+        size="xs"
+        [username]="peer.username"
+        [fullname]="peer.fullname"
+        [avatarUrl]="peer.avatarUrl" />
+    </app-pulse-indicator>
+    <span
+      tuiHintAppearance="floating"
+      [style.color]="peer.username | tuiAutoColor"
+      [tuiHint]="
+        peer.fullname && peer.fullname !== peer.username ? peer.fullname : null
+      ">
+      {{ peer.username }}
+    </span>
+  </button>
+}
+
+<button
+  [style.margin-top.rem]="1"
+  [style.color]="'var(--tui-text-secondary)'"
+  tuiAsideItem
+  [iconStart]="icons['text-rooms']"
+  routerLink="/text-room"
+  routerLinkActive="active"
+  [routerLinkActiveOptions]="{ exact: true }">
+  {{ 'MENU.TEXT' | translate }}
+  @if (roomView.canManageRooms()) {
+    <button
+      [style.margin-left]="'auto'"
+      tuiIconButton
+      [iconStart]="icons.add"
+      (click)="addRoom(ERoomType.TEXT); $event.stopPropagation()">
+    </button>
+  }
+</button>
+
+<div class="room-rows">
+  @for (room of roomView.textRooms(); track room.id) {
+    <button
+      class="room-item"
+      tuiAsideItem
+      [tuiDropdown]="roomContextMenu"
+      tuiDropdownContext
+      [tuiDropdownSided]="true"
+      (longtap)="roomView.onRoomLongtap(room)"
+      (click)="roomView.onRoomClick(room)">
+      <ng-container
+        [ngTemplateOutlet]="textLeading"
+        [ngTemplateOutletContext]="{ $implicit: room }" />
+      <span tuiFade>{{ room.name }}</span>
+    </button>
+  }
+</div>
+
+<button
+  [style.margin-top.rem]="1"
+  [style.color]="'var(--tui-text-secondary)'"
+  tuiAsideItem
+  [iconStart]="icons['audio-lines']"
+  routerLink="/voice-room"
+  routerLinkActive="active"
+  [routerLinkActiveOptions]="{ exact: true }">
+  {{ 'MENU.VOICE' | translate }}
+  @if (roomView.canManageRooms()) {
+    <button
+      [style.margin-left]="'auto'"
+      tuiIconButton
+      [iconStart]="icons.add"
+      (click)="addRoom(ERoomType.VOICE); $event.stopPropagation()">
+    </button>
+  }
+</button>
+
+<div
+  class="voice-rooms-group"
+  cdkDropListGroup>
+  @let dropTargetId = dropTargetRoomId();
+  @for (room of voiceRooms(); track room.id) {
+    <div
+      class="voice-room-container"
+      [class.drop-target]="dropTargetId === room.id"
+      cdkDropList
+      [cdkDropListData]="room"
+      [cdkDropListDisabled]="!canMoveMembers()"
+      [cdkDropListSortingDisabled]="true"
+      (cdkDropListEntered)="onMemberDragEntered(room)"
+      (cdkDropListExited)="onMemberDragExited(room)"
+      (cdkDropListDropped)="onMemberDropped($event, room)">
+      <button
+        class="room-item"
+        tuiAsideItem
+        [tuiDropdown]="roomContextMenu"
+        tuiDropdownContext
+        [tuiDropdownSided]="true"
+        (longtap)="roomView.onRoomLongtap(room)"
+        (click)="roomView.onRoomClick(room)">
+        <ng-container
+          [ngTemplateOutlet]="voiceLeading"
+          [ngTemplateOutletContext]="{ $implicit: room }" />
+        <span tuiFade>{{ room.name }}</span>
+      </button>
+
+      @if (!collapsed()) {
+        @for (peer of room.peers; track peer.id) {
+          <app-room-peer
+            class="room-peer-item"
+            tuiAsideItem
+            iconEnd=""
+            [class.can-move]="peer.canMove"
+            cdkDrag
+            [cdkDragData]="peer"
+            [cdkDragDisabled]="!peer.canMove"
+            [cdkDragStartDelay]="dragStartDelay"
+            (cdkDragEnded)="onMemberDragEnded()"
+            [tuiDropdown]="peer.canMove ? peerContextMenu : null"
+            [tuiDropdownSided]="true"
+            tuiDropdownContext
+            (longtap)="onPeerLongtap(peer, room)"
+            (click)="onPeerClick(peer)"
+            [peer]="peer"></app-room-peer>
+        }
+      }
+    </div>
+  }
+</div>
+
+<ng-template
+  #countTmpl
+  let-count>
+  {{ count > 99 ? '99+' : count }}
+</ng-template>
+
+<ng-template
+  #textLeading
+  let-room>
+  <tui-badged-content class="aside-badge">
+    @if (roomView.mentionFlags()[room.id]) {
+      <tui-badge-notification
+        size="s"
+        appearance="accent"
+        tuiSlot="top"
+        [attr.aria-label]="'ROOMS.UNREAD_MENTIONS' | translate">
+        &#64;
+      </tui-badge-notification>
+    } @else if (unreadCountsStore.roomUnreadCount(room.id); as count) {
+      <tui-badge-notification
+        size="s"
+        tuiSlot="top">
+        {{ count > 99 ? '99+' : count }}
+      </tui-badge-notification>
+    }
+    <div
+      tuiAvatar
+      size="xs">
+      @if (room.avatarUrl) {
+        <img
+          [alt]="room.name"
+          [ngSrc]="room.avatarUrl"
+          fill
+          priority />
+      } @else {
+        {{ room.name | tuiInitials }}
+      }
+    </div>
+  </tui-badged-content>
+</ng-template>
+
+<ng-template
+  #voiceLeading
+  let-room>
+  <app-pulse-indicator [isActive]="room.isUserInRoom">
+    <div
+      tuiAvatar
+      size="xs">
+      @if (room.avatarUrl) {
+        <img
+          [alt]="room.name"
+          [ngSrc]="room.avatarUrl"
+          fill
+          priority />
+      } @else {
+        {{ room.name | tuiInitials }}
+      }
+    </div>
+  </app-pulse-indicator>
+</ng-template>
+
+<ng-template
+  #peerContextMenu
+  let-close>
+  @if (selectedPeerForMenu(); as selected) {
+    <app-user-context-menu
+      [canModerate]="true"
+      [moveTargets]="moveTargetRooms()"
+      (details)="openPeerDialog(selected.peer); close()"
+      (move)="moveMember(selected.peer, $event); close()"
+      (disconnect)="
+        disconnectMember(selected.peer, selected.roomId); close()
+      " />
+  }
+</ng-template>
+
+<ng-template
+  #roomContextMenu
+  let-close>
+  @if (roomView.contextMenuRoom(); as room) {
+    <app-room-context-menu
+      [roomName]="room.name"
+      [canManage]="roomView.canManageRooms()"
+      (details)="roomView.openRoomDetails(room); close()"
+      (edit)="roomView.editRoom(room); close()"
+      (delete)="roomView.deleteRoom(room); close()" />
+  }
+</ng-template>

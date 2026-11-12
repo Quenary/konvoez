@@ -48,35 +48,58 @@ export const routes: Routes = [
           import('./features/direct-chats/direct-chats.component').then(
             (m) => m.DirectChatsComponent,
           ),
+        children: [
+          {
+            path: ':id',
+            loadComponent: () =>
+              import('./features/direct/direct.component').then(
+                (m) => m.DirectComponent,
+              ),
+          },
+        ],
       },
       {
-        path: 'direct/:id',
+        path: 'text-room',
         loadComponent: () =>
-          import('./features/direct/direct.component').then(
-            (m) => m.DirectComponent,
+          import('./features/rooms/text-rooms/text-rooms.component').then(
+            (m) => m.TextRoomsComponent,
           ),
+        children: [
+          {
+            path: ':id',
+            loadComponent: () =>
+              import('./features/text-room/text-room.component').then(
+                (m) => m.TextRoomComponent,
+              ),
+          },
+        ],
       },
       {
-        path: 'text-room/:id',
+        path: 'voice-room',
         loadComponent: () =>
-          import('./features/text-room/text-room.component').then(
-            (m) => m.TextRoomComponent,
+          import('./features/rooms/voice-rooms/voice-rooms.component').then(
+            (m) => m.VoiceRoomsComponent,
           ),
-      },
-      {
-        path: 'voice-room/:id',
-        loadComponent: () =>
-          import('./features/voice-room/voice-room.component').then(
-            (m) => m.VoiceRoomComponent,
-          ),
+        children: [
+          {
+            path: ':id',
+            loadComponent: () =>
+              import('./features/voice-room/voice-room.component').then(
+                (m) => m.VoiceRoomComponent,
+              ),
+          },
+        ],
       },
       {
         path: 'settings',
         children: [
           {
             path: '',
-            redirectTo: 'profile',
             pathMatch: 'full',
+            loadComponent: () =>
+              import('./features/settings/settings-list/settings-list.component').then(
+                (m) => m.SettingsListComponent,
+              ),
           },
           {
             path: 'profile',
@@ -144,6 +167,6 @@ export const routes: Routes = [
   },
   {
     path: '**',
-    redirectTo: 'main',
+    redirectTo: 'direct',
   },
 ];

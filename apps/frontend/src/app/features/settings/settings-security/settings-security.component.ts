@@ -7,10 +7,10 @@ import {
 } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { TuiButton, TuiIcon, TuiScrollbar } from '@taiga-ui/core';
+import { TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { TuiBadge } from '@taiga-ui/kit';
-import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout';
+import { TuiBadge, TuiFade } from '@taiga-ui/kit';
+import { TuiHeader } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { AuthActions } from '@core/auth/auth.actions';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
@@ -25,16 +25,21 @@ import {
   TwoFactorConfirmDialogComponent,
 } from './two-factor-confirm-dialog/two-factor-confirm-dialog.component';
 
+import { HeaderBackButtonComponent } from '@shared/components/header-back-button/header-back-button.component';
+import { RoutePageComponent } from '@shared/components/route-page/route-page.component';
+
 @Component({
   selector: 'app-settings-security',
   imports: [
+    HeaderBackButtonComponent,
+    RoutePageComponent,
     TranslatePipe,
     TuiBadge,
     TuiButton,
-    TuiCardLarge,
+    TuiFade,
     TuiHeader,
     TuiIcon,
-    TuiScrollbar,
+    TuiTitle,
   ],
   templateUrl: './settings-security.component.html',
   styleUrl: './settings-security.component.scss',

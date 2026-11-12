@@ -1,0 +1,14 @@
+<button
+  [tuiCell]="size()"
+  appearance="whiteblock"
+  type="button"
+  [routerLink]="link()">
+  <ng-content select="[listItemLeading]" />
+  <div tuiTitle>
+    <ng-content />
+  </div>
+  <div tuiAccessories>
+    <ng-content select="[listItemTrailing]" />
+    <tui-icon [icon]="icons['chevron-right']" />
+  </div>
+</button>

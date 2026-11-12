@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { TVoiceRoomPeerUser } from '@konvoez/shared';
-import { TuiAsideComponent } from '@taiga-ui/layout';
 import { RoomPeerComponent } from './room-peer.component';
 const makePeer = (
   id: number,
@@ -57,12 +56,6 @@ describe('RoomPeerComponent', () => {
           provide: AudioActivityService,
           useValue: {
             speakingMap: speakingMap.asReadonly(),
-          },
-        },
-        {
-          provide: TuiAsideComponent,
-          useValue: {
-            expanded: signal(true),
           },
         },
       ],

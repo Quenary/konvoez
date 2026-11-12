@@ -14,6 +14,7 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
+  container: voice-tile / size;
   border: 2px solid transparent;
   border-radius: var(--tui-radius-l);
   background: var(--tui-background-elevation-2);
@@ -40,6 +41,11 @@
   padding: 0.5rem;
   cursor: pointer;
   box-sizing: border-box;
+
+  // Keeps the action stack above the name badge in the footer.
+  &.with-actions {
+    padding-bottom: 3rem;
+  }
 }
 
 .avatar {
@@ -47,9 +53,39 @@
   transform: scale(1.05);
 }
 
-.watch-cta {
+.tile-cta,
+.auto-pause-row {
   flex: 0 0 auto;
   max-width: 100%;
+  min-width: 0;
+}
+
+.tile-cta-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.auto-pause-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font: var(--tui-font-text-xs);
+  color: var(--tui-text-secondary);
+}
+
+// The avatar plus one button need about 11rem above the name.
+// Resume also stacks the auto-pause checkbox, so the avatar yields sooner.
+@container voice-tile (max-height: 11rem) {
+  .idle-media.with-actions .avatar {
+    display: none;
+  }
+}
+
+@container voice-tile (max-height: 13rem) {
+  .idle-media.with-actions:has(.auto-pause-row) .avatar {
+    display: none;
+  }
 }
 
 .video {
@@ -130,11 +166,6 @@
   margin: 0;
   color: var(--tui-text-secondary);
   font: var(--tui-font-text-m);
-}
-
-.auto-pause-row {
-  font: var(--tui-font-text-xs);
-  color: var(--tui-text-secondary);
 }
 
 .stream-kind-label {

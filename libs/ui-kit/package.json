@@ -1,8 +1,0 @@
-{
-  "name": "@konvoez/ui-kit",
-  "version": "0.14.0",
-  "private": true,
-  "sideEffects": [
-    "./src/**/k-*.ts"
-  ]
-}

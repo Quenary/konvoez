@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
@@ -71,6 +72,7 @@ describe('DirectChatDialogComponent', () => {
     await TestBed.configureTestingModule({
       imports: [DirectChatDialogComponent],
       providers: [
+        provideRouter([]),
         provideTranslateService(),
         provideStore({
           auth: () => ({ user: mockCurrentUser }),

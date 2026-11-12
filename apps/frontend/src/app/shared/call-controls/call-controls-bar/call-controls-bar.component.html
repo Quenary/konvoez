@@ -1,0 +1,85 @@
+<div class="call-controls-bar">
+  <button
+    class="call-controls-bar-session"
+    type="button"
+    [attr.aria-label]="callControlsService.qualityAriaLabel()"
+    (click)="callControlsService.openSession()">
+    <tui-icon
+      [icon]="callControlsService.indicatorIcon()"
+      [style.color]="callControlsService.indicatorColor()" />
+    <span
+      class="call-controls-bar-title"
+      tuiFade>
+      {{ callControlsService.sessionTitle() }}
+    </span>
+  </button>
+
+  <div class="call-controls-bar-actions">
+    <button
+      tuiIconButton
+      size="s"
+      type="button"
+      [iconStart]="
+        callControlsService.microphoneMuted() ? icons['mic-off'] : icons.mic
+      "
+      [appearance]="
+        callControlsService.microphoneMuted() ? 'negative' : 'neutral'
+      "
+      [attr.aria-label]="callControlsService.micLabelKey() | translate"
+      (click)="callControlsService.toggleMicrophone()">
+    </button>
+    <button
+      tuiIconButton
+      size="s"
+      type="button"
+      [iconStart]="
+        callControlsService.speakerMuted()
+          ? icons['headphone-off']
+          : icons.headphones
+      "
+      [appearance]="callControlsService.speakerMuted() ? 'negative' : 'neutral'"
+      [attr.aria-label]="callControlsService.speakerLabelKey() | translate"
+      (click)="callControlsService.toggleSpeaker()">
+    </button>
+    @if (callControlsService.cameraOn()) {
+      <button
+        tuiIconButton
+        [iconStart]="icons.video"
+        appearance="primary"
+        size="s"
+        type="button"
+        [attr.aria-label]="'CALL.CAMERA_OFF' | translate"
+        (click)="callControlsService.stopCamera()">
+      </button>
+    }
+    @if (callControlsService.screenOn()) {
+      <button
+        tuiIconButton
+        [iconStart]="icons['screen-share-off']"
+        appearance="primary"
+        size="s"
+        type="button"
+        [attr.aria-label]="'CALL.SCREEN_OFF' | translate"
+        (click)="callControlsService.stopScreen()">
+      </button>
+    }
+    <button
+      tuiIconButton
+      [iconStart]="icons['settings-devices']"
+      appearance="neutral"
+      size="s"
+      type="button"
+      [attr.aria-label]="'CALL.OPEN_DEVICES_SETTINGS' | translate"
+      (click)="callControlsService.openDevicesSettings()">
+    </button>
+    <button
+      tuiIconButton
+      [iconStart]="icons['log-out']"
+      appearance="negative"
+      size="s"
+      type="button"
+      [attr.aria-label]="'CALL.HANGUP' | translate"
+      (click)="callControlsService.leaveSession()">
+    </button>
+  </div>
+</div>

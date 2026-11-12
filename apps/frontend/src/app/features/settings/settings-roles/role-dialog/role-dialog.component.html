@@ -80,6 +80,16 @@
   </div>
 
   <footer class="dialog-actions">
+    @if (canDelete) {
+      <button
+        tuiButton
+        type="button"
+        appearance="negative"
+        [loading]="deleting()"
+        (click)="deleteRole()">
+        {{ 'GENERAL.DELETE' | translate }}
+      </button>
+    }
     <button
       tuiButton
       type="button"

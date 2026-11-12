@@ -1,0 +1,52 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.server-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.server-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.saved-servers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.saved-server-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.saved-server {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.saved-server-address {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-loader {
+  display: inline-block;
+  margin-right: 0.5rem;
+}

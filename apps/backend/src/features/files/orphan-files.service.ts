@@ -12,6 +12,7 @@ import {
   type FileService,
   type StoredFileInfo,
 } from '@shared/services/file.service';
+import { EAttachmentStatus } from '@konvoez/shared';
 import { RoomsFacade } from '../rooms/rooms.facade';
 import { UserEntity } from '../users/users.entity';
 import { MessageAttachmentEntity } from '../attachments/attachments.entity';
@@ -87,7 +88,7 @@ export class OrphanFilesService implements OnModuleInit, OnModuleDestroy {
       this.roomsFacade.findAvatarKeys(),
       em.find(
         MessageAttachmentEntity,
-        {},
+        { status: { $ne: EAttachmentStatus.DELETED } },
         { fields: ['storageKey', 'thumbnailKey'] },
       ),
     ]);

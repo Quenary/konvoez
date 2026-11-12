@@ -36,6 +36,7 @@ Admin settings (environment variables override the database). Every setting appl
 | `ATTACHMENTS_MAX_FILE_SIZE`         | 50 MiB  | 1 MiB - 1 GiB |
 | `ATTACHMENTS_MAX_FILES_PER_MESSAGE` | 10      | up to 10      |
 | `ATTACHMENTS_STRIP_IMAGE_METADATA`  | off     | -             |
+| `ATTACHMENTS_KEEP_DAYS`             | 0 (off) | 0+ days       |
 
 With stripping off, a downloaded JPEG is byte-for-byte the upload, including EXIF and GPS. With stripping on, new JPEG, WebP, AVIF and PNG uploads are rotated and saved without metadata. GIFs and animations are left untouched. If stripping fails, the original is stored and a warning is logged. Thumbnails never contain metadata. If an image thumbnail cannot be built, the upload is stored as a generic file.
 
@@ -84,6 +85,8 @@ Files are stored under logical keys `message-attachments/<uuid>` and `message-at
 
 `OBJECT_STORAGE_PREFIX` (optional) adds a physical prefix to bucket or directory names. Setting or changing it points the app at new, empty containers: existing attachments and avatars are not moved.
 
+When `ATTACHMENTS_KEEP_DAYS` is greater than 0, a background sweeper deletes object storage files for attachments older than the threshold and sets their status to deleted. Database rows are preserved.
+
 ## Access
 
 Reading an attachment follows the rules for reading its message:
@@ -111,3 +114,4 @@ The bundled Nginx accepts up to 1100 MiB for uploads, without request buffering;
 
 - For a video, the poster is created immediately and shown in the composer. The upload waits for that attempt to finish.
 - In an iOS home-screen app (standalone PWA) a download would open a preview with no way back. The client shows a dialog instead, loads the file with progress, and hands it to the share sheet. Very large files may fail there because they are held in memory. Browsers, Android and the desktop app use normal downloads.
+- Expired attachments display "File deleted" in place of their thumbnail or file row, and media previews and downloads are disabled.

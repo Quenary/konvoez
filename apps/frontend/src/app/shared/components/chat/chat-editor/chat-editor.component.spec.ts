@@ -18,6 +18,7 @@ import { RoomsStore } from '@core/stores/rooms.store';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import {
   EAttachmentKind,
+  EAttachmentStatus,
   EPermission,
   ERoomType,
   IAttachment,
@@ -486,6 +487,7 @@ describe('ChatEditorComponent', () => {
   it('sends empty content when an edited message keeps its attachments', () => {
     const attachment: IAttachment = {
       id: 'att-1',
+      status: EAttachmentStatus.ATTACHED,
       kind: EAttachmentKind.IMAGE,
       name: 'a.png',
       mime: 'image/png',

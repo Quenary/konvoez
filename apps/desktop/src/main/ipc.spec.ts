@@ -42,6 +42,12 @@ describe('IPC security validation', () => {
 
   describe('isTrustedLocalSender', () => {
     it('returns true for file: URLs', () => {
+      expect(
+        isTrustedLocalSender('file:///dist/pages/index.html#/server'),
+      ).toBe(true);
+      expect(
+        isTrustedLocalSender('file:///dist/pages/index.html#/settings'),
+      ).toBe(true);
       expect(isTrustedLocalSender('file:///dist/pages/server/index.html')).toBe(
         true,
       );

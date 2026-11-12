@@ -4,12 +4,14 @@ const DefaultChangelogRenderer =
 const DESKTOP_GROUP_PROJECTS = [
   'desktop',
   'client-shell',
+  'desktop-ui',
   'ui-kit',
   'client-dialogs',
 ];
 const DESKTOP_GROUP_SCOPES = [
   'desktop',
   'client-shell',
+  'desktop-ui',
   'ui-kit',
   'client-dialogs',
 ];

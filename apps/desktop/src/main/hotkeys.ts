@@ -4,8 +4,13 @@ import {
   EDesktopIpc,
   type TDesktopHotkeys,
 } from '@konvoez/shared';
-import type { THotkeyStatus } from '@konvoez/client-shell';
-import { formatKeyboardEventToAccelerator } from '@konvoez/client-shell';
+import {
+  acceleratorsMatch,
+  formatKeyboardEventToAccelerator,
+  isModifierCode,
+  isSidedOrModifierOnlyAccelerator,
+  type THotkeyStatus,
+} from '@konvoez/client-shell';
 import { getExistingMainWindow } from './window';
 import { getNativeModule, type KeyHookHandle } from './native';
 
@@ -23,6 +28,9 @@ let activeKeyHookHandle: KeyHookHandle | null = null;
 const pressedKeys = new Set<string>();
 const pressedAt = new Map<string, number>();
 const KEY_HELD_GAP_MS = 2000;
+// Windows sends Left Ctrl immediately before Right Alt. A physical Left Ctrl
+// held longer than this stays part of the chord.
+const ALT_GR_CTRL_MS = 50;
 
 function clearPressedKeys(): void {
   pressedKeys.clear();
@@ -41,44 +49,6 @@ export function resetHotkeyStateForTests(): void {
     activeKeyHookHandle = null;
   }
   clearPressedKeys();
-}
-
-const MODIFIER_SYNONYMS: Record<string, string> = {
-  commandorcontrol: 'CommandOrControl',
-  cmdorctrl: 'CommandOrControl',
-  control: 'CommandOrControl',
-  ctrl: 'CommandOrControl',
-  command: 'CommandOrControl',
-  cmd: 'CommandOrControl',
-  alt: 'Alt',
-  option: 'Alt',
-  shift: 'Shift',
-  super: 'Super',
-  meta: 'Super',
-};
-
-export function normalizeAccelerator(
-  accel: string | null | undefined,
-): string | null {
-  if (!accel || !accel.trim()) return null;
-  const parts = accel.trim().split('+');
-  const rawMainKey = parts.pop();
-  if (!rawMainKey || !rawMainKey.trim()) return null;
-
-  const normalizedModifiers = parts.map((part) => {
-    const lower = part.trim().toLowerCase();
-    return MODIFIER_SYNONYMS[lower] ?? part.trim();
-  });
-  normalizedModifiers.sort();
-
-  let mainKey = rawMainKey.trim();
-  if (mainKey.length === 1 && /[a-zA-Z]/.test(mainKey)) {
-    mainKey = mainKey.toUpperCase();
-  } else if (/^f([1-9]|1[0-9]|2[0-4])$/i.test(mainKey)) {
-    mainKey = mainKey.toUpperCase();
-  }
-
-  return [...normalizedModifiers, mainKey].join('+');
 }
 
 export function handleNativeKeyEvent(
@@ -111,37 +81,31 @@ export function handleNativeKeyEvent(
   }
   pressedKeys.add(event.code);
   pressedAt.set(event.code, now);
+  if (event.code === 'AltRight') {
+    const controlLeftAt = pressedAt.get('ControlLeft');
+    if (controlLeftAt !== undefined && now - controlLeftAt <= ALT_GR_CTRL_MS) {
+      pressedKeys.delete('ControlLeft');
+      pressedAt.delete('ControlLeft');
+    }
+  }
 
   if (suspendDepth > 0 || !storedHotkeys) {
     return;
   }
 
-  const ctrlKey =
-    pressedKeys.has('ControlLeft') || pressedKeys.has('ControlRight');
-  const altKey = pressedKeys.has('AltLeft') || pressedKeys.has('AltRight');
-  const shiftKey =
-    pressedKeys.has('ShiftLeft') || pressedKeys.has('ShiftRight');
-  const metaKey = pressedKeys.has('MetaLeft') || pressedKeys.has('MetaRight');
-
-  const accelerator = formatKeyboardEventToAccelerator({
-    code: event.code,
-    ctrlKey,
-    altKey,
-    shiftKey,
-    metaKey,
-  });
+  const heldModifiers = [...pressedKeys].filter((code) => isModifierCode(code));
+  const codes = isModifierCode(event.code)
+    ? heldModifiers
+    : [...heldModifiers, event.code];
+  const accelerator = formatKeyboardEventToAccelerator(codes);
 
   if (!accelerator) {
     return;
   }
 
-  const normalizedPressed = normalizeAccelerator(accelerator);
-  const normalizedMic = normalizeAccelerator(storedHotkeys.toggleMic);
-  const normalizedSpeaker = normalizeAccelerator(storedHotkeys.toggleSpeaker);
-
-  if (normalizedMic && normalizedPressed === normalizedMic) {
+  if (acceleratorsMatch(storedHotkeys.toggleMic, accelerator)) {
     onCommand(EDesktopCommand.TOGGLE_MIC);
-  } else if (normalizedSpeaker && normalizedPressed === normalizedSpeaker) {
+  } else if (acceleratorsMatch(storedHotkeys.toggleSpeaker, accelerator)) {
     onCommand(EDesktopCommand.TOGGLE_SPEAKER);
   }
 }
@@ -224,6 +188,9 @@ export function applyHotkeys(
   ): THotkeyStatus => {
     if (!accelerator || !accelerator.trim()) {
       return 'unset';
+    }
+    if (isSidedOrModifierOnlyAccelerator(accelerator)) {
+      return 'invalid';
     }
     try {
       const success = shortcutManager.register(accelerator.trim(), () => {

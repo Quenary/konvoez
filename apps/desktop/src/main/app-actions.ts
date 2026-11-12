@@ -1,4 +1,5 @@
 import type { BrowserWindow, MenuItemConstructorOptions } from 'electron';
+import { isElectronAccelerator } from '@konvoez/client-shell';
 import {
   EDesktopCommand,
   EDesktopIpc,
@@ -67,6 +68,13 @@ export function runAppAction(
   }
 }
 
+function menuAccelerator(accelerator: string | null): string | undefined {
+  if (!accelerator || !isElectronAccelerator(accelerator)) {
+    return undefined;
+  }
+  return accelerator;
+}
+
 export function buildActionItems(options: {
   state: TDesktopVoiceState;
   isPwaLoaded: boolean;
@@ -80,14 +88,14 @@ export function buildActionItems(options: {
 
   const toggleMicAccelerators = withAccelerators
     ? {
-        accelerator: hotkeys.toggleMic ?? undefined,
+        accelerator: menuAccelerator(hotkeys.toggleMic),
         registerAccelerator: false as const,
       }
     : {};
 
   const toggleSpeakerAccelerators = withAccelerators
     ? {
-        accelerator: hotkeys.toggleSpeaker ?? undefined,
+        accelerator: menuAccelerator(hotkeys.toggleSpeaker),
         registerAccelerator: false as const,
       }
     : {};

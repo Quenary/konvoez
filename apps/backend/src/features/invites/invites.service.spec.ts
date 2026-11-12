@@ -335,10 +335,20 @@ describe('InvitesService', () => {
       const invites = await service.findAll();
       expect(invites).toHaveLength(4);
       expect(invites[0].status).toBe('active');
+      expect(invites[0].code).toBe('active123');
+      expect(invites[0].url).toBe(
+        'https://konvoez.example.com/auth/register?code=active123',
+      );
       expect(invites[1].status).toBe('used');
       expect(invites[1].usedBy?.username).toBe('consumer');
+      expect(invites[1].code).toBeUndefined();
+      expect(invites[1].url).toBeUndefined();
       expect(invites[2].status).toBe('revoked');
+      expect(invites[2].code).toBeUndefined();
+      expect(invites[2].url).toBeUndefined();
       expect(invites[3].status).toBe('expired');
+      expect(invites[3].code).toBeUndefined();
+      expect(invites[3].url).toBeUndefined();
     });
   });
 

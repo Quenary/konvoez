@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { EAttachmentKind } from '../enums';
+import { EAttachmentKind, EAttachmentStatus } from '../enums';
 import {
+  attachmentSchema,
+  attachmentStatusSchema,
   mediaCountsQuerySchema,
   mediaCountsSchema,
   mediaGalleryItemSchema,
@@ -9,6 +11,56 @@ import {
 } from './attachment.schemas';
 
 describe('attachment schemas', () => {
+  describe('attachmentStatusSchema and attachmentSchema', () => {
+    it('validates attachment statuses', () => {
+      expect(
+        attachmentStatusSchema.safeParse(EAttachmentStatus.PENDING).success,
+      ).toBe(true);
+      expect(
+        attachmentStatusSchema.safeParse(EAttachmentStatus.ATTACHED).success,
+      ).toBe(true);
+      expect(
+        attachmentStatusSchema.safeParse(EAttachmentStatus.DELETED).success,
+      ).toBe(true);
+      expect(attachmentStatusSchema.safeParse('UNKNOWN').success).toBe(false);
+    });
+
+    it('requires status to be specified', () => {
+      const parsed = attachmentSchema.safeParse({
+        id: '0192e2b3-7649-7cb1-9878-1428a1c97a92',
+        kind: EAttachmentKind.IMAGE,
+        name: 'test.png',
+        mime: 'image/png',
+        size: 100,
+        width: 10,
+        height: 10,
+        durationMs: null,
+        url: '/test',
+        thumbnailUrl: null,
+      });
+      expect(parsed.success).toBe(false);
+    });
+
+    it('accepts explicit DELETED status', () => {
+      const parsed = attachmentSchema.safeParse({
+        id: '0192e2b3-7649-7cb1-9878-1428a1c97a92',
+        status: EAttachmentStatus.DELETED,
+        kind: EAttachmentKind.FILE,
+        name: 'test.txt',
+        mime: 'text/plain',
+        size: 100,
+        width: null,
+        height: null,
+        durationMs: null,
+        url: '',
+        thumbnailUrl: null,
+      });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.status).toBe(EAttachmentStatus.DELETED);
+      }
+    });
+  });
   describe('mediaCountsQuerySchema', () => {
     it('accepts roomId only', () => {
       const res = mediaCountsQuerySchema.safeParse({ roomId: '12' });
@@ -101,6 +153,7 @@ describe('attachment schemas', () => {
     it('validates gallery item and response list', () => {
       const item = {
         id: '0192e2b3-7649-7cb1-9878-1428a1c97a92',
+        status: EAttachmentStatus.ATTACHED,
         messageId: '0192e2b3-7649-7cb1-9878-1428a1c97a93',
         kind: EAttachmentKind.IMAGE,
         name: 'photo.jpg',

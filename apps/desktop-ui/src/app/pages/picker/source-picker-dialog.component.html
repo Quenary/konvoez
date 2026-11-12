@@ -1,0 +1,98 @@
+<app-dialog-layout
+  [heading]="'picker.title' | i18n"
+  actionsAlign="between">
+  <tui-tabs
+    class="tabs-bar"
+    [(activeItemIndex)]="activeTabIndex"
+    (activeItemIndexChange)="onActiveTabIndexChange($event)">
+    <button
+      tuiTab
+      type="button"
+      (click)="handleTabChange('screens')">
+      {{ 'picker.screens' | i18n }}
+    </button>
+    <button
+      tuiTab
+      type="button"
+      (click)="handleTabChange('windows')">
+      {{ 'picker.windows' | i18n }}
+    </button>
+  </tui-tabs>
+
+  <app-source-grid
+    [sources]="currentSources()"
+    [value]="selectedId()"
+    (sourceSelect)="onSourceSelected($event)"
+    (sourceActivate)="onSourceActivated($event)">
+    <div empty>
+      {{
+        (activeTab() === 'screens' ? 'picker.noScreens' : 'picker.noWindows')
+          | i18n
+      }}
+    </div>
+  </app-source-grid>
+
+  <div
+    actions
+    class="audio-section">
+    @if (audioSupported()) {
+      <label class="checkbox-label">
+        <input
+          tuiCheckbox
+          type="checkbox"
+          [(ngModel)]="shareAudio"
+          (ngModelChange)="handleAudioToggle($event)" />
+        <span>{{ 'picker.shareAudio' | i18n }}</span>
+      </label>
+
+      @if (showLoopbackHint()) {
+        <p class="audio-hint tui-text_body-s">{{
+          'picker.shareAudioHint' | i18n
+        }}</p>
+      }
+
+      @if (showAudioStreamSelect()) {
+        <label
+          tuiLabel
+          class="audio-stream-field">
+          {{ 'picker.audioSource' | i18n }}
+          <tui-textfield
+            tuiChevron
+            tuiTextfieldSize="m"
+            [tuiTextfieldCleaner]="false">
+            <input
+              id="audio-stream-select"
+              tuiSelect
+              [(ngModel)]="selectedAudioStreamId"
+              [ngModelOptions]="{ standalone: true }" />
+            <tui-data-list-wrapper
+              *tuiDropdown
+              [items]="audioStreamIds()" />
+          </tui-textfield>
+        </label>
+      }
+    }
+  </div>
+
+  <div
+    actions
+    class="button-group">
+    <button
+      tuiButton
+      appearance="secondary"
+      size="m"
+      type="button"
+      (click)="handleCancel()">
+      {{ 'picker.cancel' | i18n }}
+    </button>
+    <button
+      tuiButton
+      appearance="primary"
+      size="m"
+      type="button"
+      [disabled]="!selectedId()"
+      (click)="handleShare()">
+      {{ 'picker.share' | i18n }}
+    </button>
+  </div>
+</app-dialog-layout>

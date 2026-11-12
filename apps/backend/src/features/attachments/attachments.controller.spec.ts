@@ -18,9 +18,8 @@ jest.mock('@mikro-orm/core', () => {
 });
 
 import { Readable } from 'stream';
-import { EAttachmentKind } from '@konvoez/shared';
+import { EAttachmentKind, EAttachmentStatus } from '@konvoez/shared';
 import { AttachmentsController } from './attachments.controller';
-import { EAttachmentStatus } from './attachments.const';
 
 describe('AttachmentsController', () => {
   const entity = {

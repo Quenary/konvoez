@@ -15,30 +15,31 @@ import {
   TuiHint,
   TuiIcon,
   TuiNotificationService,
-  TuiScrollbar,
   TuiTitle,
 } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { TuiAutoColorPipe, TuiBadge } from '@taiga-ui/kit';
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
+import { TuiAutoColorPipe, TuiBadge, TuiFade } from '@taiga-ui/kit';
+import { TuiHeader } from '@taiga-ui/layout';
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus';
 import { catchError, finalize, of } from 'rxjs';
 import { UserManagementApiService } from '@core/api/user-management-api.service';
 import { LayoutService } from '@core/services/layout.service';
+import { HeaderBackButtonComponent } from '@shared/components/header-back-button/header-back-button.component';
+import { RoutePageComponent } from '@shared/components/route-page/route-page.component';
 import { icons } from '@constants';
 
 @Component({
   selector: 'app-settings-user-management',
   imports: [
+    HeaderBackButtonComponent,
+    RoutePageComponent,
     DayjsPipe,
     TranslatePipe,
     UserAvatarComponent,
     TuiAutoColorPipe,
     TuiBadge,
-    TuiCardLarge,
-    TuiForm,
+    TuiFade,
     TuiHeader,
-    TuiScrollbar,
     TuiHint,
     TuiTable,
     TuiTitle,

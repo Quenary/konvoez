@@ -102,6 +102,25 @@ describe('buildAppMenuTemplate', () => {
     expect(viewItems.some((item) => item.role === 'toggleDevTools')).toBe(true);
   });
 
+  it('omits menu accelerators Electron cannot register', () => {
+    const items = buildActionItems({
+      state: { inVoice: true, micMuted: false, speakerMuted: false },
+      isPwaLoaded: true,
+      locale: 'en',
+      run: vi.fn(),
+      withAccelerators: true,
+      hotkeys: {
+        toggleMic: 'ControlRight',
+        toggleSpeaker: 'CommandOrControl+Shift+M',
+      },
+    });
+
+    expect(items['toggle-mic'].accelerator).toBeUndefined();
+    expect(items['toggle-speaker'].accelerator).toBe(
+      'CommandOrControl+Shift+M',
+    );
+  });
+
   it('quit has no role and invokes run', () => {
     const { template, run } = buildMenus('en');
     const fileItems = submenuItems(template, 'File');

@@ -1,6 +1,17 @@
-@use 'mixins' as mixins;
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
 
-@include mixins.scrollable-form;
+form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
 
 .scroll-content {
   display: flex;
@@ -71,22 +82,6 @@
   }
 }
 
-.setting-group {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  border: none;
-  padding: 0;
-  margin: 0;
-
-  legend {
-    padding: 0;
-    margin-bottom: 0.5rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
-  }
-}
-
 .setting-item {
   display: flex;
   flex-direction: column;
@@ -96,13 +91,5 @@
     margin: 0;
     font-size: 0.8125rem;
     color: var(--tui-text-secondary);
-  }
-
-  &-subtitle {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--tui-text-primary);
-    margin-top: 0.5rem;
-    margin-bottom: 0.25rem;
   }
 }

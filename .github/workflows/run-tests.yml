@@ -125,17 +125,17 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npx nx run-many -t test -p desktop desktop-native ui-kit client-shell
+        run: npx nx run-many -t test -p desktop desktop-native desktop-ui client-shell
 
       - name: Run lint
         if: always()
         run: |
-          npx nx run-many -t eslint:lint -p desktop ui-kit client-shell
+          npx nx run-many -t eslint:lint -p desktop desktop-ui client-shell
           npx nx run desktop-native:lint
 
       - name: Run Prettier Check
         if: always()
-        run: npx nx run-many -t format:check -p desktop desktop-native ui-kit client-shell
+        run: npx nx run-many -t format:check -p desktop desktop-native desktop-ui client-shell
 
       - name: Run build
         if: always()

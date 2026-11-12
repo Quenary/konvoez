@@ -13,6 +13,7 @@ import {
   attachmentsThumbnailMaxSide,
   classifyAttachmentKind,
   EAttachmentKind,
+  EAttachmentStatus,
   EPermission,
   ESettingKey,
   IAttachment,
@@ -34,7 +35,6 @@ import { SettingsService } from '../settings/settings.service';
 import { RoomsFacade, type TRoomAccessTarget } from '../rooms/rooms.facade';
 import { UsersService } from '../users/users.service';
 import { GetUserSafeDto } from '../users/users.dto';
-import { EAttachmentStatus } from './attachments.const';
 import { MessageAttachmentEntity } from './attachments.entity';
 import { sanitizeAttachmentName } from './attachments.http';
 import { MimeSnifferService } from './mime-sniffer.service';
@@ -118,8 +118,10 @@ export class AttachmentsService {
 
   public toDto(entity: MessageAttachmentEntity): IAttachment {
     const id = uuidStringify(entity.id);
+    const isDeleted = entity.status === EAttachmentStatus.DELETED;
     return {
       id,
+      status: entity.status as EAttachmentStatus,
       kind: entity.kind as EAttachmentKind,
       name: entity.originalName,
       mime: entity.mime,
@@ -127,10 +129,12 @@ export class AttachmentsService {
       width: entity.width ?? null,
       height: entity.height ?? null,
       durationMs: entity.durationMs ?? null,
-      url: `/api/v1/attachments/${id}/content`,
-      thumbnailUrl: entity.thumbnailKey
-        ? `/api/v1/attachments/${id}/thumbnail`
-        : null,
+      url: isDeleted ? '' : `/api/v1/attachments/${id}/content`,
+      thumbnailUrl: isDeleted
+        ? null
+        : entity.thumbnailKey
+          ? `/api/v1/attachments/${id}/thumbnail`
+          : null,
     };
   }
 
@@ -142,7 +146,12 @@ export class AttachmentsService {
       return result;
     }
     const rows = await this.repo.find(
-      { message: { $in: [...ids] }, status: EAttachmentStatus.ATTACHED },
+      {
+        message: { $in: [...ids] },
+        status: {
+          $in: [EAttachmentStatus.ATTACHED, EAttachmentStatus.DELETED],
+        },
+      },
       { orderBy: { position: 'ASC' } },
     );
     for (const row of rows) {
@@ -350,7 +359,11 @@ export class AttachmentsService {
         ],
       },
     );
-    if (!entity || !this.canRead(entity, author)) {
+    if (
+      !entity ||
+      entity.status === EAttachmentStatus.DELETED ||
+      !this.canRead(entity, author)
+    ) {
       throw AppException.notFound(
         ApiErrorCode.FILE_NOT_FOUND,
         'Attachment not found',

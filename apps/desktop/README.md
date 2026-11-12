@@ -27,7 +27,7 @@ Release tags `desktop-v*` publish installers via GitHub Actions. `electron-updat
 
 ## Usage
 
-- **Server URL**: Required on first launch; validated via `/api/v1/public/version`. Production URLs must use `https://` (`http://` only for `localhost` / `127.0.0.1`). Change via tray **Change server…** or Settings.
+- **Server URL**: Required on first launch; validated via `/api/v1/public/version`. Production URLs must use `https://` (`http://` only for `localhost` / `127.0.0.1`). Change via tray **Change server…**. The dialog keeps each added server on the device as its origin. Adding an address does not connect. An address that fails the same checks as joining is not stored. Joining validates the address the same way as a typed one.
 - **Tray**: Closing the window hides to tray (`--hidden`); voice stays active. Tray shows mute/deafen state; menu: open, mute mic, deafen, settings, change server, check updates, quit (leaves voice first). Power suspend is blocked while in a voice channel or direct call.
 - **Hotkeys**: Global toggle mic / deafen in Settings. Uses a non-blocking low-level hook on Windows (`WH_KEYBOARD_LL`) and Linux X11 (`XRecord`), ensuring keys are never blocked or swallowed. Held keys are forgotten when the hook restarts, the session locks, or a key-down arrives long after the last event for that key. On Wayland, when the native module is missing, or when the hook cannot be installed, falls back to `globalShortcut`, which captures a bound key in all apps. The settings hint follows the active mode.
 - **Notifications**: DM/call alerts over the app WebSocket as native OS notifications; Web Push is disabled in the desktop shell to avoid duplicates. Click focuses the window and navigates to the corresponding chat.
@@ -52,13 +52,15 @@ flowchart TD
 - **Linux**: include needs a stream chosen in the picker (windows tab); without one the capture is exclude. There is no loopback fallback, so a failure leaves the share video-only.
 - **Konvoez window**: always exclude, so other apps' audio is shared but Konvoez's is not; a failure leaves it silent.
 
-## Local dialogs (Lit)
+## Local dialogs (Angular)
 
-Server, Settings, the source picker, and the update dialog are separate local windows. Their screens are Lit components built from `@konvoez/ui-kit`. Each screen receives the host only through `IKonvoezLocalBridge` in `@konvoez/client-shell`. The renderer exposes `window.konvoezLocal` from preload. Dialog bundles use a strict CSP and esbuild checks that Node globals do not leak.
+Server, Settings, the source picker, and the update dialog are separate local windows rendered by `apps/desktop-ui`, a standalone zoneless Angular application using Taiga UI components. Each dialog route is loaded from `dist/pages/index.html` with its route hash (`#/server`, `#/settings`, `#/picker`, `#/updater`). The Angular host communicates only through `IKonvoezLocalBridge` provided by the `KONVOEZ_LOCAL_BRIDGE` injection token (wrapping `window.konvoezLocal`). Dialogs are built by `@angular/build:application`, verified for Node globals in `build.mjs`, and use a strict CSP (`connect-src 'none'`, no inline scripts).
 
-Each window loads its own `host.css`, produced at build time by compiling Taiga UI LESS (`libs/ui-kit/src/theme/theme.less`) with system UI fonts. Dark mode follows the OS; components inherit `--tui-*` variables from the document (no per-component token sheets).
+The UI uses the Taiga UI theme (`@taiga-ui/styles/taiga-ui-theme.less`) and system UI fonts. Google Fonts are not loaded. Dark mode follows the OS through `provideTaiga()`. Icon masks come from `assets/taiga-ui/icons`.
 
-See also: [client-shell](../../libs/client-shell/README.md), [ui-kit](../../libs/ui-kit/README.md).
+Dialogs can be opened in a browser without Electron: `npx nx serve desktop-ui` (port 6201, routes `#/server`, `#/settings`, `#/picker`, `#/updater`). That configuration replaces `window.konvoezLocal` with an in-memory mock and is not part of `desktop:build` or `desktop:serve`.
+
+See also: [desktop-ui](../desktop-ui/README.md), [client-shell](../../libs/client-shell/README.md).
 
 ## Native module (Rust)
 

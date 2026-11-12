@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EAttachmentKind } from '@konvoez/shared';
+import { EAttachmentKind, EAttachmentStatus } from '@konvoez/shared';
 import { EMessageStatus, IMessageEntity } from '../chat.store';
 import {
   buildChatRows,
@@ -34,6 +34,7 @@ function message(overrides: Partial<IMessageEntity> = {}): IMessageEntity {
 function image(width: number | null, height: number | null) {
   return {
     id: '00000000-0000-4000-8000-000000000001',
+    status: EAttachmentStatus.ATTACHED,
     kind: EAttachmentKind.IMAGE,
     name: 'a.png',
     mime: 'image/png',

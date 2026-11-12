@@ -33,6 +33,7 @@ describe('RoomContextMenuComponent', () => {
 
     const buttons = fixture.nativeElement.querySelectorAll('button[tuiOption]');
     expect(buttons.length).toBe(3);
+    expect(buttons[2].classList.contains('destructive')).toBe(true);
     buttons[0].click();
     buttons[1].click();
     buttons[2].click();

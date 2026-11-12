@@ -109,6 +109,8 @@ describe('SettingsInvitesComponent', () => {
     expect(item.email).toBe(sampleInvite.email);
     expect(item.status).toBe('active');
     expect(item.isActive).toBe(true);
+    expect(item.canCopyLink).toBe(true);
+    expect(item.url).toBe(sampleInvite.url);
     expect(item.statusData.appearance).toBe('positive');
     expect(item.statusData.icon).toBe('@tui.circle-check');
     expect(item.authorUsername).toBe('admin');
@@ -131,6 +133,24 @@ describe('SettingsInvitesComponent', () => {
       await setupTestBed([sampleInvite]);
 
       expect(component['invites']()[0].canResendEmail).toBe(expected);
+    },
+  );
+
+  it.each(['used', 'revoked', 'expired'] as const)(
+    'should hide the link when status is %s',
+    async (status) => {
+      await setupTestBed([
+        {
+          ...sampleInvite,
+          status,
+          url: 'https://konvoez.example.com/auth/register?code=secret',
+        },
+      ]);
+
+      const item = component['invites']()[0];
+      expect(item.canCopyLink).toBe(false);
+      expect(item.code).toBe('');
+      expect(item.url).toBe('');
     },
   );
 
@@ -230,6 +250,24 @@ describe('SettingsInvitesComponent', () => {
       expect.objectContaining({ appearance: 'positive' }),
     );
   });
+
+  it.each(['used', 'revoked', 'expired'] as const)(
+    'should not write a link to the clipboard when status is %s',
+    async (status) => {
+      await setupTestBed([{ ...sampleInvite, status }]);
+      if (!navigator.clipboard) {
+        Object.assign(navigator, { clipboard: { writeText: vi.fn() } });
+      }
+      const writeTextSpy = vi
+        .spyOn(navigator.clipboard, 'writeText')
+        .mockResolvedValue(undefined);
+
+      await component['copyLink'](component['invites']()[0]);
+
+      expect(writeTextSpy).not.toHaveBeenCalled();
+      expect(mockNotificationService.open).not.toHaveBeenCalled();
+    },
+  );
 
   it('should call resend on invitesApiService and notify on success', async () => {
     mockInvitesApiService.resend.mockReturnValue(of(sampleInvite));

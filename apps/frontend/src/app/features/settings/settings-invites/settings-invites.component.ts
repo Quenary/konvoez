@@ -6,7 +6,7 @@ import {
   Injector,
   resource,
 } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { finalize, firstValueFrom } from 'rxjs';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   buildInviteUrl,
@@ -23,11 +23,10 @@ import {
   TuiIcon,
   TuiNotificationService,
   TuiOption,
-  TuiScrollbar,
   TuiTitle,
 } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
-import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout';
+import { TuiHeader } from '@taiga-ui/layout';
 import {
   TuiAutoColorPipe,
   TuiBadge,
@@ -41,6 +40,8 @@ import { ApiErrorService } from '@core/services/api-error.service';
 import { LayoutService } from '@core/services/layout.service';
 import { PublicStore } from '@core/stores/public.store';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
+import { HeaderBackButtonComponent } from '@shared/components/header-back-button/header-back-button.component';
+import { RoutePageComponent } from '@shared/components/route-page/route-page.component';
 import { icons } from '@constants';
 
 export interface IInviteStatusData {
@@ -64,6 +65,7 @@ export interface IInviteViewItem {
   readonly emailSent: boolean;
   readonly emailSentAt: Date | null;
   readonly url: string;
+  readonly canCopyLink: boolean;
   readonly canResendEmail: boolean;
   readonly isResendCooldown: boolean;
 }
@@ -94,22 +96,21 @@ export const INVITE_STATUS_DATA: Record<TInviteStatus, IInviteStatusData> = {
 @Component({
   selector: 'app-settings-invites',
   imports: [
+    HeaderBackButtonComponent,
+    RoutePageComponent,
     DayjsPipe,
     TranslatePipe,
     TuiAutoColorPipe,
     TuiBadge,
     TuiButton,
-    TuiCardLarge,
     TuiDataList,
     TuiDropdown,
     TuiFade,
-    TuiForm,
     TuiHeader,
     TuiHint,
     TuiIcon,
     TuiOption,
     TuiProgressCircle,
-    TuiScrollbar,
     TuiTable,
     TuiTitle,
     TuiTooltip,
@@ -182,6 +183,8 @@ export class SettingsInvitesComponent {
         ? new Date(invite.emailSentAt)
         : null;
       const isActive = invite.status === 'active';
+      const code = isActive ? (invite.code ?? '') : '';
+      const url = isActive ? (invite.url ?? '') : '';
       const canResendEmail = isActive && Boolean(invite.email) && canSendEmail;
       const isResendCooldown = emailSentAt
         ? now - emailSentAt.getTime() < inviteResendEmailCooldownMs
@@ -189,8 +192,8 @@ export class SettingsInvitesComponent {
 
       return {
         id: invite.id,
-        code: invite.code,
         email: invite.email ?? '',
+        code,
         authorUsername: invite.author.username,
         usedByUsername: invite.usedBy?.username ?? null,
         status: invite.status,
@@ -201,7 +204,8 @@ export class SettingsInvitesComponent {
         remainingText,
         emailSent,
         emailSentAt,
-        url: invite.url ?? '',
+        url,
+        canCopyLink: Boolean(code || url),
         canResendEmail,
         isResendCooldown,
       };
@@ -220,21 +224,26 @@ export class SettingsInvitesComponent {
           size: 'm',
         },
       )
-      .subscribe((res) => {
-        if (res) {
+      .subscribe({
+        complete: () => {
           this.invitesResource.reload();
-        }
+        },
       });
   }
 
   protected async copyLink(invite: IInviteViewItem): Promise<void> {
+    if (!invite.canCopyLink) {
+      return;
+    }
     const url =
       invite.url ||
-      buildInviteUrl(
-        window.location.origin,
-        invite.code,
-        invite.email || null,
-      ) ||
+      (invite.code
+        ? buildInviteUrl(
+            window.location.origin,
+            invite.code,
+            invite.email || null,
+          )
+        : null) ||
       invite.code;
     try {
       await navigator.clipboard.writeText(url);
@@ -252,58 +261,71 @@ export class SettingsInvitesComponent {
   }
 
   protected resendEmail(id: number): void {
-    this.invitesApiService.resend(id).subscribe({
-      next: () => {
-        this.notificationService
-          .open(
-            this.translateService.instant('SETTINGS.INVITES.RESEND_SUCCESS'),
-            {
-              appearance: 'positive',
-            },
-          )
-          .subscribe();
-        this.invitesResource.reload();
-      },
-      error: (err) => {
-        this.notificationService
-          .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
-            appearance: 'negative',
-            label: this.translateService.instant('GENERAL.REQ_ERR'),
-          })
-          .subscribe();
-      },
-    });
+    this.invitesApiService
+      .resend(id)
+      .pipe(
+        finalize(() => {
+          this.invitesResource.reload();
+        }),
+      )
+      .subscribe({
+        next: () => {
+          this.notificationService
+            .open(
+              this.translateService.instant('SETTINGS.INVITES.RESEND_SUCCESS'),
+              {
+                appearance: 'positive',
+              },
+            )
+            .subscribe();
+        },
+        error: (err) => {
+          this.notificationService
+            .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
+              appearance: 'negative',
+              label: this.translateService.instant('GENERAL.REQ_ERR'),
+            })
+            .subscribe();
+        },
+      });
   }
 
   protected revoke(id: number): void {
-    this.invitesApiService.revoke(id).subscribe({
-      next: () => {
-        this.invitesResource.reload();
-      },
-      error: (err) => {
-        this.notificationService
-          .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
-            appearance: 'negative',
-            label: this.translateService.instant('GENERAL.REQ_ERR'),
-          })
-          .subscribe();
-      },
-    });
+    this.invitesApiService
+      .revoke(id)
+      .pipe(
+        finalize(() => {
+          this.invitesResource.reload();
+        }),
+      )
+      .subscribe({
+        error: (err) => {
+          this.notificationService
+            .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
+              appearance: 'negative',
+              label: this.translateService.instant('GENERAL.REQ_ERR'),
+            })
+            .subscribe();
+        },
+      });
   }
 
   protected delete(id: number): void {
-    this.invitesApiService.delete(id).subscribe({
-      next: () => {
-        this.invitesResource.reload();
-      },
-      error: (err) => {
-        this.notificationService
-          .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
-            appearance: 'negative',
-            label: this.translateService.instant('GENERAL.REQ_ERR'),
-          })
-          .subscribe();
-      },
-    });
+    this.invitesApiService
+      .delete(id)
+      .pipe(
+        finalize(() => {
+          this.invitesResource.reload();
+        }),
+      )
+      .subscribe({
+        error: (err) => {
+          this.notificationService
+            .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
+              appearance: 'negative',
+            })
+            .subscribe();
+        },
+      });
   }
 }

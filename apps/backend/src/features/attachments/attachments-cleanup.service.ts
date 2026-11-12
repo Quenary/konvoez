@@ -4,22 +4,26 @@ import {
   Inject,
   Injectable,
   Logger,
+  OnApplicationBootstrap,
   OnModuleDestroy,
-  OnModuleInit,
 } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import fs from 'fs';
 import path from 'path';
-import { attachmentsPendingTtlMs } from '@konvoez/shared';
+import {
+  attachmentsPendingTtlMs,
+  EAttachmentStatus,
+  ESettingKey,
+} from '@konvoez/shared';
 import {
   FileServiceInjectionToken,
   type FileService,
 } from '@shared/services/file.service';
 import { AppService } from '@shared/services/app.service';
+import { SettingsService } from '../settings/settings.service';
 import { TextRoomsDomainEvents } from '../text-rooms/text-rooms.events';
 import { RoomsDomainEvents } from '../rooms/rooms.events';
 import { UsersDomainEvents } from '../users/users.events';
-import { EAttachmentStatus } from './attachments.const';
 import { MessageAttachmentEntity } from './attachments.entity';
 
 const SWEEP_INTERVAL_MS = 60 * 60 * 1000;
@@ -28,7 +32,7 @@ const BATCH_SIZE = 100;
 
 @Injectable()
 export class AttachmentsCleanupService
-  implements OnModuleInit, OnModuleDestroy
+  implements OnApplicationBootstrap, OnModuleDestroy
 {
   private readonly logger = new Logger(AttachmentsCleanupService.name);
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -36,15 +40,17 @@ export class AttachmentsCleanupService
   private expiredDue = false;
   private detachedDue = false;
   private tempDue = false;
+  private outdatedDue = false;
 
   constructor(
     private readonly orm: MikroORM,
     @Inject(FileServiceInjectionToken)
     private readonly fileService: FileService,
     private readonly appService: AppService,
+    private readonly settingsService: SettingsService,
   ) {}
 
-  public onModuleInit(): void {
+  public onApplicationBootstrap(): void {
     void this.sweep();
     this.timer = setInterval(() => {
       void this.sweep();
@@ -70,6 +76,7 @@ export class AttachmentsCleanupService
     this.expiredDue = true;
     this.detachedDue = true;
     this.tempDue = true;
+    this.outdatedDue = true;
     await this.run();
   }
 
@@ -106,13 +113,20 @@ export class AttachmentsCleanupService
     }
     this.running = true;
     try {
-      while (this.expiredDue || this.detachedDue || this.tempDue) {
+      while (
+        this.expiredDue ||
+        this.detachedDue ||
+        this.tempDue ||
+        this.outdatedDue
+      ) {
         const expired = this.expiredDue;
         const detached = this.detachedDue;
         const temp = this.tempDue;
+        const outdated = this.outdatedDue;
         this.expiredDue = false;
         this.detachedDue = false;
         this.tempDue = false;
+        this.outdatedDue = false;
         if (expired) {
           await this.deleteExpiredPending();
         }
@@ -121,6 +135,9 @@ export class AttachmentsCleanupService
         }
         if (temp) {
           await this.sweepTempDir();
+        }
+        if (outdated) {
+          await this.deleteOutdatedAttachments();
         }
       }
     } catch (error) {
@@ -131,6 +148,63 @@ export class AttachmentsCleanupService
     } finally {
       this.running = false;
     }
+  }
+
+  public async deleteOutdatedAttachments(now = Date.now()): Promise<number> {
+    let keepDays: number;
+    try {
+      keepDays = await this.settingsService.getValue(
+        ESettingKey.ATTACHMENTS_KEEP_DAYS,
+      );
+    } catch {
+      return 0;
+    }
+
+    if (!keepDays || keepDays <= 0) {
+      return 0;
+    }
+
+    const cutoff = new Date(now - keepDays * 24 * 60 * 60 * 1000);
+    let totalCleaned = 0;
+
+    for (;;) {
+      const em = this.orm.em.fork();
+      const rows = await em.find(
+        MessageAttachmentEntity,
+        {
+          status: EAttachmentStatus.ATTACHED,
+          createdAt: { $lt: cutoff },
+        },
+        { limit: BATCH_SIZE },
+      );
+      if (rows.length === 0) {
+        break;
+      }
+
+      for (const row of rows) {
+        await this.fileService.delete(row.storageKey).catch(() => undefined);
+        if (row.thumbnailKey) {
+          await this.fileService
+            .delete(row.thumbnailKey)
+            .catch(() => undefined);
+        }
+        row.status = EAttachmentStatus.DELETED;
+      }
+
+      await em.flush();
+      totalCleaned += rows.length;
+      em.clear();
+
+      if (rows.length < BATCH_SIZE) {
+        break;
+      }
+    }
+
+    if (totalCleaned > 0) {
+      this.logger.log(`Cleaned up ${totalCleaned} outdated attachment file(s)`);
+    }
+
+    return totalCleaned;
   }
 
   private async deleteExpiredPending(now = Date.now()): Promise<void> {
@@ -144,7 +218,12 @@ export class AttachmentsCleanupService
   private async deleteDetachedRows(): Promise<void> {
     await this.drain({
       $or: [
-        { status: EAttachmentStatus.ATTACHED, message: null },
+        {
+          status: {
+            $in: [EAttachmentStatus.ATTACHED, EAttachmentStatus.DELETED],
+          },
+          message: null,
+        },
         { status: EAttachmentStatus.PENDING, uploader: null },
       ],
     });

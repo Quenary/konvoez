@@ -65,6 +65,11 @@ MENU:
     USERS: Users
     ROLES: Roles
     ADMIN: Administration
+TAB_BAR:
+  DIRECT: Direct
+  TEXT: Text
+  VOICE: Voice
+  SETTINGS: Settings
 USER_DIALOG:
   OPEN_CHAT: Open chat
   CALL: Call
@@ -188,6 +193,12 @@ VOICE:
   DISCONNECTED_BY: You were disconnected from the voice room by {{name}}
   DISCONNECT_FROM_VOICE: Disconnect from voice
 ROOMS:
+  TEXT_TITLE: Text
+  VOICE_TITLE: Voice
+  ADD_TEXT_ROOM: Create text room
+  ADD_VOICE_ROOM: Create voice room
+  EMPTY_TEXT_ROOMS: No text rooms
+  EMPTY_VOICE_ROOMS: No voice rooms
   UNREAD_MENTIONS: Unread mentions
   SEARCH_MESSAGES: Search messages...
   DELETED_MESSAGE: Deleted message
@@ -249,12 +260,14 @@ ROOMS:
       ONE: '{{count}} audio'
       OTHER: '{{count}} audio'
 CHAT:
+  ATTACHMENT_DELETED: File deleted
   MENTION_EVERYONE_HINT: Notify everyone in this room
   MENTION_UNKNOWN: unknown
   UNREAD_MESSAGES: Unread messages
 SETTINGS:
+  TITLE: Settings
   PROFILE:
-    TITLE: Profile settings
+    TITLE: Profile
     DELETE: Delete account
     EMAIL_VERIFICATION:
       VERIFIED: Verified
@@ -321,7 +334,7 @@ SETTINGS:
     UPDATE_ERROR: Could not save notification settings
     LOAD_ERROR: Could not load notification settings
   DEVICES:
-    TITLE: Device settings
+    TITLE: Devices
     AUDIO_INPUT: Microphone
     AUDIO_OUTPUT: Audio output
     DEVICE_UNAVAILABLE: Device unavailable
@@ -469,6 +482,8 @@ SETTINGS:
     ATTACHMENTS_MAX_FILES_PER_MESSAGE_DESC: How many files one message may include (1–10)
     ATTACHMENTS_STRIP_IMAGE_METADATA: Strip image metadata
     ATTACHMENTS_STRIP_IMAGE_METADATA_DESC: Off by default, so recipients download the exact original. Applies only to new uploads; existing files are not changed.
+    ATTACHMENTS_KEEP_DAYS: Attachment retention (days)
+    ATTACHMENTS_KEEP_DAYS_DESC: Number of days to keep attachment files. 0 means keep indefinitely. When expired, files are deleted and "File deleted" is shown in messages.
     VOICE: Voice
     VOICE_MAX_BITRATE: Voice bitrate (kbps)
     VOICE_MAX_BITRATE_DESC: 'Base (maximum) microphone bitrate, from 8 to 384, defaults to 64. Server outbound load is bitrate × listeners: at 64 kbps and 9 listeners, this is about 0.6 Mbps per speaker. Applies to new connections; open clients pick up the value upon reloading the app.'
@@ -506,6 +521,7 @@ VALIDATION:
   MESSAGE_TO_SELF: You can't send a message to yourself
   ATTACHMENTS_MAX_FILE_SIZE_RANGE: File size limit must be between 1 MiB and 1 GiB
   ATTACHMENTS_MAX_FILES_RANGE: File count must be between 1 and 10
+  ATTACHMENTS_KEEP_DAYS_RANGE: Retention period must be 0 or more days
   SETUP_TOKEN_REQUIRED: Setup token is required for initial registration
   INVITE_CODE_REQUIRED: Invite code is required for registration
   INVALID_SCHEMA: Invalid schema format

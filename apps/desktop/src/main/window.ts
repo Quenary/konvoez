@@ -29,8 +29,8 @@ export function getLocalPagesDir(): string {
   return path.resolve(__dirname, 'pages');
 }
 
-export function getLocalPagePath(pageName: string): string {
-  return path.resolve(getLocalPagesDir(), pageName, 'index.html');
+export function getLocalPagePath(_pageName?: string): string {
+  return path.resolve(getLocalPagesDir(), 'index.html');
 }
 
 export function showMainWindow(win?: BrowserWindow | null): void {
@@ -155,7 +155,7 @@ export function openLocalModal(
   });
 
   modal.setMenu(null);
-  modal.loadFile(getLocalPagePath(pageName));
+  modal.loadFile(getLocalPagePath(), { hash: `/${pageName}` });
   modal.once('ready-to-show', () => modal.show());
 
   if (options?.onClosed) {

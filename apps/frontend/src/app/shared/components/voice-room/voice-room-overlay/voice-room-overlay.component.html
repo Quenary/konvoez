@@ -2,6 +2,7 @@
   tuiHeader
   class="room-header"
   [class.vignette]="isFullscreen()">
+  <app-header-back-button [to]="backRoute()" />
   <h2
     tuiTitle
     role="button"
@@ -23,7 +24,7 @@
       }
     </div>
 
-    {{ title() }}
+    <span tuiFade>{{ title() }}</span>
     <span tuiSubtitle>
       {{ 'CALL.PARTICIPANTS' | translate: { count: participantsCount() } }}
     </span>

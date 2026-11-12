@@ -122,14 +122,19 @@ describe('SettingsNotificationsComponent', () => {
     component['isSettingsLoading'].set(true);
     fixture.detectChanges();
 
-    const fieldset = (fixture.nativeElement as HTMLElement).querySelector(
-      'fieldset.setting-group',
+    const fieldsets = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      '.scroll-content > fieldset',
     );
-    expect(fieldset?.hasAttribute('disabled')).toBe(true);
+    expect(fieldsets).toHaveLength(2);
+    for (const fieldset of fieldsets) {
+      expect(fieldset.hasAttribute('disabled')).toBe(true);
+    }
 
     component['isSettingsLoading'].set(false);
     fixture.detectChanges();
-    expect(fieldset?.hasAttribute('disabled')).toBe(false);
+    for (const fieldset of fieldsets) {
+      expect(fieldset.hasAttribute('disabled')).toBe(false);
+    }
   });
 
   it('hides push section completely when push is not supported', () => {
@@ -139,7 +144,9 @@ describe('SettingsNotificationsComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.push-section')).toBeNull();
     expect(compiled.querySelector('button[tuiButton]')).toBeNull();
-    expect(compiled.querySelector('fieldset.setting-group')).not.toBeNull();
+    expect(
+      compiled.querySelectorAll('.scroll-content > fieldset'),
+    ).toHaveLength(2);
   });
 
   it('shows error state, disables fieldset, and shows retry button when settings fail to load', () => {
@@ -156,8 +163,11 @@ describe('SettingsNotificationsComponent', () => {
     expect(openNotification).toHaveBeenCalled();
 
     const compiled = freshFixture.nativeElement as HTMLElement;
-    const fieldset = compiled.querySelector('fieldset.setting-group');
-    expect(fieldset?.hasAttribute('disabled')).toBe(true);
+    const fieldsets = compiled.querySelectorAll('.scroll-content > fieldset');
+    expect(fieldsets).toHaveLength(2);
+    for (const fieldset of fieldsets) {
+      expect(fieldset.hasAttribute('disabled')).toBe(true);
+    }
 
     const retryButton = compiled.querySelector(
       '.settings-load-error button[tuiButton]',
@@ -192,8 +202,11 @@ describe('SettingsNotificationsComponent', () => {
     expect(freshComponent['settings']().directCalls).toBe(false);
     expect(freshComponent['settingsLoadFailed']()).toBe(false);
 
-    const fieldset = compiled.querySelector('fieldset.setting-group');
-    expect(fieldset?.hasAttribute('disabled')).toBe(false);
+    const fieldsets = compiled.querySelectorAll('.scroll-content > fieldset');
+    expect(fieldsets).toHaveLength(2);
+    for (const fieldset of fieldsets) {
+      expect(fieldset.hasAttribute('disabled')).toBe(false);
+    }
   });
 
   it('updates direct messages setting and calls api', () => {

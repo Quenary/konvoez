@@ -1,6 +1,10 @@
-@use 'mixins' as mixins;
-
-@include mixins.scrollable-form;
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
 
 .table-wrapper {
   overflow-x: auto;
@@ -25,10 +29,8 @@
       font-weight: 500;
     }
 
-    .actions-cell {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+    .role-row {
+      cursor: pointer;
     }
 
     .empty-cell {

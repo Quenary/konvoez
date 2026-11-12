@@ -64,21 +64,73 @@ describe('desktop build', () => {
     }
   });
 
-  it('places host.css beside each dialog page', () => {
-    for (const name of ['server', 'settings', 'picker', 'updater']) {
-      const css = fs.readFileSync(
-        path.resolve(distPagesDir, name, 'host.css'),
-        'utf8',
-      );
-      expect(css).toContain('--tui-background-accent-1: #526ed3');
-      expect(css).toContain('html,');
-      expect(css).toContain('body {');
+  it('places styles.css in pages directory with Taiga theme variables', () => {
+    const cssPath = path.resolve(distPagesDir, 'styles.css');
+    expect(
+      fs.existsSync(cssPath),
+      'styles.css should exist in dist/pages',
+    ).toBe(true);
+    const css = fs.readFileSync(cssPath, 'utf8');
+    expect(css).toContain('--tui-background-accent-1: #526ed3');
+    expect(css).toContain('--tui-typography-family-text: system-ui');
+    expect(css).toContain('html');
+    expect(css).toContain('body');
+    expect(css).toMatch(/\[tuiTheme=(['"]?)dark\1\]/);
+    expect(css).toMatch(/color-scheme:\s*dark/);
+    expect(css).not.toMatch(/@font-face|url\(/);
 
-      const html = fs.readFileSync(
-        path.resolve(distPagesDir, name, 'index.html'),
-        'utf8',
-      );
-      expect(html).toContain('href="host.css"');
+    const htmlPath = path.resolve(distPagesDir, 'index.html');
+    expect(
+      fs.existsSync(htmlPath),
+      'index.html should exist in dist/pages',
+    ).toBe(true);
+    const html = fs.readFileSync(htmlPath, 'utf8');
+    expect(html).toContain('href="styles.css"');
+    expect(html).toContain("connect-src 'none'");
+    expect(
+      fs.existsSync(
+        path.resolve(distPagesDir, 'assets/taiga-ui/icons/check.svg'),
+      ),
+      'Taiga icon assets should be copied next to the dialog page',
+    ).toBe(true);
+  });
+
+  it('does not ship the local bridge mock', () => {
+    const files = collectFiles(distPagesDir, '.js');
+    expect(files.length).toBeGreaterThan(0);
+    for (const file of files) {
+      const code = fs.readFileSync(file, 'utf8');
+      expect(
+        code,
+        `${path.relative(distPagesDir, file)} should not contain the local bridge mock`,
+      ).not.toContain('desktop-ui-local-bridge-mock');
+    }
+  });
+
+  it('places icon.ico and icon.png in dist/icons', () => {
+    const distIconsDir = path.resolve(desktopDir, 'dist/icons');
+    expect(fs.existsSync(path.join(distIconsDir, 'icon.ico'))).toBe(true);
+    expect(fs.existsSync(path.join(distIconsDir, 'icon.png'))).toBe(true);
+  });
+
+  it('ensures desktop-ui component sources only reference inherited Taiga variables', () => {
+    const desktopUiAppDir = path.resolve(desktopDir, '../desktop-ui/src/app');
+    const localTokenRegex = /--tui-[a-z0-9-]+\s*:/;
+
+    const files = [
+      ...collectFiles(desktopUiAppDir, '.scss'),
+      ...collectFiles(desktopUiAppDir, '.ts').filter(
+        (f) => !f.endsWith('.spec.ts'),
+      ),
+    ];
+    expect(files.length).toBeGreaterThan(0);
+
+    for (const file of files) {
+      const source = fs.readFileSync(file, 'utf8');
+      expect(
+        localTokenRegex.test(source),
+        `${path.relative(desktopUiAppDir, file)} should not define local --tui-* tokens`,
+      ).toBe(false);
     }
   });
 });

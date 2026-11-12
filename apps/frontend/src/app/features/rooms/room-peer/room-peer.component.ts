@@ -13,7 +13,6 @@ import { TVoiceRoomPeerUser } from '@konvoez/shared';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiHint, TuiIcon } from '@taiga-ui/core';
 import { TuiAutoColorPipe, TuiFade } from '@taiga-ui/kit';
-import { TuiAsideItemDirective } from '@taiga-ui/layout';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 
 import { icons } from '@constants';
@@ -31,7 +30,6 @@ import { icons } from '@constants';
   templateUrl: './room-peer.component.html',
   styleUrl: './room-peer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  hostDirectives: [TuiAsideItemDirective],
 })
 export class RoomPeerComponent {
   private readonly store = inject(Store);

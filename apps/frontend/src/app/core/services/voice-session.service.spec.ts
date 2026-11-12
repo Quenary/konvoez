@@ -287,7 +287,12 @@ describe('VoiceSessionService', () => {
           },
         },
         { provide: TuiNotificationService, useValue: notifications },
-        provideRouter([{ path: 'voice-room/:id', children: [] }]),
+        provideRouter([
+          {
+            path: 'voice-room',
+            children: [{ path: ':id', children: [] }],
+          },
+        ]),
         {
           provide: UsersStore,
           useValue: {
@@ -1463,6 +1468,28 @@ describe('VoiceSessionService', () => {
         }),
       );
       expect(router.navigate).toHaveBeenCalledWith(['/']);
+      expect(leaveSpy).toHaveBeenCalled();
+    });
+
+    it('leaves the session without leaving the voice room list', async () => {
+      voiceSessionStore.setActiveSession({
+        type: EVoiceSessionType.GROUP_ROOM,
+        roomId: 1,
+      });
+      const leaveSpy = vi
+        .spyOn(service, 'leaveSession')
+        .mockResolvedValue(undefined);
+      const router = TestBed.inject(Router);
+      vi.spyOn(router, 'navigate').mockResolvedValue(true);
+      await router.navigateByUrl('/voice-room');
+
+      handlers[EVoiceRoomEvent.DISCONNECTED]?.({
+        roomId: 1,
+        byUserId: 42,
+      });
+      await Promise.resolve();
+
+      expect(router.navigate).not.toHaveBeenCalled();
       expect(leaveSpy).toHaveBeenCalled();
     });
   });

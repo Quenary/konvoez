@@ -1,0 +1,104 @@
+{
+  "name": "desktop-ui",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "app",
+  "sourceRoot": "apps/desktop-ui/src",
+  "tags": ["scope:client", "type:app", "platform:desktop"],
+  "generators": {
+    "@nx/angular:component": {
+      "style": "scss",
+      "type": "component"
+    }
+  },
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/desktop-ui",
+        "browser": "apps/desktop-ui/src/main.ts",
+        "tsConfig": "apps/desktop-ui/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "baseHref": "./",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "node_modules/@taiga-ui/icons/src",
+            "output": "assets/taiga-ui/icons"
+          }
+        ],
+        "styles": [
+          "@taiga-ui/styles/taiga-ui-theme.less",
+          "apps/desktop-ui/src/styles.scss"
+        ]
+      },
+      "configurations": {
+        "production": {
+          "optimization": {
+            "scripts": true,
+            "styles": {
+              "minify": true,
+              "inlineCritical": false
+            },
+            "fonts": false
+          },
+          "outputHashing": "none",
+          "sourceMap": false,
+          "extractLicenses": false
+        },
+        "development": {
+          "optimization": false,
+          "outputHashing": "none",
+          "sourceMap": true,
+          "extractLicenses": false
+        },
+        "local": {
+          "optimization": false,
+          "outputHashing": "none",
+          "sourceMap": true,
+          "extractLicenses": false,
+          "baseHref": "/",
+          "index": "apps/desktop-ui/src/index.local.html",
+          "fileReplacements": [
+            {
+              "replace": "apps/desktop-ui/src/app/core/local-bridge.ts",
+              "with": "apps/desktop-ui/src/app/core/local-bridge.mock.ts"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@angular/build:dev-server",
+      "defaultConfiguration": "local",
+      "configurations": {
+        "local": {
+          "buildTarget": "desktop-ui:build:local",
+          "port": 6201
+        }
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "watch": false,
+        "setupFiles": ["apps/desktop-ui/src/test-setup.ts"]
+      }
+    },
+    "format:check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --check \"{projectRoot}\""
+      }
+    },
+    "format:write": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write \"{projectRoot}\""
+      }
+    }
+  }
+}

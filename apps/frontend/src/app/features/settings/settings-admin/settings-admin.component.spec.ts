@@ -7,6 +7,7 @@ import { TUI_OPTIONS } from '@taiga-ui/core';
 import {
   DEFAULT_APP_URL,
   DEFAULT_ATTACHMENTS_ENABLED,
+  DEFAULT_ATTACHMENTS_KEEP_DAYS,
   DEFAULT_ATTACHMENTS_MAX_FILE_SIZE,
   DEFAULT_ATTACHMENTS_MAX_FILES_PER_MESSAGE,
   DEFAULT_ATTACHMENTS_STRIP_IMAGE_METADATA,
@@ -35,6 +36,7 @@ describe('SettingsAdminComponent', () => {
   let attachmentsMaxFileSize: ReturnType<typeof signal<number>>;
   let attachmentsMaxFilesPerMessage: ReturnType<typeof signal<number>>;
   let attachmentsStripImageMetadata: ReturnType<typeof signal<boolean>>;
+  let attachmentsKeepDays: ReturnType<typeof signal<number>>;
   let voiceMaxBitrateKbps: ReturnType<typeof signal<number>>;
   let streamMaxBitrateKbps: ReturnType<typeof signal<number>>;
   let envLocked: ReturnType<typeof signal<Record<string, boolean>>>;
@@ -54,6 +56,7 @@ describe('SettingsAdminComponent', () => {
     attachmentsStripImageMetadata = signal(
       DEFAULT_ATTACHMENTS_STRIP_IMAGE_METADATA,
     );
+    attachmentsKeepDays = signal(DEFAULT_ATTACHMENTS_KEEP_DAYS);
     voiceMaxBitrateKbps = signal(DEFAULT_VOICE_MAX_BITRATE_KBPS);
     streamMaxBitrateKbps = signal(DEFAULT_STREAM_MAX_BITRATE_KBPS);
     envLocked = signal({});
@@ -85,6 +88,7 @@ describe('SettingsAdminComponent', () => {
               attachmentsMaxFilesPerMessage.asReadonly(),
             attachmentsStripImageMetadata:
               attachmentsStripImageMetadata.asReadonly(),
+            attachmentsKeepDays: attachmentsKeepDays.asReadonly(),
             voiceMaxBitrateKbps: voiceMaxBitrateKbps.asReadonly(),
             streamMaxBitrateKbps: streamMaxBitrateKbps.asReadonly(),
             envLocked: envLocked.asReadonly(),
@@ -338,6 +342,12 @@ describe('SettingsAdminComponent', () => {
       controlName: 'attachmentsMaxFilesPerMessage',
       raw: '5',
       expected: 5,
+    },
+    {
+      selector: '#attachments-keep-days',
+      controlName: 'attachmentsKeepDays',
+      raw: '14',
+      expected: 14,
     },
   ] as const)(
     'stores $controlName as a number after typing',

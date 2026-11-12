@@ -1,5 +1,5 @@
 import { computed, effect, inject, Injectable, untracked } from '@angular/core';
-import { isActive, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { UsersStore } from '@core/stores/users.store';
 import { AudioActivityService } from '@core/services/audio-activity.service';
@@ -45,6 +45,7 @@ import { PeerVideoService } from './peer-video.service';
 import { ScreenWatchService } from './screen-watch.service';
 import { ScreenWakeLockService } from './screen-wake-lock.service';
 import { SpeakerService } from './speaker.service';
+import { VoiceRouteActiveService } from './voice-route-active.service';
 import {
   emitVoiceRoomWithAck,
   VOICE_JOIN_ACK_MS,
@@ -85,6 +86,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly voiceConnectionStore = inject(VoiceConnectionStore);
   private readonly router = inject(Router);
+  private readonly voiceRouteActiveService = inject(VoiceRouteActiveService);
   private readonly usersStore = inject(UsersStore);
 
   private iceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -361,12 +363,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       })
       .subscribe();
 
-    const voiceRoomOpen = isActive('/voice-room', this.router, {
-      paths: 'subset',
-      queryParams: 'ignored',
-      fragment: 'ignored',
-      matrixParams: 'ignored',
-    })();
+    const voiceRoomOpen = this.voiceRouteActiveService.isRoom();
 
     void this.joinSession({
       type: EVoiceSessionType.GROUP_ROOM,
@@ -403,12 +400,7 @@ export class VoiceSessionService implements IAudioDeviceHandler {
       })
       .subscribe();
 
-    const voiceRoomOpen = isActive('/voice-room', this.router, {
-      paths: 'subset',
-      queryParams: 'ignored',
-      fragment: 'ignored',
-      matrixParams: 'ignored',
-    })();
+    const voiceRoomOpen = this.voiceRouteActiveService.isRoom();
 
     if (voiceRoomOpen) {
       void this.router.navigate(['/']);

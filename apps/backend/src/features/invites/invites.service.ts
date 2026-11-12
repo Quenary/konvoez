@@ -51,9 +51,11 @@ export class InvitesService {
     invite: InviteEntity,
     options?: { url?: string; emailSendFailed?: boolean },
   ): InviteDto {
+    const status = this.calculateStatus(invite);
+    const isActive = status === 'active';
     return {
       id: invite.id,
-      code: invite.code,
+      ...(isActive ? { code: invite.code } : {}),
       email: invite.email ?? null,
       author: {
         id: invite.author.id,
@@ -70,12 +72,12 @@ export class InvitesService {
           }
         : null,
       revokedAt: invite.revokedAt ?? null,
-      status: this.calculateStatus(invite),
+      status,
       emailSent: Boolean(invite.emailSent),
       emailSentAt: invite.emailSentAt ?? null,
       createdAt: invite.createdAt,
       updatedAt: invite.updatedAt ?? null,
-      ...(options?.url ? { url: options.url } : {}),
+      ...(isActive && options?.url ? { url: options.url } : {}),
       ...(options?.emailSendFailed ? { emailSendFailed: true } : {}),
     } as InviteDto;
   }
@@ -155,13 +157,15 @@ export class InvitesService {
       },
     );
     const baseUrl = await this.getBaseUrl();
-    return invites.map((invite) =>
-      this.toDto(invite, {
-        url: baseUrl
-          ? (buildInviteUrl(baseUrl, invite.code, invite.email) ?? undefined)
-          : undefined,
-      }),
-    );
+    return invites.map((invite) => {
+      const isActive = this.calculateStatus(invite) === 'active';
+      return this.toDto(invite, {
+        url:
+          isActive && baseUrl
+            ? (buildInviteUrl(baseUrl, invite.code, invite.email) ?? undefined)
+            : undefined,
+      });
+    });
   }
 
   async findOne(id: number): Promise<InviteEntity> {

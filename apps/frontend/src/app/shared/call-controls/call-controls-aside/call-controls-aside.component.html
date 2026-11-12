@@ -1,0 +1,101 @@
+@if (callControlsService.isSessionActive()) {
+  <div
+    tuiGroup
+    [orientation]="collapsed() ? 'vertical' : 'horizontal'">
+    <button
+      tuiButton
+      appearance="neutral"
+      type="button"
+      tuiHintAppearance="floating"
+      [tuiHint]="qualityHintTemplate"
+      [attr.aria-label]="callControlsService.qualityAriaLabel()"
+      class="panel-button-spaced"
+      (click)="callControlsService.openSession()">
+      <tui-icon
+        [icon]="callControlsService.indicatorIcon()"
+        [style.color]="callControlsService.indicatorColor()"></tui-icon>
+      @if (!collapsed()) {
+        <span tuiFade>{{ callControlsService.sessionTitle() }}</span>
+      }
+    </button>
+    <button
+      tuiIconButton
+      [iconStart]="icons['log-out']"
+      appearance="negative"
+      type="button"
+      tuiHintAppearance="floating"
+      [tuiHint]="'CALL.HANGUP' | translate"
+      class="panel-button-fixed"
+      (click)="callControlsService.leaveSession()">
+    </button>
+  </div>
+
+  <ng-template #qualityHintTemplate>
+    @if (collapsed()) {
+      <div>{{ callControlsService.sessionTitle() }}</div>
+    }
+    <div>{{ callControlsService.qualityText() }}</div>
+  </ng-template>
+}
+
+<div
+  tuiGroup
+  [orientation]="collapsed() ? 'vertical' : 'horizontal'">
+  <button
+    tuiIconButton
+    type="button"
+    tuiHintAppearance="floating"
+    [tuiHint]="callControlsService.micLabelKey() | translate"
+    [iconStart]="
+      callControlsService.microphoneMuted() ? icons['mic-off'] : icons.mic
+    "
+    [appearance]="
+      callControlsService.microphoneMuted() ? 'negative' : 'neutral'
+    "
+    (click)="callControlsService.toggleMicrophone()">
+  </button>
+  <button
+    tuiIconButton
+    type="button"
+    tuiHintAppearance="floating"
+    [tuiHint]="callControlsService.speakerLabelKey() | translate"
+    [iconStart]="
+      callControlsService.speakerMuted()
+        ? icons['headphone-off']
+        : icons.headphones
+    "
+    [appearance]="callControlsService.speakerMuted() ? 'negative' : 'neutral'"
+    (click)="callControlsService.toggleSpeaker()">
+  </button>
+  @if (callControlsService.cameraOn()) {
+    <button
+      tuiIconButton
+      [iconStart]="icons.video"
+      appearance="primary"
+      type="button"
+      tuiHintAppearance="floating"
+      [tuiHint]="'CALL.CAMERA_OFF' | translate"
+      (click)="callControlsService.stopCamera()">
+    </button>
+  }
+  @if (callControlsService.screenOn()) {
+    <button
+      tuiIconButton
+      [iconStart]="icons['screen-share-off']"
+      appearance="primary"
+      type="button"
+      tuiHintAppearance="floating"
+      [tuiHint]="'CALL.SCREEN_OFF' | translate"
+      (click)="callControlsService.stopScreen()">
+    </button>
+  }
+  <button
+    tuiIconButton
+    type="button"
+    tuiHintAppearance="floating"
+    [tuiHint]="'CALL.OPEN_DEVICES_SETTINGS' | translate"
+    [iconStart]="icons['settings-devices']"
+    appearance="neutral"
+    (click)="callControlsService.openDevicesSettings()">
+  </button>
+</div>
