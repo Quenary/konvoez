@@ -11,6 +11,7 @@ export const PasswordRecoveryCodeEntitySchema = defineEntity({
     user: () =>
       p.manyToOne(UserEntitySchema).updateRule('cascade').deleteRule('cascade'),
     codeHash: p.string().length(128),
+    attempts: p.integer().default(0),
     expiresAt: p.datetime(),
     usedAt: p.datetime().nullable().default(null),
   },
@@ -20,6 +21,7 @@ export class PasswordRecoveryCodeEntity
   extends PasswordRecoveryCodeEntitySchema.class
 {
   declare user: UserEntity;
+  declare attempts: number;
 }
 
 PasswordRecoveryCodeEntitySchema.setClass(PasswordRecoveryCodeEntity);

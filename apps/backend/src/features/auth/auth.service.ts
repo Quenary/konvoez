@@ -39,6 +39,7 @@ import {
   emailVerificationMaxAttempts,
   emailVerificationRequestCooldownMs,
   passwordRecoveryCodeLength,
+  passwordRecoveryMaxAttempts,
   passwordRecoveryRequestCooldownMs,
 } from '@konvoez/shared';
 import { Cache } from '@nestjs/cache-manager';
@@ -263,6 +264,7 @@ export class AuthService implements OnApplicationBootstrap {
     const recoveryCode = this.recoveryCodeRepo.create({
       user,
       codeHash,
+      attempts: 0,
       expiresAt: new Date(now.getTime() + ttlMs),
       usedAt: null,
     });
@@ -326,17 +328,47 @@ export class AuthService implements OnApplicationBootstrap {
         user: user.id,
         usedAt: null,
         expiresAt: { $gt: new Date() },
+        attempts: { $lt: passwordRecoveryMaxAttempts },
       },
       { orderBy: { createdAt: 'DESC' } },
     );
 
     let matched: PasswordRecoveryCodeEntity | null = null;
     for (const candidate of candidates) {
+      const reserved = await this.recoveryCodeRepo.nativeUpdate(
+        {
+          id: candidate.id,
+          usedAt: null,
+          attempts: { $lt: passwordRecoveryMaxAttempts },
+        },
+        { attempts: raw('attempts + 1') },
+      );
+      if (reserved === 0) {
+        continue;
+      }
+
       const ok = await this.hashService.verify(dto.code, candidate.codeHash);
       if (ok) {
-        matched = candidate;
-        break;
+        const consumed = await this.recoveryCodeRepo.nativeUpdate(
+          { id: candidate.id, usedAt: null },
+          { usedAt: new Date() },
+        );
+        if (consumed > 0) {
+          candidate.usedAt = new Date();
+          matched = candidate;
+          break;
+        }
+        continue;
       }
+
+      await this.recoveryCodeRepo.nativeUpdate(
+        {
+          id: candidate.id,
+          usedAt: null,
+          attempts: { $gte: passwordRecoveryMaxAttempts },
+        },
+        { usedAt: new Date() },
+      );
     }
 
     if (!matched) {
@@ -345,9 +377,6 @@ export class AuthService implements OnApplicationBootstrap {
         'Invalid or expired recovery code',
       );
     }
-
-    matched.usedAt = new Date();
-    this.em.persist(matched);
 
     user.emailVerified = true;
     user.pendingEmail = null;

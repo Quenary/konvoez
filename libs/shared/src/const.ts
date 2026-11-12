@@ -28,6 +28,7 @@ export const passwordRecoveryCodeMaxTtl = 60 * 60 * 1000; // 1 hour in ms
 export const passwordRecoveryCodeDefaultTtl = 10 * 60 * 1000; // 10 minutes in ms
 export const passwordRecoveryCodeLength = 6;
 export const passwordRecoveryRequestCooldownMs = 60_000; // 1 minute
+export const passwordRecoveryMaxAttempts = 5;
 export const emailVerificationCodeLength = 6;
 export const emailVerificationCodeDefaultTtl = 15 * 60 * 1000; // 15 minutes in ms
 export const emailVerificationRequestCooldownMs = 60_000; // 1 minute
