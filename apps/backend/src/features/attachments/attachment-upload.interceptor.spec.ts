@@ -57,11 +57,11 @@ import multer, { MulterError } from 'multer';
 import { Logger, type ExecutionContext } from '@nestjs/common';
 import {
   ApiErrorCode,
+  EAttachmentStatus,
   ESettingKey,
   attachmentsMaxPendingPerUser,
 } from '@konvoez/shared';
 import { AttachmentUploadInterceptor } from './attachment-upload.interceptor';
-import { EAttachmentStatus } from './attachments.const';
 
 const multerMock = multer as unknown as jest.Mock & {
   __middleware: jest.Mock;

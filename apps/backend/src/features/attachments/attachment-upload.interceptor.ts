@@ -13,6 +13,7 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import {
   ApiErrorCode,
+  EAttachmentStatus,
   ESettingKey,
   attachmentsMaxPendingPerUser,
   attachmentsMaxPosterSize,
@@ -20,7 +21,6 @@ import {
 import { AppService } from '@shared/services/app.service';
 import { isEnospc } from '@shared/utils/is-enospc';
 import { SettingsService } from '../settings/settings.service';
-import { EAttachmentStatus } from './attachments.const';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository } from '@mikro-orm/core';
 import { MessageAttachmentEntity } from './attachments.entity';

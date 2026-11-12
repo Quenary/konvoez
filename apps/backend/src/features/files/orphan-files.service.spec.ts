@@ -25,6 +25,7 @@ import type {
   FileService,
   StoredFileInfo,
 } from '@shared/services/file.service';
+import { EAttachmentStatus } from '@konvoez/shared';
 import { RoomsFacade } from '../rooms/rooms.facade';
 import { UserEntity } from '../users/users.entity';
 import { MessageAttachmentEntity } from '../attachments/attachments.entity';
@@ -101,6 +102,15 @@ describe('OrphanFilesService', () => {
     await expect(service.cleanup(now)).resolves.toBe(1);
     expect(fileService.delete).toHaveBeenCalledTimes(1);
     expect(fileService.delete).toHaveBeenCalledWith(orphanKey);
+  });
+
+  it('excludes deleted attachments when loading referenced keys', async () => {
+    await service.cleanup(now);
+    expect(find).toHaveBeenCalledWith(
+      MessageAttachmentEntity,
+      { status: { $ne: EAttachmentStatus.DELETED } },
+      { fields: ['storageKey', 'thumbnailKey'] },
+    );
   });
 
   it('should keep cleaning other buckets when one list fails', async () => {

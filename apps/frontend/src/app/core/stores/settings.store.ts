@@ -199,6 +199,13 @@ export const SettingsStore = signalStore(
           defaultSettingValues[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA]
         );
       }),
+      attachmentsKeepDays: computed(() => {
+        const item = entityMap()[ESettingKey.ATTACHMENTS_KEEP_DAYS];
+        return (
+          (item?.value as number | undefined) ??
+          defaultSettingValues[ESettingKey.ATTACHMENTS_KEEP_DAYS]
+        );
+      }),
       voiceMaxBitrateKbps: computed(() => {
         const item = entityMap()[ESettingKey.VOICE_MAX_BITRATE_KBPS];
         return (

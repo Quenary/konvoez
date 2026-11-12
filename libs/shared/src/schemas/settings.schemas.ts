@@ -2,6 +2,7 @@ import * as z from 'zod';
 import { baseEntitySchema, SCHEMA_ERROR, stringSchema } from './base.schemas';
 import { ESettingKey } from '../enums';
 import {
+  attachmentsDefaultKeepDays,
   attachmentsDefaultMaxFileSize,
   attachmentsDefaultMaxFilesPerMessage,
   attachmentsMaxFileSizeHardLimit,
@@ -292,6 +293,34 @@ export type TAttachmentsStripImageMetadataSetting = z.infer<
 >;
 
 /* ==========================================================================
+   Attachments Keep Days
+   ========================================================================== */
+
+export const attachmentsKeepDaysSettingValueSchema = z
+  .number({ error: SCHEMA_ERROR.ATTACHMENTS_KEEP_DAYS_RANGE })
+  .int({ error: SCHEMA_ERROR.ATTACHMENTS_KEEP_DAYS_RANGE })
+  .min(0, { error: SCHEMA_ERROR.ATTACHMENTS_KEEP_DAYS_RANGE });
+export type TAttachmentsKeepDaysSettingValue = z.infer<
+  typeof attachmentsKeepDaysSettingValueSchema
+>;
+
+export const DEFAULT_ATTACHMENTS_KEEP_DAYS: TAttachmentsKeepDaysSettingValue =
+  attachmentsDefaultKeepDays;
+
+export const attachmentsKeepDaysSettingBaseSchema = z.object({
+  key: z.literal(ESettingKey.ATTACHMENTS_KEEP_DAYS),
+  value: attachmentsKeepDaysSettingValueSchema,
+});
+
+export const attachmentsKeepDaysSettingSchema =
+  attachmentsKeepDaysSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape);
+export type TAttachmentsKeepDaysSetting = z.infer<
+  typeof attachmentsKeepDaysSettingSchema
+>;
+
+/* ==========================================================================
    Voice Max Bitrate (Kbps)
    ========================================================================== */
 
@@ -404,6 +433,7 @@ export const settingValueSchemas = {
     attachmentsMaxFilesPerMessageSettingValueSchema,
   [ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA]:
     attachmentsStripImageMetadataSettingValueSchema,
+  [ESettingKey.ATTACHMENTS_KEEP_DAYS]: attachmentsKeepDaysSettingValueSchema,
   [ESettingKey.VOICE_MAX_BITRATE_KBPS]: voiceMaxBitrateKbpsSettingValueSchema,
   [ESettingKey.STREAM_MAX_BITRATE_KBPS]: streamMaxBitrateKbpsSettingValueSchema,
   [ESettingKey.APP_URL]: appUrlSettingValueSchema,
@@ -420,6 +450,7 @@ export const defaultSettingValues = {
     DEFAULT_ATTACHMENTS_MAX_FILES_PER_MESSAGE,
   [ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA]:
     DEFAULT_ATTACHMENTS_STRIP_IMAGE_METADATA,
+  [ESettingKey.ATTACHMENTS_KEEP_DAYS]: DEFAULT_ATTACHMENTS_KEEP_DAYS,
   [ESettingKey.VOICE_MAX_BITRATE_KBPS]: DEFAULT_VOICE_MAX_BITRATE_KBPS,
   [ESettingKey.STREAM_MAX_BITRATE_KBPS]: DEFAULT_STREAM_MAX_BITRATE_KBPS,
   [ESettingKey.APP_URL]: DEFAULT_APP_URL,
@@ -454,6 +485,9 @@ const settingSchemaEntries = [
   attachmentsStripImageMetadataSettingBaseSchema
     .extend(baseEntitySchema.shape)
     .extend(settingMetaSchema.shape),
+  attachmentsKeepDaysSettingBaseSchema
+    .extend(baseEntitySchema.shape)
+    .extend(settingMetaSchema.shape),
   voiceMaxBitrateKbpsSettingBaseSchema
     .extend(baseEntitySchema.shape)
     .extend(settingMetaSchema.shape),
@@ -481,6 +515,7 @@ export const settingItemUpdateSchema = z.discriminatedUnion('key', [
   attachmentsMaxFileSizeSettingBaseSchema,
   attachmentsMaxFilesPerMessageSettingBaseSchema,
   attachmentsStripImageMetadataSettingBaseSchema,
+  attachmentsKeepDaysSettingBaseSchema,
   voiceMaxBitrateKbpsSettingBaseSchema,
   streamMaxBitrateKbpsSettingBaseSchema,
   appUrlSettingBaseSchema,

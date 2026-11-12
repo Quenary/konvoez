@@ -3,7 +3,7 @@ import {
   attachmentsMaxVideoDurationSeconds,
   attachmentsMaxVideoSide,
 } from '../const';
-import { EAttachmentKind } from '../enums';
+import { EAttachmentKind, EAttachmentStatus } from '../enums';
 import { stringSchema } from './base.schemas';
 
 const videoSideHint = looseHint(
@@ -34,8 +34,10 @@ export type IAttachmentUploadHints = z.infer<
 >;
 
 export const attachmentKindSchema = z.enum(EAttachmentKind);
+export const attachmentStatusSchema = z.enum(EAttachmentStatus);
 export const attachmentSchema = z.object({
   id: z.uuid(),
+  status: attachmentStatusSchema,
   kind: attachmentKindSchema,
   name: stringSchema,
   mime: stringSchema,

@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   appUrlSettingSchema,
   appUrlSettingValueSchema,
+  attachmentsKeepDaysSettingSchema,
+  attachmentsKeepDaysSettingValueSchema,
   DEFAULT_APP_URL,
+  DEFAULT_ATTACHMENTS_KEEP_DAYS,
   DEFAULT_STREAM_MAX_BITRATE_KBPS,
   DEFAULT_VOICE_MAX_BITRATE_KBPS,
   ESettingKey,
@@ -185,6 +188,57 @@ describe('Settings Schemas', () => {
         settingItemUpdateSchema.safeParse({
           key: ESettingKey.APP_URL,
           value: 'https://konvoez.example.com',
+        }).success,
+      ).toBe(true);
+    });
+  });
+
+  describe('attachmentsKeepDaysSettingValueSchema', () => {
+    it.each([0, 1, 7, 30, 365])('accepts valid keep days %d', (val) => {
+      const result = attachmentsKeepDaysSettingValueSchema.safeParse(val);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toBe(val);
+      }
+    });
+
+    it.each([-1, -10, 1.5, '30', null, undefined, NaN])(
+      'rejects invalid keep days %s',
+      (val) => {
+        const result = attachmentsKeepDaysSettingValueSchema.safeParse(val);
+        expect(result.success).toBe(false);
+      },
+    );
+
+    it('has default 0 (disabled)', () => {
+      expect(DEFAULT_ATTACHMENTS_KEEP_DAYS).toBe(0);
+    });
+
+    it('accepts valid attachmentsKeepDays setting entity', () => {
+      const parsed = attachmentsKeepDaysSettingSchema.safeParse({
+        key: ESettingKey.ATTACHMENTS_KEEP_DAYS,
+        value: 30,
+        envLocked: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: null,
+      });
+      expect(parsed.success).toBe(true);
+    });
+
+    it('parses attachments keep days from setting unions', () => {
+      expect(
+        settingSchema.safeParse({
+          key: ESettingKey.ATTACHMENTS_KEEP_DAYS,
+          value: 30,
+          envLocked: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: null,
+        }).success,
+      ).toBe(true);
+      expect(
+        settingItemUpdateSchema.safeParse({
+          key: ESettingKey.ATTACHMENTS_KEEP_DAYS,
+          value: 30,
         }).success,
       ).toBe(true);
     });

@@ -16,9 +16,11 @@ import {
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   appUrlSettingValueSchema,
+  attachmentsKeepDaysSettingValueSchema,
   attachmentsMaxFilesPerMessageSettingValueSchema,
   DEFAULT_APP_URL,
   DEFAULT_ATTACHMENTS_ENABLED,
+  DEFAULT_ATTACHMENTS_KEEP_DAYS,
   DEFAULT_ATTACHMENTS_MAX_FILE_SIZE,
   DEFAULT_ATTACHMENTS_MAX_FILES_PER_MESSAGE,
   DEFAULT_ATTACHMENTS_STRIP_IMAGE_METADATA,
@@ -96,6 +98,7 @@ type AdminFormControlName =
   | 'attachmentsMaxFileSizeMib'
   | 'attachmentsMaxFilesPerMessage'
   | 'attachmentsStripImageMetadata'
+  | 'attachmentsKeepDays'
   | 'voiceMaxBitrateKbps'
   | 'streamMaxBitrateKbps';
 
@@ -201,6 +204,12 @@ export class SettingsAdminComponent {
       DEFAULT_ATTACHMENTS_STRIP_IMAGE_METADATA,
       { nonNullable: true },
     ),
+    attachmentsKeepDays: new FormControl(DEFAULT_ATTACHMENTS_KEEP_DAYS, {
+      nonNullable: true,
+      validators: [
+        createZodFieldValidator(attachmentsKeepDaysSettingValueSchema),
+      ],
+    }),
     voiceMaxBitrateKbps: new FormControl(DEFAULT_VOICE_MAX_BITRATE_KBPS, {
       nonNullable: true,
       validators: [
@@ -232,6 +241,7 @@ export class SettingsAdminComponent {
         envLocked[ESettingKey.ATTACHMENTS_MAX_FILES_PER_MESSAGE],
       attachmentsStripImageMetadata:
         envLocked[ESettingKey.ATTACHMENTS_STRIP_IMAGE_METADATA],
+      attachmentsKeepDays: envLocked[ESettingKey.ATTACHMENTS_KEEP_DAYS],
       voiceMaxBitrateKbps: envLocked[ESettingKey.VOICE_MAX_BITRATE_KBPS],
       streamMaxBitrateKbps: envLocked[ESettingKey.STREAM_MAX_BITRATE_KBPS],
     };
@@ -284,6 +294,11 @@ export class SettingsAdminComponent {
       toDto: (val) => Boolean(val),
     },
     {
+      key: ESettingKey.ATTACHMENTS_KEEP_DAYS,
+      controlName: 'attachmentsKeepDays',
+      toDto: (val) => Number(val),
+    },
+    {
       key: ESettingKey.VOICE_MAX_BITRATE_KBPS,
       controlName: 'voiceMaxBitrateKbps',
       toDto: (val) => Number(val),
@@ -308,6 +323,7 @@ export class SettingsAdminComponent {
       const attachmentsMaxFiles =
         this.settingsStore.attachmentsMaxFilesPerMessage();
       const stripMetadata = this.settingsStore.attachmentsStripImageMetadata();
+      const keepDays = this.settingsStore.attachmentsKeepDays();
       const voiceMaxBitrate = this.settingsStore.voiceMaxBitrateKbps();
       const streamMaxBitrate = this.settingsStore.streamMaxBitrateKbps();
       const envLocked = this.settingsStore.envLocked();
@@ -335,6 +351,9 @@ export class SettingsAdminComponent {
         { emitEvent: false },
       );
       this.form.controls.attachmentsStripImageMetadata.setValue(stripMetadata, {
+        emitEvent: false,
+      });
+      this.form.controls.attachmentsKeepDays.setValue(keepDays, {
         emitEvent: false,
       });
       this.form.controls.voiceMaxBitrateKbps.setValue(voiceMaxBitrate, {

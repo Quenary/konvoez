@@ -32,6 +32,8 @@ export const emailVerificationMaxAttempts = 5;
 export const attachmentsMaxFilesHardLimit = 10;
 /** Default for the admin setting `ATTACHMENTS_MAX_FILES_PER_MESSAGE`. */
 export const attachmentsDefaultMaxFilesPerMessage = 10;
+/** Default for the admin setting `ATTACHMENTS_KEEP_DAYS`. 0 means keep indefinitely (cleanup disabled). */
+export const attachmentsDefaultKeepDays = 0;
 /**
  * Lower bound of the admin setting `ATTACHMENTS_MAX_FILE_SIZE`.
  * This is the smallest per-file maximum an admin can configure, not a minimum upload size.

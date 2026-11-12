@@ -9,9 +9,11 @@ import {
 import {
   attachmentsAnimatedInlineMaxSize,
   EAttachmentKind,
+  EAttachmentStatus,
   IAttachment,
 } from '@konvoez/shared';
 import { TranslatePipe } from '@ngx-translate/core';
+import { TuiIcon } from '@taiga-ui/core';
 import { TuiFile } from '@taiga-ui/kit';
 import { FileThumbnailComponent } from '@shared/components/file-thumbnail/file-thumbnail.component';
 import { MediaGridComponent } from '@shared/components/media-grid/media-grid.component';
@@ -22,6 +24,7 @@ import {
   IOutgoingMessage,
   uploadErrorKey,
 } from '@core/chat/outgoing/outgoing.types';
+import { icons } from '@constants';
 
 export interface IAttachmentView {
   readonly key: string;
@@ -38,11 +41,18 @@ export interface IAttachmentView {
   readonly removable: boolean;
   readonly serverVideo: boolean;
   readonly durationMs: number | null;
+  readonly deleted: boolean;
 }
 
 @Component({
   selector: 'app-chat-message-attachments',
-  imports: [TranslatePipe, TuiFile, FileThumbnailComponent, MediaGridComponent],
+  imports: [
+    TranslatePipe,
+    TuiFile,
+    TuiIcon,
+    FileThumbnailComponent,
+    MediaGridComponent,
+  ],
   templateUrl: './chat-message-attachments.component.html',
   styleUrl: './chat-message-attachments.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -50,6 +60,8 @@ export interface IAttachmentView {
 export class ChatMessageAttachmentsComponent {
   private readonly mediaPreviewService = inject(MediaPreviewService);
   private readonly downloadService = inject(DownloadService);
+
+  protected readonly icons = icons;
 
   public readonly attachments = input<readonly IAttachment[]>([]);
   public readonly outgoing = input<IOutgoingMessage | null>(null);
@@ -95,6 +107,7 @@ export class ChatMessageAttachmentsComponent {
           serverVideo: file.kind === EAttachmentKind.VIDEO && !!file.posterUrl,
           durationMs:
             file.videoDuration === null ? null : file.videoDuration * 1000,
+          deleted: false,
         };
       });
     }
@@ -109,10 +122,11 @@ export class ChatMessageAttachmentsComponent {
   );
   protected readonly audio = computed(() => {
     const outgoing = this.outgoing();
+    const views = this.views();
     if (outgoing) {
       return [];
     }
-    return this.views().filter((item) => item.kind === EAttachmentKind.AUDIO);
+    return views.filter((item) => item.kind === EAttachmentKind.AUDIO);
   });
   protected readonly files = computed(() => {
     const outgoing = this.outgoing();
@@ -132,6 +146,8 @@ export class ChatMessageAttachmentsComponent {
   });
   protected readonly aspect = computed(() => {
     const outgoing = this.outgoing();
+    const media = this.media();
+    const attachments = this.attachments();
     if (outgoing) {
       const first = outgoing.files.find(
         (file) =>
@@ -143,8 +159,11 @@ export class ChatMessageAttachmentsComponent {
       }
       return null;
     }
-    const first = this.media()[0];
-    const source = this.attachments().find((item) => item.id === first?.key);
+    const firstActive = media.find((item) => !item.deleted);
+    if (!firstActive) {
+      return null;
+    }
+    const source = attachments.find((item) => item.id === firstActive.key);
     if (!source?.width || !source.height) {
       return null;
     }
@@ -152,7 +171,11 @@ export class ChatMessageAttachmentsComponent {
   });
 
   protected onDownload(event: MouseEvent, item: IAttachmentView): void {
-    if (!this.downloadService.usesShareDialog || !item.downloadUrl) {
+    if (
+      item.deleted ||
+      !this.downloadService.usesShareDialog ||
+      !item.downloadUrl
+    ) {
       return;
     }
     event.preventDefault();
@@ -160,8 +183,12 @@ export class ChatMessageAttachmentsComponent {
   }
 
   protected open(target: IAttachmentView | number): void {
+    if (typeof target !== 'number' && target.deleted) {
+      return;
+    }
     const validViews = this.media().filter(
       (item): item is IAttachmentView & { fullSrc: string } =>
+        !item.deleted &&
         !!item.fullSrc &&
         (item.kind === EAttachmentKind.IMAGE ||
           item.kind === EAttachmentKind.VIDEO),
@@ -182,11 +209,13 @@ export class ChatMessageAttachmentsComponent {
   }
 
   private toServerView(attachment: IAttachment): IAttachmentView {
+    const deleted = attachment.status === EAttachmentStatus.DELETED;
     const animated =
       attachment.mime === 'image/gif' &&
       attachment.size <= attachmentsAnimatedInlineMaxSize;
-    const src =
-      attachment.kind === EAttachmentKind.IMAGE
+    const src = deleted
+      ? null
+      : attachment.kind === EAttachmentKind.IMAGE
         ? animated
           ? attachment.url
           : (attachment.thumbnailUrl ?? attachment.url)
@@ -199,15 +228,16 @@ export class ChatMessageAttachmentsComponent {
       name: attachment.name,
       size: attachment.size,
       src,
-      fullSrc: attachment.url,
-      downloadUrl: `${attachment.url}?download=1`,
+      fullSrc: deleted ? null : attachment.url,
+      downloadUrl: deleted ? null : `${attachment.url}?download=1`,
       status: 'done',
       fileState: 'normal',
       progress: null,
       errorText: null,
       removable: false,
-      serverVideo: attachment.kind === EAttachmentKind.VIDEO,
+      serverVideo: !deleted && attachment.kind === EAttachmentKind.VIDEO,
       durationMs: attachment.durationMs,
+      deleted,
     };
   }
 }

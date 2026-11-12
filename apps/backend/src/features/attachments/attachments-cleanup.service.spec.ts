@@ -21,9 +21,8 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { Logger } from '@nestjs/common';
-import { attachmentsPendingTtlMs } from '@konvoez/shared';
+import { attachmentsPendingTtlMs, EAttachmentStatus } from '@konvoez/shared';
 import { AttachmentsCleanupService } from './attachments-cleanup.service';
-import { EAttachmentStatus } from './attachments.const';
 
 describe('AttachmentsCleanupService', () => {
   const em = {
@@ -41,6 +40,9 @@ describe('AttachmentsCleanupService', () => {
     delete: jest.fn().mockResolvedValue(undefined),
   };
   const appService = { UPLOAD_TMP_DIR: '' };
+  const settingsService = {
+    getValue: jest.fn().mockResolvedValue(0),
+  };
   let service: AttachmentsCleanupService;
 
   beforeEach(() => {
@@ -48,6 +50,7 @@ describe('AttachmentsCleanupService', () => {
     em.find.mockResolvedValue([]);
     em.flush.mockResolvedValue(undefined);
     fileService.delete.mockResolvedValue(undefined);
+    settingsService.getValue.mockResolvedValue(0);
     orm.em.fork.mockReturnValue(em);
     appService.UPLOAD_TMP_DIR = fs.mkdtempSync(
       path.join(os.tmpdir(), 'konvoez-tmp-'),
@@ -56,6 +59,7 @@ describe('AttachmentsCleanupService', () => {
       orm as never,
       fileService as never,
       appService as never,
+      settingsService as never,
     );
   });
 
@@ -282,5 +286,74 @@ describe('AttachmentsCleanupService', () => {
 
     expect(fs.existsSync(oldPath)).toBe(false);
     expect(fs.existsSync(freshPath)).toBe(true);
+  });
+
+  describe('deleteOutdatedAttachments', () => {
+    it('does nothing when ATTACHMENTS_KEEP_DAYS is 0 or less', async () => {
+      settingsService.getValue.mockResolvedValue(0);
+      const count = await service.deleteOutdatedAttachments();
+      expect(count).toBe(0);
+      expect(em.find).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when settingsService throws', async () => {
+      settingsService.getValue.mockRejectedValue(new Error('Settings missing'));
+      const count = await service.deleteOutdatedAttachments();
+      expect(count).toBe(0);
+      expect(em.find).not.toHaveBeenCalled();
+    });
+
+    it('cleans up files and marks status DELETED without removing DB row', async () => {
+      settingsService.getValue.mockResolvedValue(30);
+      const now = Date.now();
+      const cutoff = new Date(now - 30 * 24 * 60 * 60 * 1000);
+      const oldRow = {
+        status: EAttachmentStatus.ATTACHED,
+        storageKey: 'message-attachments/old-storage',
+        thumbnailKey: 'message-attachments/old-thumb',
+        createdAt: new Date(cutoff.getTime() - 1000),
+      };
+
+      em.find.mockResolvedValueOnce([oldRow]).mockResolvedValueOnce([]);
+
+      const cleaned = await service.deleteOutdatedAttachments(now);
+
+      expect(cleaned).toBe(1);
+      expect(em.find).toHaveBeenCalledWith(
+        expect.anything(),
+        {
+          status: EAttachmentStatus.ATTACHED,
+          createdAt: { $lt: cutoff },
+        },
+        { limit: 100 },
+      );
+      expect(fileService.delete).toHaveBeenCalledWith(oldRow.storageKey);
+      expect(fileService.delete).toHaveBeenCalledWith(oldRow.thumbnailKey);
+      expect(oldRow.status).toBe(EAttachmentStatus.DELETED);
+      expect(em.remove).not.toHaveBeenCalled();
+      expect(em.flush).toHaveBeenCalled();
+    });
+
+    it('is invoked during sweep when ATTACHMENTS_KEEP_DAYS is configured', async () => {
+      settingsService.getValue.mockResolvedValue(7);
+      const deleteOutdatedSpy = jest.spyOn(
+        service,
+        'deleteOutdatedAttachments',
+      );
+
+      await service.sweep();
+
+      expect(deleteOutdatedSpy).toHaveBeenCalled();
+    });
+
+    it('starts sweep on application bootstrap and stops on module destroy', () => {
+      const sweepSpy = jest
+        .spyOn(service, 'sweep')
+        .mockResolvedValue(undefined);
+      service.onApplicationBootstrap();
+      expect(sweepSpy).toHaveBeenCalled();
+      service.onModuleDestroy();
+      expect(service['timer']).toBeNull();
+    });
   });
 });

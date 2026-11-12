@@ -276,6 +276,19 @@
               locked: locked().attachmentsStripImageMetadata,
             }
           " />
+
+        <ng-container
+          *ngTemplateOutlet="
+            inputItem;
+            context: {
+              id: 'attachments-keep-days',
+              control: form.controls.attachmentsKeepDays,
+              labelKey: 'SETTINGS.ADMIN.ATTACHMENTS_KEEP_DAYS',
+              descKey: 'SETTINGS.ADMIN.ATTACHMENTS_KEEP_DAYS_DESC',
+              number: true,
+              locked: locked().attachmentsKeepDays,
+            }
+          " />
       </fieldset>
 
       <fieldset>
