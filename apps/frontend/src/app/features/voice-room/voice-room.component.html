@@ -25,11 +25,8 @@
       #roomContextMenu
       let-close>
       <app-room-context-menu
-        [roomName]="currentRoom.name"
-        [canManage]="canManageRooms()"
-        (details)="openDetails(); close()"
-        (edit)="editRoom(currentRoom); close()"
-        (delete)="deleteRoom(currentRoom); close()" />
+        [room]="currentRoom"
+        (closeMenu)="close()" />
     </ng-template>
   }
 </ng-template>

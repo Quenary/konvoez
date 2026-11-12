@@ -1,10 +1,10 @@
 <tui-data-list tuiDataListDropdownManager>
-  <tui-opt-group [label]="username() || ''">
+  <tui-opt-group [label]="peer().username">
     <button
       tuiOption
       [iconEnd]="icons.info"
       type="button"
-      (click)="details.emit()">
+      (click)="onOpenDetails()">
       {{ 'ROOMS.DETAILS' | translate }}
     </button>
     @if (showVolume()) {
@@ -18,33 +18,35 @@
         {{ 'CALL.VOLUME' | translate }}
       </button>
     }
-  </tui-opt-group>
-  @if (canModerate()) {
-    @if (moveTargets().length > 0) {
+    @if (canModerate()) {
+      <hr />
+      @if (moveTargets().length > 0) {
+        <button
+          tuiOption
+          [style.color]="'var(--tui-status-warning)'"
+          [iconEnd]="icons['arrow-down-up']"
+          tuiDropdownAlign="end"
+          tuiDropdownSided
+          type="button"
+          [tuiDropdown]="moveTargetsMenu">
+          {{ 'VOICE.MOVE_TO' | translate }}
+        </button>
+      }
       <button
         tuiOption
-        [iconEnd]="icons['arrow-down-up']"
-        tuiDropdownAlign="end"
-        tuiDropdownSided
+        [style.color]="'var(--tui-status-negative)'"
+        [iconEnd]="icons['circle-x']"
         type="button"
-        [tuiDropdown]="moveTargetsMenu">
-        {{ 'VOICE.MOVE_TO' | translate }}
+        (click)="onDisconnectMember()">
+        {{ 'VOICE.DISCONNECT_FROM_VOICE' | translate }}
       </button>
     }
-    <button
-      tuiOption
-      class="destructive"
-      [iconEnd]="icons['circle-x']"
-      type="button"
-      (click)="disconnect.emit()">
-      {{ 'VOICE.DISCONNECT_FROM_VOICE' | translate }}
-    </button>
-  }
+  </tui-opt-group>
 </tui-data-list>
 
 <ng-template #volumeDropdown>
   <app-volume-control
-    [id]="'user-context-volume-' + userId()"
+    [id]="'user-context-volume-' + peer().id"
     [value]="volume()"
     [label]="'CALL.VOLUME' | translate"
     (valueChange)="onVolumeChange($event)" />
@@ -56,7 +58,7 @@
       <button
         tuiOption
         type="button"
-        (click)="move.emit(target)">
+        (click)="onMoveMember(target)">
         {{ target.name }}
       </button>
     }

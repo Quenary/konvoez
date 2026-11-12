@@ -221,13 +221,8 @@
           #userContextMenu
           let-close>
           <app-user-context-menu
-            [username]="p.username"
-            [userId]="p.id"
-            [canModerate]="canModeratePeer()"
-            [moveTargets]="moveTargets()"
-            (details)="onOpenUserDialog(); close()"
-            (move)="onMoveMember($event); close()"
-            (disconnect)="onDisconnectMember(); close()" />
+            [peer]="p"
+            (closeMenu)="close()" />
         </ng-template>
       </div>
     </div>

@@ -217,15 +217,9 @@
   let-close>
   @if (selectedPeerForMenu(); as selected) {
     <app-user-context-menu
-      [username]="selected.peer.username"
-      [userId]="selected.peer.id"
-      [canModerate]="selected.peer.canMove"
-      [moveTargets]="selected.peer.canMove ? moveTargetRooms() : []"
-      (details)="openPeerDialog(selected.peer); close()"
-      (move)="moveMember(selected.peer, $event); close()"
-      (disconnect)="
-        disconnectMember(selected.peer, selected.roomId); close()
-      " />
+      [peer]="selected.peer"
+      [roomId]="selected.roomId"
+      (closeMenu)="close()" />
   }
 </ng-template>
 
@@ -234,10 +228,7 @@
   let-close>
   @if (roomView.contextMenuRoom(); as room) {
     <app-room-context-menu
-      [roomName]="room.name"
-      [canManage]="roomView.canManageRooms()"
-      (details)="roomView.openRoomDetails(room); close()"
-      (edit)="roomView.editRoom(room); close()"
-      (delete)="roomView.deleteRoom(room); close()" />
+      [room]="room"
+      (closeMenu)="close()" />
   }
 </ng-template>

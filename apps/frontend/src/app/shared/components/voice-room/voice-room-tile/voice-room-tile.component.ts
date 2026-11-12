@@ -6,11 +6,7 @@ import {
   input,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import {
-  formatStreamLayer,
-  EPermission,
-  TVoiceRoomPeerUser,
-} from '@konvoez/shared';
+import { formatStreamLayer, TVoiceRoomPeerUser } from '@konvoez/shared';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { ConsumerRegistry } from '@core/services/consumer-registry';
@@ -22,9 +18,6 @@ import {
 } from '@core/services/remote-video-quality';
 import { RemoteVideoViewService } from '@core/services/remote-video-view.service';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
-import { VoiceSessionStore } from '@core/voice/voice-session.store';
-import { RoomsStore } from '@core/stores/rooms.store';
-import { VoiceSessionService } from '@core/services/voice-session.service';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import {
@@ -35,17 +28,12 @@ import {
   TuiGroup,
   TuiHint,
   TuiLabel,
-  TuiNotificationService,
   TuiOption,
 } from '@taiga-ui/core';
 import { TuiAutoColorPipe, TuiBadge } from '@taiga-ui/kit';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { TranslatePipe } from '@ngx-translate/core';
 import { VideoTrackDirective } from '@shared/directives/video-track.directive';
-import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
-import {
-  IUserContextMoveTarget,
-  UserContextMenuComponent,
-} from '@shared/components/user-context-menu/user-context-menu.component';
+import { UserContextMenuComponent } from '@shared/components/user-context-menu/user-context-menu.component';
 import { distinctFullname } from '../voice-peer-label';
 import type { TVoiceStreamKind } from '../voice-room-tiles';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
@@ -94,12 +82,6 @@ export class VoiceRoomTileComponent {
   private readonly consumerRegistry = inject(ConsumerRegistry);
   private readonly peerVideoService = inject(PeerVideoService);
   private readonly remoteVideoViewService = inject(RemoteVideoViewService);
-  private readonly userDialogService = inject(UserDialogService);
-  private readonly roomsStore = inject(RoomsStore);
-  private readonly voiceSessionStore = inject(VoiceSessionStore);
-  private readonly voiceSessionService = inject(VoiceSessionService);
-  private readonly tuiNotificationService = inject(TuiNotificationService);
-  private readonly translateService = inject(TranslateService);
 
   protected readonly icons = icons;
   protected readonly quality = this.remoteVideoViewService.quality;
@@ -227,49 +209,6 @@ export class VoiceRoomTileComponent {
       !this.previewPaused(),
   );
 
-  protected readonly canModeratePeer = computed(() => {
-    const me = this.currentUser();
-    const peer = this.peer();
-    const roomId = this.voiceSessionStore.selectedRoomId();
-    const allowed = Boolean(
-      me?.isOwner || me?.permissions?.includes(EPermission.MOVE_MEMBERS),
-    );
-    return (
-      roomId !== null && allowed && (!peer.isOwner || Boolean(me?.isOwner))
-    );
-  });
-
-  protected readonly moveTargets = computed(() => {
-    const roomId = this.voiceSessionStore.selectedRoomId();
-    const rooms = this.roomsStore.voiceRooms();
-    const canModerate = this.canModeratePeer();
-    if (!canModerate || roomId === null) {
-      return [];
-    }
-    return rooms
-      .filter((room) => room.id !== roomId)
-      .map((room) => ({ id: room.id, name: room.name }));
-  });
-
-  protected onOpenUserDialog(): void {
-    void this.userDialogService.open(this.peer(), {
-      withFiles: false,
-      withInput: true,
-    });
-  }
-
-  protected onMoveMember(target: IUserContextMoveTarget): void {
-    void this.moveMember(target.id);
-  }
-
-  protected onDisconnectMember(): void {
-    const roomId = this.voiceSessionStore.selectedRoomId();
-    if (roomId === null) {
-      return;
-    }
-    void this.disconnectMember(roomId);
-  }
-
   protected onScreenVolumeChange(value: number): void {
     this.voiceAudioPreferencesStore.setPeerScreenGain(
       this.peer().id,
@@ -319,35 +258,5 @@ export class VoiceRoomTileComponent {
 
   protected onAutoPauseWhenHiddenChange(enabled: boolean): void {
     this.localScreenPreviewService.setAutoPauseWhenHidden(enabled);
-  }
-
-  private async moveMember(targetRoomId: number): Promise<void> {
-    try {
-      await this.voiceSessionService.moveMember(this.peer().id, targetRoomId);
-    } catch (error: unknown) {
-      this.notifyError(error);
-    }
-  }
-
-  private async disconnectMember(roomId: number): Promise<void> {
-    try {
-      await this.voiceSessionService.disconnectMember(this.peer().id, roomId);
-    } catch (error: unknown) {
-      this.notifyError(error);
-    }
-  }
-
-  private notifyError(error: unknown): void {
-    const message =
-      error instanceof Error
-        ? error.message
-        : this.translateService.instant('GENERAL.UNKNOWN_ERROR');
-    this.tuiNotificationService
-      .open(message, {
-        appearance: 'error',
-        autoClose: 5000,
-        closable: true,
-      })
-      .subscribe();
   }
 }

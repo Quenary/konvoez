@@ -68,8 +68,6 @@ export class VoiceRoomComponent {
   protected readonly initialsSource = computed(() => this.room()?.name ?? '');
   protected readonly avatarUrl = computed(() => this.room()?.avatarUrl ?? null);
 
-  protected readonly canManageRooms = this.roomManageService.canManageRooms;
-
   private readonly roomsDict = this.roomsStore.roomsDict;
   private readonly roomId = toSignal(
     this.route.paramMap.pipe(map((params) => Number(params.get('id')))),
@@ -144,13 +142,5 @@ export class VoiceRoomComponent {
     if (room) {
       void this.roomManageService.openRoomDetails(room);
     }
-  }
-
-  protected editRoom(room: IRoom): Promise<void> {
-    return this.roomManageService.editRoom(room);
-  }
-
-  protected deleteRoom(room: IRoom): void {
-    this.roomManageService.deleteRoom(room);
   }
 }

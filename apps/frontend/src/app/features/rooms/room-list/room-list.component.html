@@ -118,10 +118,7 @@
   let-close>
   @if (roomView.contextMenuRoom(); as room) {
     <app-room-context-menu
-      [roomName]="room.name"
-      [canManage]="roomView.canManageRooms()"
-      (details)="roomView.openRoomDetails(room); close()"
-      (edit)="roomView.editRoom(room); close()"
-      (delete)="roomView.deleteRoom(room); close()" />
+      [room]="room"
+      (closeMenu)="close()" />
   }
 </ng-template>

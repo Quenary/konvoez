@@ -76,9 +76,6 @@ describe('RoomViewService', () => {
 
   const roomManageService = {
     canManageRooms: signal(false),
-    openRoomDetails: vi.fn().mockResolvedValue(undefined),
-    editRoom: vi.fn().mockResolvedValue(undefined),
-    deleteRoom: vi.fn(),
   };
 
   const roomNavigationService = {
@@ -143,15 +140,5 @@ describe('RoomViewService', () => {
 
     expect(service.contextMenuRoom()).toBe(textRoom);
     expect(roomNavigationService.selectRoom).not.toHaveBeenCalled();
-  });
-
-  it('delegates details, edit and delete to room management', () => {
-    service.openRoomDetails(textRoom);
-    void service.editRoom(textRoom);
-    service.deleteRoom(textRoom);
-
-    expect(roomManageService.openRoomDetails).toHaveBeenCalledWith(textRoom);
-    expect(roomManageService.editRoom).toHaveBeenCalledWith(textRoom);
-    expect(roomManageService.deleteRoom).toHaveBeenCalledWith(textRoom);
   });
 });

@@ -50,8 +50,6 @@ export class TextRoomComponent {
   protected readonly icons = icons;
   private lastNonNullRoomId: number | null = null;
 
-  protected readonly canManageRooms = this.roomManageService.canManageRooms;
-
   protected readonly roomId = toSignal(
     this.activatedRoute.paramMap.pipe(
       map((params) => {
@@ -115,13 +113,5 @@ export class TextRoomComponent {
     if (room) {
       void this.roomManageService.openRoomDetails(room);
     }
-  }
-
-  protected editRoom(room: IRoom): Promise<void> {
-    return this.roomManageService.editRoom(room);
-  }
-
-  protected deleteRoom(room: IRoom): void {
-    this.roomManageService.deleteRoom(room);
   }
 }
