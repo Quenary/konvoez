@@ -20,11 +20,17 @@
           fill
           priority />
       } @else {
-        {{ title() | tuiInitials }}
+        <span [style.color]="identityColor()">
+          {{ initialsSource() || title() | tuiInitials }}
+        </span>
       }
     </div>
 
-    <span tuiFade>{{ title() }}</span>
+    <span
+      tuiFade
+      [style.color]="identityColor()"
+      >{{ title() }}</span
+    >
     <span tuiSubtitle>
       {{ 'CALL.PARTICIPANTS' | translate: { count: participantsCount() } }}
     </span>

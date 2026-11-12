@@ -17,7 +17,12 @@ import {
 import type { Response } from 'express';
 import { RoomsService } from './rooms.service';
 import { VoiceRoomGrantsService } from '../voice-rooms/voice-room-grants.service';
-import { CreateRoomDto, GetRoomDto, UpdateRoomDto } from './rooms.dto';
+import {
+  CreateRoomDto,
+  GetRoomDto,
+  RoomAvatarQueryDto,
+  UpdateRoomDto,
+} from './rooms.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import {
   AuthRefreshFallback,
@@ -85,11 +90,11 @@ export class RoomsController {
     description: 'Returns avatar binary stream directly',
   })
   async getAvatar(
-    @Query('key') key: string,
+    @Query() query: RoomAvatarQueryDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const { stream, contentType, contentLength } =
-      await this.roomsAvatarsService.getStream(key);
+      await this.roomsAvatarsService.getStream(query.key);
     res.set({
       'Content-Type': contentType,
       ...(contentLength && { 'Content-Length': contentLength.toString() }),

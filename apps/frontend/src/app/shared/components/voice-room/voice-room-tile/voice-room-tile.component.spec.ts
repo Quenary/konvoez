@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { provideTranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EPermission, IUserSafe } from '@konvoez/shared';
+import { IUserSafe } from '@konvoez/shared';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { AudioActivityService } from '@core/services/audio-activity.service';
 import { PeerVideoService } from '@core/services/peer-video.service';
@@ -12,12 +12,6 @@ import { ConsumerRegistry } from '@core/services/consumer-registry';
 import { RemoteVideoViewService } from '@core/services/remote-video-view.service';
 import { SettingsStore } from '@core/stores/settings.store';
 import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/local-settings.schema';
-import { RoomsStore } from '@core/stores/rooms.store';
-import { VoiceSessionService } from '@core/services/voice-session.service';
-import { VoiceSessionStore } from '@core/voice/voice-session.store';
-import { TuiNotificationService } from '@taiga-ui/core';
-import { of } from 'rxjs';
-import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
 import { VoiceRoomTileComponent } from './voice-room-tile.component';
 import { VoiceRoomActionsService } from '../voice-room-actions.service';
 import { VoiceRoomViewService } from '../voice-room-view.service';
@@ -37,13 +31,6 @@ describe('VoiceRoomTileComponent', () => {
   let quality: ReturnType<
     typeof signal<'auto' | { height: number; fps: number }>
   >;
-  let openUserDialog: ReturnType<typeof vi.fn>;
-  let selectedRoomId: ReturnType<typeof signal<number | null>>;
-  let voiceRooms: ReturnType<
-    typeof signal<Array<{ id: number; name: string }>>
-  >;
-  let moveMember: ReturnType<typeof vi.fn>;
-  let disconnectMember: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     currentUser = signal(user(1));
@@ -55,11 +42,6 @@ describe('VoiceRoomTileComponent', () => {
     setQuality = vi.fn();
     layersById = signal({});
     quality = signal('auto');
-    openUserDialog = vi.fn();
-    selectedRoomId = signal<number | null>(null);
-    voiceRooms = signal<Array<{ id: number; name: string }>>([]);
-    moveMember = vi.fn().mockResolvedValue(undefined);
-    disconnectMember = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal(
       'MediaStream',
       class MediaStream {
@@ -133,26 +115,6 @@ describe('VoiceRoomTileComponent', () => {
         {
           provide: ConsumerRegistry,
           useValue: { layersById: layersById.asReadonly() },
-        },
-        {
-          provide: UserDialogService,
-          useValue: { open: openUserDialog },
-        },
-        {
-          provide: RoomsStore,
-          useValue: { voiceRooms: voiceRooms.asReadonly() },
-        },
-        {
-          provide: VoiceSessionStore,
-          useValue: { selectedRoomId: selectedRoomId.asReadonly() },
-        },
-        {
-          provide: VoiceSessionService,
-          useValue: { moveMember, disconnectMember },
-        },
-        {
-          provide: TuiNotificationService,
-          useValue: { open: vi.fn(() => of(null)) },
         },
         {
           provide: RemoteVideoViewService,
@@ -335,7 +297,7 @@ describe('VoiceRoomTileComponent', () => {
   it.each([
     { id: 1, label: 'the local participant' },
     { id: 2, label: 'a remote participant' },
-  ])('opens the user dialog from the tile menu for $label', ({ id }) => {
+  ])('renders the more button with context menu for $label', ({ id }) => {
     const fixture = TestBed.createComponent(VoiceRoomTileComponent);
     const peer = user(id);
     fixture.componentRef.setInput('peer', peer);
@@ -352,59 +314,6 @@ describe('VoiceRoomTileComponent', () => {
         'button[aria-label="CALL.VOLUME"], #peer-volume-' + id,
       ),
     ).toBeNull();
-    expect(openUserDialog).not.toHaveBeenCalled();
-
-    fixture.componentInstance['onOpenUserDialog']();
-    expect(openUserDialog).toHaveBeenCalledWith(peer, {
-      withFiles: false,
-      withInput: true,
-    });
-  });
-
-  it('offers other voice rooms when the actor can moderate a group room', () => {
-    currentUser.set({ ...user(1), isOwner: true });
-    selectedRoomId.set(10);
-    voiceRooms.set([
-      { id: 10, name: 'here' },
-      { id: 11, name: 'there' },
-    ]);
-    const fixture = TestBed.createComponent(VoiceRoomTileComponent);
-    fixture.componentRef.setInput('peer', { ...user(2), isOwner: false });
-    fixture.componentRef.setInput('streamKind', null);
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance['canModeratePeer']()).toBe(true);
-    expect(fixture.componentInstance['moveTargets']()).toEqual([
-      { id: 11, name: 'there' },
-    ]);
-  });
-
-  it('hides moderation in a direct call', () => {
-    currentUser.set({ ...user(1), isOwner: true });
-    selectedRoomId.set(null);
-    voiceRooms.set([{ id: 11, name: 'there' }]);
-    const fixture = TestBed.createComponent(VoiceRoomTileComponent);
-    fixture.componentRef.setInput('peer', user(2));
-    fixture.componentRef.setInput('streamKind', null);
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance['canModeratePeer']()).toBe(false);
-    expect(fixture.componentInstance['moveTargets']()).toEqual([]);
-  });
-
-  it('lets only the owner moderate an owner', () => {
-    currentUser.set({
-      ...user(1),
-      isOwner: false,
-      permissions: [EPermission.MOVE_MEMBERS],
-    });
-    selectedRoomId.set(10);
-    const fixture = TestBed.createComponent(VoiceRoomTileComponent);
-    fixture.componentRef.setInput('peer', { ...user(2), isOwner: true });
-    fixture.componentRef.setInput('streamKind', null);
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance['canModeratePeer']()).toBe(false);
   });
 
   it('puts quality selection after screen volume and drops the theatre button', () => {

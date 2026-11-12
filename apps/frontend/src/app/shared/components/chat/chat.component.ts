@@ -25,7 +25,7 @@ import {
 import { TuiHeader } from '@taiga-ui/layout';
 import { TuiAutoFocus } from '@taiga-ui/cdk';
 import {
-  TuiAutoColorPipe,
+  tuiAutoColor,
   TuiAvatar,
   TuiBadgedContent,
   TuiBadgeNotification,
@@ -63,7 +63,6 @@ import { icons } from '@constants';
     TuiTextfield,
     TuiInput,
     TuiAutoFocus,
-    TuiAutoColorPipe,
     TuiAvatar,
     TuiBadgedContent,
     TuiBadgeNotification,
@@ -90,6 +89,7 @@ export class ChatComponent {
     this.roomId() !== null ? '/text-room' : '/direct',
   );
   public readonly title = input.required<string>();
+  public readonly initialsSource = input<string | null>(null);
   public readonly avatarUrl = input<string | null>(null);
   public readonly avatarIcon = input<string | null>(null);
   public readonly isOnline = input<boolean>(false);
@@ -97,11 +97,12 @@ export class ChatComponent {
   public readonly headerClick = output<void>();
   /** Fired after a non-empty `initialMessageId` is joined or jumped to. */
   public readonly initialMessageApplied = output<void>();
-  /** Direct chats color the nickname. Saved messages use an icon, not a nick. */
-  protected readonly colorTitle = computed(() => {
+  /** Direct chats color the nickname (except saved messages). */
+  protected readonly identityColor = computed(() => {
+    const title = this.title();
     const recipientId = this.recipientId();
     const avatarIcon = this.avatarIcon();
-    return recipientId != null && !avatarIcon;
+    return recipientId != null && !avatarIcon ? tuiAutoColor(title) : null;
   });
   protected readonly draftKey = computed(() =>
     toChatKey(this.roomId(), this.recipientId()),

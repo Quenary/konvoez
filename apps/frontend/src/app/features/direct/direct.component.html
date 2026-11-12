@@ -1,10 +1,13 @@
 @let _avatarUrl = avatarUrl();
 @let _title = title();
+@let _initialsSource = initialsSource();
 
 <div class="view-layer">
   @if (view() === 'call') {
     <app-voice-room-shell
       [title]="_title"
+      [initialsSource]="_initialsSource"
+      [isDirect]="true"
       [avatarUrl]="_avatarUrl"
       [backRoute]="'/direct'"
       [headerActions]="toChatActions"
@@ -14,6 +17,7 @@
       <app-chat
         [recipientId]="id"
         [title]="_title"
+        [initialsSource]="_initialsSource"
         [avatarUrl]="_avatarUrl"
         [avatarIcon]="avatarIcon()"
         [isOnline]="isOnline()"

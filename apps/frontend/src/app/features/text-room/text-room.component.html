@@ -2,6 +2,7 @@
   <app-chat
     [roomId]="id"
     [title]="title()"
+    [initialsSource]="initialsSource()"
     [avatarUrl]="avatarUrl()"
     [initialMessageId]="targetMessageId()"
     (headerClick)="openDetails()">
@@ -25,11 +26,8 @@
           #roomContextMenu
           let-close>
           <app-room-context-menu
-            [roomName]="currentRoom.name"
-            [canManage]="canManageRooms()"
-            (details)="openDetails(); close()"
-            (edit)="editRoom(currentRoom); close()"
-            (delete)="deleteRoom(currentRoom); close()" />
+            [room]="currentRoom"
+            (closeMenu)="close()" />
         </ng-template>
       </div>
     }

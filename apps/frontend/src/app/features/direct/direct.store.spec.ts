@@ -94,6 +94,7 @@ describe('DirectStore', () => {
         users: { 99: mockUser } as Record<number, IUserSafe>,
         expectedIsSelf: false,
         expectedTitle: 'bob',
+        expectedInitialsSource: 'Bob',
         expectedAvatarUrl: 'https://example.com/avatar.png',
         expectedAvatarIcon: null,
       },
@@ -110,6 +111,7 @@ describe('DirectStore', () => {
         } as Record<number, IUserSafe>,
         expectedIsSelf: true,
         expectedTitle: 'DIRECT.SAVED_MESSAGES',
+        expectedInitialsSource: '',
         expectedAvatarUrl: null,
         expectedAvatarIcon: '@tui.bookmark',
       },
@@ -119,6 +121,7 @@ describe('DirectStore', () => {
         users: {} as Record<number, IUserSafe>,
         expectedIsSelf: false,
         expectedTitle: '',
+        expectedInitialsSource: '',
         expectedAvatarUrl: null,
         expectedAvatarIcon: null,
       },
@@ -129,6 +132,7 @@ describe('DirectStore', () => {
         users,
         expectedIsSelf,
         expectedTitle,
+        expectedInitialsSource,
         expectedAvatarUrl,
         expectedAvatarIcon,
       }) => {
@@ -138,6 +142,7 @@ describe('DirectStore', () => {
 
         expect(store.isSelf()).toBe(expectedIsSelf);
         expect(store.title()).toBe(expectedTitle);
+        expect(store.initialsSource()).toBe(expectedInitialsSource);
         expect(store.avatarUrl()).toBe(expectedAvatarUrl);
         expect(store.avatarIcon()).toBe(expectedAvatarIcon);
       },

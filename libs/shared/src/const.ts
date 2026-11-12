@@ -15,6 +15,10 @@ export const MESSAGE_PAGE_SIZE = 50;
 export const roomNameMinLength = 1;
 export const roomNameMaxLength = 64;
 export const maxAvatarSize = 1024 * 1024 * 5; // 5MB
+export const userAvatarKeyRegexp =
+  /^(?:users-avatars\/)?[a-zA-Z0-9][a-zA-Z0-9_.-]*$/;
+export const roomAvatarKeyRegexp =
+  /^(?:rooms-avatars\/)?[a-zA-Z0-9][a-zA-Z0-9_.-]*$/;
 export const inviteMinTtl = 60_000; // 1 minute in ms
 export const inviteMaxTtl = 24 * 60 * 60 * 1000; // 1 day in ms
 export const inviteDefaultTtl = 24 * 60 * 60 * 1000; // 1 day in ms
@@ -24,6 +28,7 @@ export const passwordRecoveryCodeMaxTtl = 60 * 60 * 1000; // 1 hour in ms
 export const passwordRecoveryCodeDefaultTtl = 10 * 60 * 1000; // 10 minutes in ms
 export const passwordRecoveryCodeLength = 6;
 export const passwordRecoveryRequestCooldownMs = 60_000; // 1 minute
+export const passwordRecoveryMaxAttempts = 5;
 export const emailVerificationCodeLength = 6;
 export const emailVerificationCodeDefaultTtl = 15 * 60 * 1000; // 15 minutes in ms
 export const emailVerificationRequestCooldownMs = 60_000; // 1 minute

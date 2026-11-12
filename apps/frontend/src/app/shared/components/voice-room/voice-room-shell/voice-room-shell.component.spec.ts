@@ -20,6 +20,7 @@ import { DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN } from '@shared/schemas/l
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoiceRoomShellComponent } from './voice-room-shell.component';
+import { VoiceRoomOverlayComponent } from '../voice-room-overlay/voice-room-overlay.component';
 import { VoiceRoomViewService } from '../voice-room-view.service';
 const user = (id: number): IUserSafe =>
   ({ id, username: `u${id}`, fullname: `User ${id}` }) as IUserSafe;
@@ -432,5 +433,20 @@ describe('VoiceRoomShellComponent', () => {
       peerId: 2,
       stream: null,
     });
+  });
+
+  it('forwards isDirect and initialsSource to overlay', () => {
+    const fixture = TestBed.createComponent(VoiceRoomShellComponent);
+    fixture.componentRef.setInput('title', 'bob');
+    fixture.componentRef.setInput('initialsSource', 'Bob Ross');
+    fixture.componentRef.setInput('isDirect', true);
+    fixture.detectChanges();
+
+    const overlay = fixture.debugElement.query(
+      (de) => de.componentInstance instanceof VoiceRoomOverlayComponent,
+    );
+    expect(overlay).toBeTruthy();
+    expect(overlay.componentInstance.isDirect()).toBe(true);
+    expect(overlay.componentInstance.initialsSource()).toBe('Bob Ross');
   });
 });

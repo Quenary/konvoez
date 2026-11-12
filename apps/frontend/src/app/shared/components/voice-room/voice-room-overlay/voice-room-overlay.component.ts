@@ -11,7 +11,12 @@ import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiHint, TuiTitle } from '@taiga-ui/core';
 import { TuiHeader } from '@taiga-ui/layout';
-import { TuiAvatar, TuiFade, TuiInitialsPipe } from '@taiga-ui/kit';
+import {
+  tuiAutoColor,
+  TuiAvatar,
+  TuiFade,
+  TuiInitialsPipe,
+} from '@taiga-ui/kit';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
@@ -64,9 +69,10 @@ export class VoiceRoomOverlayComponent {
   private readonly voiceLeaveService = inject(VoiceLeaveService);
 
   protected readonly icons = icons;
-  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   public readonly title = input<string>('');
+  public readonly initialsSource = input<string | null>(null);
+  public readonly isDirect = input<boolean>(false);
   public readonly avatarUrl = input<string | null>(null);
   public readonly backRoute = input<string>('/voice-room');
   public readonly participantsCount = input(0);
@@ -83,6 +89,12 @@ export class VoiceRoomOverlayComponent {
       this.currentUser()?.id ?? null,
     ),
   );
+
+  protected readonly identityColor = computed(() => {
+    const title = this.title();
+    const isDirect = this.isDirect();
+    return isDirect ? tuiAutoColor(title) : null;
+  });
 
   protected readonly showLocalScreenPreviewPauseControl = computed(() =>
     showsLocalScreenPreviewPauseControl(
@@ -111,6 +123,8 @@ export class VoiceRoomOverlayComponent {
   protected readonly layoutToggleHintKey = computed(() =>
     this.layout() === 'theatre' ? 'CALL.SHOW_GRID' : 'CALL.SHOW_THEATRE',
   );
+
+  private readonly currentUser = this.store.selectSignal(selectCurrentUser);
 
   protected onToggleFullscreen(): void {
     void this.voiceRoomViewService.toggleFullscreen(this.fullscreenTarget());

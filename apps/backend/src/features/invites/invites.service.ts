@@ -220,6 +220,32 @@ export class InvitesService {
   }
 
   async consume(invite: InviteEntity, user: UserEntity): Promise<InviteEntity> {
+    const claimed = await this.em.nativeUpdate(
+      InviteEntity,
+      invite.id
+        ? {
+            id: invite.id,
+            usedAt: null,
+            revokedAt: null,
+            expiresAt: { $gt: new Date() },
+          }
+        : {
+            code: invite.code,
+            usedAt: null,
+            revokedAt: null,
+            expiresAt: { $gt: new Date() },
+          },
+      {
+        usedAt: new Date(),
+        usedBy: user.id,
+      },
+    );
+    if (!claimed) {
+      throw AppException.forbidden(
+        ApiErrorCode.INVITE_USED,
+        'Invite code has already been used or expired',
+      );
+    }
     invite.usedAt = new Date();
     invite.usedBy = user;
     this.em.persist(invite);

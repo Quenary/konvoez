@@ -88,6 +88,7 @@ export const icons = {
   /* Chat / UI */
   search: '@tui.search',
   'arrow-down': '@tui.arrow-down',
+  'arrow-down-up': '@tui.arrow-down-up',
   close: '@tui.x',
   paperclip: '@tui.paperclip',
   send: '@tui.send',

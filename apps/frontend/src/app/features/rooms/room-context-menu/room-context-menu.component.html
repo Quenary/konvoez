@@ -1,26 +1,27 @@
 <tui-data-list>
-  <tui-opt-group [label]="roomName()">
+  <tui-opt-group [label]="room().name">
     <button
       tuiOption
       [iconEnd]="icons.info"
       type="button"
-      (click)="details.emit()">
+      (click)="onOpenDetails()">
       {{ 'ROOMS.DETAILS' | translate }}
     </button>
     @if (canManage()) {
+      <hr />
       <button
         tuiOption
         [iconEnd]="icons.edit"
         type="button"
-        (click)="edit.emit()">
+        (click)="onEdit()">
         {{ 'GENERAL.EDIT' | translate }}
       </button>
       <button
         tuiOption
-        class="destructive"
+        [style.color]="'var(--tui-status-negative)'"
         [iconEnd]="icons.delete"
         type="button"
-        (click)="delete.emit()">
+        (click)="onDelete()">
         {{ 'GENERAL.DELETE' | translate }}
       </button>
     }

@@ -1,4 +1,5 @@
 import { defineConfig, type Plugin } from 'vitest/config';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { transform } from 'esbuild';
@@ -39,6 +40,15 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.spec.ts'],
+    // Electron 44 has no postinstall. Requiring the package downloads the
+    // binary, and parallel workers race on that extract (`File exists`).
+    // These tests never execute the binary.
+    env: {
+      ELECTRON_OVERRIDE_DIST_PATH: path.join(
+        os.tmpdir(),
+        'konvoez-electron-stub',
+      ),
+    },
   },
   resolve: {
     alias: [

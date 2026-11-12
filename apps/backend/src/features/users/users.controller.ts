@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { UsersService } from './users.service';
-import { GetUserSafeDto } from './users.dto';
+import { GetUserSafeDto, UserAvatarQueryDto } from './users.dto';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
 import { AuthRefreshFallback } from '../auth/auth.decorator';
@@ -41,11 +41,11 @@ export class UsersController {
     description: 'Returns avatar binary stream directly',
   })
   async getAvatar(
-    @Query('key') key: string,
+    @Query() query: UserAvatarQueryDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const { stream, contentType, contentLength } =
-      await this.usersAvatarsService.getStream(key);
+      await this.usersAvatarsService.getStream(query.key);
     res.set({
       'Content-Type': contentType,
       ...(contentLength && { 'Content-Length': contentLength.toString() }),

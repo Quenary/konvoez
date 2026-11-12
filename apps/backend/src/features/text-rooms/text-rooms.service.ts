@@ -1482,11 +1482,10 @@ export class TextRoomsService {
       );
     }
 
-    // Access check: user must be sender, recipient, or a room member
-    const isParticipant =
-      message.sender.id === user.id ||
-      message.recipient?.id === user.id ||
-      message.room != null; // room membership check is implicit via list access
+    // Access check: user must be sender, recipient, or have access to the room
+    const isParticipant = message.room
+      ? this.roomsFacade.canAccessRoom(user, message.room)
+      : message.sender.id === user.id || message.recipient?.id === user.id;
 
     if (!isParticipant) {
       throw AppException.forbidden(
@@ -1528,10 +1527,9 @@ export class TextRoomsService {
       );
     }
 
-    const isParticipant =
-      message.sender.id === user.id ||
-      message.recipient?.id === user.id ||
-      message.room != null;
+    const isParticipant = message.room
+      ? this.roomsFacade.canAccessRoom(user, message.room)
+      : message.sender.id === user.id || message.recipient?.id === user.id;
 
     if (!isParticipant) {
       throw AppException.forbidden(

@@ -42,6 +42,8 @@ export class VoiceRoomShellComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   public readonly title = input<string>('');
+  public readonly initialsSource = input<string | null>(null);
+  public readonly isDirect = input<boolean>(false);
   public readonly avatarUrl = input<string | null>(null);
   public readonly backRoute = input<string>('/voice-room');
   public readonly headerActions = input<TemplateRef<unknown> | null>(null);

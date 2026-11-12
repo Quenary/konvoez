@@ -1,7 +1,0 @@
-button[tuiOption].destructive {
-  color: var(--tui-text-negative, var(--tui-status-negative));
-
-  &:hover {
-    color: var(--tui-text-negative-hover, var(--tui-status-negative));
-  }
-}

@@ -492,6 +492,54 @@ describe('InvitesService', () => {
       expect(mockEm.persist).toHaveBeenCalledWith(invite);
       expect(mockEm.flush).toHaveBeenCalled();
     });
+
+    it('should throw INVITE_USED if nativeUpdate returns 0 (concurrent claim or expired)', async () => {
+      const invite = {
+        id: 1,
+        code: 'code123',
+        email: 'new@example.com',
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 100000),
+        usedAt: null,
+        usedBy: null,
+      } as unknown as InviteEntity;
+      mockEm.nativeUpdate.mockResolvedValueOnce(0);
+
+      await expect(
+        service.consume(invite, userToRegister),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.INVITE_USED,
+      });
+      expect(mockEm.persist).not.toHaveBeenCalled();
+    });
+
+    it('should pass atomic condition to nativeUpdate', async () => {
+      const invite = {
+        id: 1,
+        code: 'code123',
+        email: 'new@example.com',
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 100000),
+        usedAt: null,
+        usedBy: null,
+      } as unknown as InviteEntity;
+      mockEm.nativeUpdate.mockResolvedValueOnce(1);
+
+      await service.consume(invite, userToRegister);
+
+      expect(mockEm.nativeUpdate).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          id: 1,
+          usedAt: null,
+          revokedAt: null,
+        }),
+        expect.objectContaining({
+          usedAt: expect.any(Date),
+          usedBy: userToRegister.id,
+        }),
+      );
+    });
   });
 
   describe('resend', () => {

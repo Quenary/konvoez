@@ -442,4 +442,15 @@ describe('RoomAsideListComponent', () => {
     component['onMemberDropped'](event, targetRoom);
     expect(voiceSessionService.moveMember).toHaveBeenCalledWith(2, 21);
   });
+
+  it('sets selectedPeerForMenu on longtap even when user cannot move members', () => {
+    const peer: IRoomPeerWithCanMove = { ...bob, canMove: false };
+    const room = component['voiceRooms']()[0];
+
+    component['onPeerLongtap'](peer, room);
+    expect(component['selectedPeerForMenu']()).toEqual({
+      peer,
+      roomId: room.id,
+    });
+  });
 });

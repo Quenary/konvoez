@@ -18,6 +18,7 @@ import { RoomManageService } from '../rooms/room-manage.service';
 @Component({ selector: 'app-voice-room-shell', template: '' })
 class MockVoiceRoomShellComponent {
   public readonly title = input<string>('');
+  public readonly initialsSource = input<string | null>(null);
   public readonly avatarUrl = input<string | null>(null);
   public readonly headerActions = input<unknown>(null);
   public readonly headerClick = output<void>();

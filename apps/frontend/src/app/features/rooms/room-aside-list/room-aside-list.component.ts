@@ -157,15 +157,6 @@ export class RoomAsideListComponent {
     }));
   });
 
-  protected readonly moveTargetRooms = computed<IRoomWithPeers[]>(() => {
-    const selected = this.selectedPeerForMenu();
-    const rooms = this.voiceRooms();
-    if (!selected) {
-      return [];
-    }
-    return rooms.filter((room) => room.id !== selected.roomId);
-  });
-
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
   private readonly peerClickGuard = createLongtapClickGuard(() =>
     this.isTouch(),
@@ -190,9 +181,6 @@ export class RoomAsideListComponent {
     peer: IRoomPeerWithCanMove,
     room: IRoomWithPeers,
   ): void {
-    if (!peer.canMove) {
-      return;
-    }
     this.selectedPeerForMenu.set({ peer, roomId: room.id });
     this.peerClickGuard.arm();
   }
@@ -249,17 +237,6 @@ export class RoomAsideListComponent {
   ): Promise<void> {
     try {
       await this.voiceSessionService.moveMember(peer.id, targetRoom.id);
-    } catch (error: unknown) {
-      this.notifyError(error);
-    }
-  }
-
-  protected async disconnectMember(
-    peer: TVoiceRoomPeerUser,
-    roomId: number,
-  ): Promise<void> {
-    try {
-      await this.voiceSessionService.disconnectMember(peer.id, roomId);
     } catch (error: unknown) {
       this.notifyError(error);
     }

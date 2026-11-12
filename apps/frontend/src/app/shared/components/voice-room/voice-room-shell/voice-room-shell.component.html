@@ -17,6 +17,8 @@
 <ng-template #roomChrome>
   <app-voice-room-overlay
     [title]="title()"
+    [initialsSource]="initialsSource()"
+    [isDirect]="isDirect()"
     [avatarUrl]="avatarUrl()"
     [backRoute]="backRoute()"
     [participantsCount]="participantsCount()"

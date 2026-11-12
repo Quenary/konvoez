@@ -84,16 +84,4 @@ export class RoomViewService {
     }
     this.roomNavigationService.selectRoom(room);
   }
-
-  public openRoomDetails(room: IRoom): void {
-    void this.roomManageService.openRoomDetails(room);
-  }
-
-  public editRoom(room: IRoom): Promise<void> {
-    return this.roomManageService.editRoom(room);
-  }
-
-  public deleteRoom(room: IRoom): void {
-    this.roomManageService.deleteRoom(room);
-  }
 }

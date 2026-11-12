@@ -1,9 +1,9 @@
 import * as z from 'zod';
-import { stringSchema } from './base.schemas';
 import {
   emailSchema,
   fullnameSchema,
   passwordSchema,
+  userAvatarKeySchema,
   usernameSchema,
 } from './fields.schemas';
 
@@ -14,7 +14,7 @@ export const profileUpdateSchema = z
     password: passwordSchema,
     fullname: fullnameSchema,
     email: emailSchema,
-    avatar: stringSchema,
+    avatar: userAvatarKeySchema.nullish(),
   })
   .partial();
 

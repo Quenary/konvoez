@@ -82,6 +82,7 @@ describe('AuthService', () => {
     find: jest.Mock;
     create: jest.Mock;
     assign: jest.Mock;
+    nativeUpdate: jest.Mock;
     getEntityManager: jest.Mock;
   };
   let emailVerificationCodeRepo: {
@@ -146,11 +147,13 @@ describe('AuthService', () => {
       persist: jest.fn(),
       flush: jest.fn().mockResolvedValue(undefined),
       fork: jest.fn(),
+      remove: jest.fn(),
     };
     recoveryCodeRepo = {
       find: jest.fn().mockResolvedValue([]),
       create: jest.fn().mockImplementation((data) => data),
       assign: jest.fn(),
+      nativeUpdate: jest.fn().mockResolvedValue(1),
       getEntityManager: jest.fn().mockReturnValue(em),
     };
     emailVerificationCodeRepo = {
@@ -1030,6 +1033,41 @@ describe('AuthService', () => {
       expect(userRepo.create).not.toHaveBeenCalled();
       expect(invitesService.consume).not.toHaveBeenCalled();
     });
+
+    it('should remove created user and throw if invite consumption fails', async () => {
+      usersService.count.mockResolvedValue(1);
+      settingsService.getValue.mockResolvedValue(true);
+
+      const mockInvite = {
+        code: 'valid-code-123',
+      } as unknown as InviteEntity;
+      invitesService.validate.mockResolvedValueOnce(mockInvite);
+
+      const createdMember = {
+        ...mockUserEntity,
+      } as unknown as UserEntity;
+      userRepo.create.mockReturnValueOnce(createdMember);
+      hashService.hash.mockResolvedValueOnce('hashed_password');
+
+      invitesService.consume.mockRejectedValueOnce(
+        AppException.forbidden(
+          ApiErrorCode.INVITE_USED,
+          'Invite code has already been used or expired',
+        ),
+      );
+
+      const dtoWithCode = { ...createDto, inviteCode: 'valid-code-123' };
+
+      await expect(service.register(dtoWithCode)).rejects.toMatchObject({
+        code: ApiErrorCode.INVITE_USED,
+      });
+      expect(em.remove).toHaveBeenCalledWith(createdMember);
+      expect(em.flush).toHaveBeenCalled();
+      expect(eventEmitter.emit).not.toHaveBeenCalledWith(
+        UsersDomainEvents.USER_CREATED,
+        expect.anything(),
+      );
+    });
   });
 
   describe('requestPasswordRecovery', () => {
@@ -1273,6 +1311,66 @@ describe('AuthService', () => {
           subject: 'Password reset',
         }),
       );
+    });
+
+    it('should increment attempts and burn code when attempts reach max limit', async () => {
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      const codeRecord = {
+        id: 1,
+        codeHash: 'hash',
+        attempts: 4,
+        usedAt: null,
+      };
+      recoveryCodeRepo.find.mockResolvedValueOnce([codeRecord]);
+      hashService.verify.mockResolvedValueOnce(false);
+
+      await expect(
+        service.confirmPasswordRecovery({
+          email: 'test@example.com',
+          code: 'wrong',
+          password: 'Password1234ab',
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_RECOVERY_CODE_INVALID,
+      });
+
+      expect(recoveryCodeRepo.nativeUpdate).toHaveBeenNthCalledWith(
+        1,
+        {
+          id: 1,
+          usedAt: null,
+          attempts: { $lt: 5 },
+        },
+        { attempts: expect.objectContaining({ sql: 'attempts + 1' }) },
+      );
+      expect(recoveryCodeRepo.nativeUpdate).toHaveBeenNthCalledWith(
+        2,
+        {
+          id: 1,
+          usedAt: null,
+          attempts: { $gte: 5 },
+        },
+        { usedAt: expect.any(Date) },
+      );
+    });
+
+    it('should skip code if nativeUpdate reservation returns 0 (already locked or used)', async () => {
+      usersService.findOneBy.mockResolvedValueOnce(mockUserEntity);
+      recoveryCodeRepo.find.mockResolvedValueOnce([
+        { id: 1, codeHash: 'hash', attempts: 4, usedAt: null },
+      ]);
+      recoveryCodeRepo.nativeUpdate.mockResolvedValueOnce(0);
+
+      await expect(
+        service.confirmPasswordRecovery({
+          email: 'test@example.com',
+          code: '123456',
+          password: 'Password1234ab',
+        }),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.AUTH_RECOVERY_CODE_INVALID,
+      });
+      expect(hashService.verify).not.toHaveBeenCalled();
     });
   });
 
