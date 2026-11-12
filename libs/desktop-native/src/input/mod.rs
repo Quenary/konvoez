@@ -428,6 +428,15 @@ impl<const N: usize> Default for KeySlotQueue<N> {
     }
 }
 
+/// Windows inserts a Left Ctrl with scan code `0x21D` immediately before Right Alt.
+/// A physical Left Ctrl uses scan code `0x1D`.
+pub fn is_windows_alt_gr_fake_ctrl(vk: u32, scan_code: u32) -> bool {
+    const VK_CONTROL: u32 = 0x11;
+    const VK_LCONTROL: u32 = 0xA2;
+    const ALT_GR_FAKE_CTRL_SCAN: u32 = 0x21D;
+    (vk == VK_CONTROL || vk == VK_LCONTROL) && scan_code == ALT_GR_FAKE_CTRL_SCAN
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -467,6 +476,15 @@ mod tests {
         assert_eq!(windows_vk_to_code(0x20, false), Some("Space"));
         assert_eq!(windows_vk_to_code(0x1B, false), Some("Escape"));
         assert_eq!(windows_vk_to_code(0xFFFA, false), None);
+    }
+
+    #[test]
+    fn test_alt_gr_fake_ctrl_is_distinct_from_physical_ctrl() {
+        assert!(is_windows_alt_gr_fake_ctrl(0xA2, 0x21D));
+        assert!(is_windows_alt_gr_fake_ctrl(0x11, 0x21D));
+        assert!(!is_windows_alt_gr_fake_ctrl(0xA2, 0x1D));
+        assert!(!is_windows_alt_gr_fake_ctrl(0xA3, 0x1D));
+        assert!(!is_windows_alt_gr_fake_ctrl(0xA5, 0x38));
     }
 
     #[test]

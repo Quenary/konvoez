@@ -9,7 +9,14 @@ import {
   signal,
 } from '@angular/core';
 import { TuiInput, TuiLabel, TuiTextfield } from '@taiga-ui/core';
-import { formatKeyboardEventToAccelerator } from '@konvoez/client-shell';
+import {
+  formatKeyboardEventToAccelerator,
+  isModifierCode,
+} from '@konvoez/client-shell';
+
+// Windows sends Left Ctrl immediately before Right Alt. A physical Left Ctrl
+// held longer than this stays part of the chord.
+const ALT_GR_CTRL_MS = 50;
 
 @Component({
   selector: 'app-hotkey-input',
@@ -34,7 +41,8 @@ import { formatKeyboardEventToAccelerator } from '@konvoez/client-shell';
           [placeholder]="recording() ? recordingPlaceholder() : ''"
           (focus)="startRecording()"
           (click)="startRecording()"
-          (keydown)="handleKeyDown($event)" />
+          (keydown)="handleKeyDown($event)"
+          (keyup)="handleKeyUp($event)" />
       </tui-textfield>
     </label>
 
@@ -89,8 +97,13 @@ export class HotkeyInputComponent {
       : this.hint();
   });
 
+  private readonly heldCodes = new Set<string>();
+  private readonly gestureCodes = new Set<string>();
+  private readonly pressedAt = new Map<string, number>();
+
   public startRecording(): void {
     if (this.disabled() || this.recording()) return;
+    this.resetGesture();
     this.recording.set(true);
     this.recordingStart.emit();
   }
@@ -104,6 +117,7 @@ export class HotkeyInputComponent {
     }
     if (!this.recording()) return;
     this.recording.set(false);
+    this.resetGesture();
     this.recordingStop.emit({ cancelled: true });
   }
 
@@ -115,22 +129,99 @@ export class HotkeyInputComponent {
 
     if (e.key === 'Escape' || e.code === 'Escape') {
       this.recording.set(false);
+      this.resetGesture();
       this.recordingStop.emit({ cancelled: true });
       return;
     }
 
     if (e.key === 'Backspace' || e.code === 'Backspace') {
       this.recording.set(false);
+      this.resetGesture();
       this.valueChange.emit(null);
       this.recordingStop.emit({ cancelled: false });
       return;
     }
 
-    const accelerator = formatKeyboardEventToAccelerator(e);
-    if (accelerator !== null) {
-      this.recording.set(false);
-      this.valueChange.emit(accelerator);
-      this.recordingStop.emit({ cancelled: false });
+    if (e.repeat || this.heldCodes.has(e.code)) {
+      return;
     }
+
+    const now = Date.now();
+    if (e.code === 'AltRight') {
+      this.dropAltGrControl(now);
+    } else if (
+      e.code === 'ControlLeft' &&
+      this.wasJustPressed('AltRight', now)
+    ) {
+      return;
+    }
+
+    this.heldCodes.add(e.code);
+    this.gestureCodes.add(e.code);
+    this.pressedAt.set(e.code, now);
+
+    if (isModifierCode(e.code)) {
+      return;
+    }
+
+    const accelerator = formatKeyboardEventToAccelerator([
+      ...this.gestureCodes,
+    ]);
+    if (accelerator === null) {
+      this.gestureCodes.delete(e.code);
+      this.heldCodes.delete(e.code);
+      return;
+    }
+    this.commit(accelerator);
+  }
+
+  protected handleKeyUp(e: KeyboardEvent): void {
+    if (!this.recording()) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    this.heldCodes.delete(e.code);
+    if (this.heldCodes.size > 0 || this.gestureCodes.size === 0) {
+      return;
+    }
+    if (![...this.gestureCodes].every((code) => isModifierCode(code))) {
+      return;
+    }
+
+    const accelerator = formatKeyboardEventToAccelerator([
+      ...this.gestureCodes,
+    ]);
+    if (accelerator === null) {
+      this.resetGesture();
+      return;
+    }
+    this.commit(accelerator);
+  }
+
+  private commit(accelerator: string): void {
+    this.recording.set(false);
+    this.resetGesture();
+    this.valueChange.emit(accelerator);
+    this.recordingStop.emit({ cancelled: false });
+  }
+
+  private dropAltGrControl(now: number): void {
+    if (!this.wasJustPressed('ControlLeft', now)) {
+      return;
+    }
+    this.heldCodes.delete('ControlLeft');
+    this.gestureCodes.delete('ControlLeft');
+    this.pressedAt.delete('ControlLeft');
+  }
+
+  private wasJustPressed(code: string, now: number): boolean {
+    const pressedAt = this.pressedAt.get(code);
+    return pressedAt !== undefined && now - pressedAt <= ALT_GR_CTRL_MS;
+  }
+
+  private resetGesture(): void {
+    this.heldCodes.clear();
+    this.gestureCodes.clear();
+    this.pressedAt.clear();
   }
 }

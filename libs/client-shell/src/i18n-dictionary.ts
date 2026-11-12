@@ -38,7 +38,7 @@ export const desktopTranslations = {
     'settings.title': 'Desktop Settings',
     'settings.hotkeys': 'Global Hotkeys',
     'settings.hotkeysHint':
-      'Hotkeys work system-wide, even when the app is in the background. Keys are not blocked for other applications.',
+      'Hotkeys work system-wide, even when the app is in the background. Left and right Ctrl, Alt, Shift and Super are different shortcuts, and a modifier alone is enough. Keys are not blocked for other applications.',
     'settings.hotkeysHintExclusive':
       'Hotkeys work system-wide, even when the app is in the background. A key bound without a modifier (Ctrl, Alt, Shift) is captured in all apps and can no longer be typed elsewhere.',
     'settings.toggleMic': 'Toggle microphone',
@@ -123,7 +123,7 @@ export const desktopTranslations = {
     'settings.title': 'Настройки приложения',
     'settings.hotkeys': 'Глобальные горячие клавиши',
     'settings.hotkeysHint':
-      'Горячие клавиши работают во всей системе, даже когда приложение свёрнуто. Клавиши не блокируются для других приложений.',
+      'Горячие клавиши работают во всей системе, даже когда приложение свёрнуто. Левый и правый Ctrl, Alt, Shift и Super — разные сочетания, достаточно одного модификатора. Клавиши не блокируются для других приложений.',
     'settings.hotkeysHintExclusive':
       'Горячие клавиши работают во всей системе, даже когда приложение свёрнуто. Клавиша без модификатора (Ctrl, Alt, Shift) перехватывается во всех приложениях, и печатать её в других программах будет нельзя.',
     'settings.toggleMic': 'Вкл/выкл микрофон',

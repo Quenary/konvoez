@@ -1,4 +1,4 @@
-use crate::input::{windows_vk_to_code, KeyHookThread, KeySlotQueue};
+use crate::input::{is_windows_alt_gr_fake_ctrl, windows_vk_to_code, KeyHookThread, KeySlotQueue};
 use crate::KeyEvent;
 use napi::bindgen_prelude::*;
 use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
@@ -63,12 +63,16 @@ unsafe extern "system" fn ll_keyboard_proc(code: i32, wparam: WPARAM, lparam: LP
         if (is_down || is_up) && lparam.0 != 0 {
             // SAFETY: `lparam` points at a `KBDLLHOOKSTRUCT` for a low-level keyboard hook.
             let kbd = unsafe { *(lparam.0 as *const KBDLLHOOKSTRUCT) };
-            let extended = (kbd.flags.0 & 1) != 0;
-            if let Some(code_name) = windows_vk_to_code(kbd.vkCode, extended) {
-                enqueue_key(code_name, is_down);
-                // SAFETY: this procedure runs on the thread that installed the hook.
-                let tid = unsafe { GetCurrentThreadId() };
-                let _ = unsafe { PostThreadMessageW(tid, WM_APP, WPARAM(0), LPARAM(0)) };
+            // Right Alt is AltGr: Windows emits a Left Ctrl with scan code 0x21D
+            // just before it. That Ctrl is not a key the user pressed.
+            if !is_windows_alt_gr_fake_ctrl(kbd.vkCode, kbd.scanCode) {
+                let extended = (kbd.flags.0 & 1) != 0;
+                if let Some(code_name) = windows_vk_to_code(kbd.vkCode, extended) {
+                    enqueue_key(code_name, is_down);
+                    // SAFETY: this procedure runs on the thread that installed the hook.
+                    let tid = unsafe { GetCurrentThreadId() };
+                    let _ = unsafe { PostThreadMessageW(tid, WM_APP, WPARAM(0), LPARAM(0)) };
+                }
             }
         }
     }
