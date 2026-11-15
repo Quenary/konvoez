@@ -13,6 +13,7 @@ import {
   streamSvcModeSchema,
   streamHeightSchema,
   streamVideoCodecSchema,
+  themeSchema,
   TLocalSettingsPartial,
   TMediaDeviceInfo,
   TStreamContentMode,
@@ -21,6 +22,7 @@ import {
   TStreamLayer,
   TStreamSvcMode,
   TStreamVideoCodec,
+  TTheme,
 } from '@shared/schemas/local-settings.schema';
 import {
   storageGetItemJson,
@@ -88,6 +90,11 @@ const parseEchoCancellation = (value: unknown): boolean | undefined => {
   return result.success ? result.data : undefined;
 };
 
+const parseTheme = (value: unknown): TTheme | undefined => {
+  const result = themeSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+};
+
 /**
  * Read known fields from LOCAL_SETTINGS (loose). Invalid fields are ignored.
  */
@@ -131,6 +138,7 @@ export const readLocalSettings = (): TLocalSettingsPartial => {
     inputGain: parseInputGain(parsed.data.inputGain),
     outputVolume: parseOutputVolume(parsed.data.outputVolume),
     echoCancellation: parseEchoCancellation(parsed.data.echoCancellation),
+    theme: parseTheme(parsed.data.theme),
   };
 };
 
@@ -177,6 +185,7 @@ export type TLocalSettingsWrite = {
   inputGain?: number | null;
   outputVolume?: number | null;
   echoCancellation?: boolean | null;
+  theme?: TTheme | null;
 };
 
 export const writeLocalSettings = (
@@ -278,6 +287,10 @@ export const writeLocalSettings = (
     settings.echoCancellation === undefined
       ? existing.echoCancellation
       : (settings.echoCancellation ?? undefined);
+  const nextTheme =
+    settings.theme === undefined
+      ? existing.theme
+      : (settings.theme ?? undefined);
 
   const payload = {
     ...(typeof version === 'number' ? { version } : {}),
@@ -326,6 +339,7 @@ export const writeLocalSettings = (
     ...(nextEchoCancellation !== undefined
       ? { echoCancellation: nextEchoCancellation }
       : {}),
+    ...(nextTheme !== undefined ? { theme: nextTheme } : {}),
   };
 
   storageSetItemJson(EStorageKey.LOCAL_SETTINGS, payload);

@@ -37,6 +37,7 @@ import {
   DEFAULT_SCREEN_CONTENT_MODE,
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
+  DEFAULT_THEME,
   LOCAL_SETTINGS_VERSION,
   TStreamContentMode,
   TStreamFps,
@@ -44,11 +45,13 @@ import {
   TStreamLayer,
   TStreamSvcMode,
   TStreamVideoCodec,
+  TTheme,
 } from '@shared/schemas/local-settings.schema';
 import { ENoiseProcessor } from '../../app.enums';
 import { isMobileOrIos, isSimdSupported } from '@core/audio/audio-capabilities';
 import { MicrophoneService } from '@core/services/microphone.service';
 import { SpeakerService } from '@core/services/speaker.service';
+import { ThemeService } from '@core/services/theme.service';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { catchError, EMPTY, exhaustMap, filter, pipe, tap } from 'rxjs';
 import {
@@ -85,6 +88,7 @@ export type SettingsStoreState = {
   inputGain: number;
   outputVolume: number;
   echoCancellation: boolean;
+  theme: TTheme;
   /** Stored schema version; null if LOCAL_SETTINGS is missing / has no version. */
   localSettingsVersion: number | null;
 };
@@ -115,6 +119,7 @@ export const SettingsStore = signalStore(
     inputGain: DEFAULT_INPUT_GAIN,
     outputVolume: DEFAULT_OUTPUT_VOLUME,
     echoCancellation: DEFAULT_ECHO_CANCELLATION,
+    theme: DEFAULT_THEME,
     localSettingsVersion: null,
   }),
   withEntities(settingsConfig),
@@ -235,6 +240,7 @@ export const SettingsStore = signalStore(
       translateService = inject(TranslateService),
       tuiNotificationsService = inject(TuiNotificationService),
       apiErrorService = inject(ApiErrorService),
+      themeService = inject(ThemeService),
     ) => {
       const showError = (error: unknown): void => {
         tuiNotificationsService
@@ -271,6 +277,7 @@ export const SettingsStore = signalStore(
           inputGain: store.inputGain(),
           outputVolume: store.outputVolume(),
           echoCancellation: store.echoCancellation(),
+          theme: store.theme(),
         });
       };
 
@@ -303,10 +310,17 @@ export const SettingsStore = signalStore(
               inputGain: store.inputGain(),
               outputVolume: store.outputVolume(),
               echoCancellation: store.echoCancellation(),
+              theme: store.theme(),
             },
             { stampVersion: true },
           );
           patchState(store, { localSettingsVersion: LOCAL_SETTINGS_VERSION });
+        },
+
+        setTheme(theme: TTheme): void {
+          patchState(store, { theme });
+          persistLocal();
+          themeService.applyTheme(theme);
         },
 
         setAudioInput(audioInput: MediaDeviceInfo | null): void {
@@ -479,6 +493,7 @@ export const SettingsStore = signalStore(
       const audioDeviceHandler = inject(AUDIO_DEVICE_HANDLER);
       const microphoneService = inject(MicrophoneService);
       const speakerService = inject(SpeakerService);
+      const themeService = inject(ThemeService);
 
       const partial = readLocalSettings();
       const audioInput =
@@ -496,6 +511,7 @@ export const SettingsStore = signalStore(
       const outputVolume = partial.outputVolume ?? DEFAULT_OUTPUT_VOLUME;
       const echoCancellation =
         partial.echoCancellation ?? DEFAULT_ECHO_CANCELLATION;
+      const theme = partial.theme ?? DEFAULT_THEME;
 
       patchState(store, {
         audioInput,
@@ -522,9 +538,12 @@ export const SettingsStore = signalStore(
         inputGain,
         outputVolume,
         echoCancellation,
+        theme,
         localSettingsVersion:
           typeof partial.version === 'number' ? partial.version : null,
       });
+
+      themeService.applyTheme(theme);
 
       if (audioInput) {
         audioDeviceHandler.setAudioInput(audioInput);

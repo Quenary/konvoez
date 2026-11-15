@@ -60,6 +60,7 @@ MENU:
     PROFILE: Профиль
     SECURITY: Безопасность
     DEVICES: Устройства
+    APPEARANCE: Внешний вид
     NOTIFICATIONS: Уведомления
     INVITES: Приглашения
     USERS: Пользователи
@@ -372,6 +373,13 @@ SETTINGS:
     MIC_TEST_STOP: Остановить проверку
     MIC_TEST_FEEDBACK_WARNING: Рекомендуется использовать наушники во время проверки.
     MIC_TEST_OUTPUT_HINT: Воспроизведение через стандартный вывод (браузер не поддерживает выбор выходного устройства).
+  APPEARANCE:
+    TITLE: Внешний вид
+    THEME: Тема оформления
+    THEME_DESC: Выберите цветовую тему интерфейса
+    THEME_AUTO: Системная
+    THEME_DARK: Тёмная
+    THEME_LIGHT: Светлая
   INVITES:
     TITLE: Приглашения
     SUBTITLE: Управление одноразовыми приглашениями для регистрации

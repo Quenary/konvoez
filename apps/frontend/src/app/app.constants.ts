@@ -28,6 +28,7 @@ export const icons = {
   direct: '@tui.message-circle-heart',
   settings: '@tui.settings',
   'settings-profile': '@tui.user-pen',
+  'settings-appearance': '@tui.palette',
   'settings-security': '@tui.shield-user',
   'settings-devices': '@tui.file-headphone',
   'settings-notifications': '@tui.bell-ring',
@@ -35,6 +36,10 @@ export const icons = {
   'settings-roles': '@tui.user-cog',
   'settings-users': '@tui.users',
   'settings-admin': '@tui.shield',
+  /* Theme */
+  sun: '@tui.sun',
+  moon: '@tui.moon',
+  'sun-moon': '@tui.sun-moon',
   /* Navigation / shell */
   home: '@tui.home',
   info: '@tui.info',

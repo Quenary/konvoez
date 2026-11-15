@@ -36,6 +36,7 @@ describe('SettingsAsideListComponent', () => {
     '/settings/profile',
     '/settings/security',
     '/settings/devices',
+    '/settings/appearance',
     '/settings/notifications',
   ];
 

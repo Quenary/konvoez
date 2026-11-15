@@ -149,4 +149,25 @@ describe('local-settings.storage stream fields', () => {
     expect(readLocalSettings().cameraCodec).toBe('h264');
     expect(readLocalSettings().version).toBeUndefined();
   });
+
+  it.each(['auto', 'dark', 'light'] as const)(
+    'round-trips theme "%s"',
+    (theme) => {
+      writeLocalSettings({ theme });
+      expect(readLocalSettings().theme).toBe(theme);
+
+      const stored = JSON.parse(
+        localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}',
+      ) as Record<string, unknown>;
+      expect(stored['theme']).toBe(theme);
+    },
+  );
+
+  it('drops invalid theme values', () => {
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ theme: 'solarized' }),
+    );
+    expect(readLocalSettings().theme).toBeUndefined();
+  });
 });

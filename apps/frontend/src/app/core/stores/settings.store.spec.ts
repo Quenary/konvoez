@@ -12,6 +12,7 @@ import {
 } from '@core/tokens/audio-device-handler.token';
 import { MicrophoneService } from '@core/services/microphone.service';
 import { SpeakerService } from '@core/services/speaker.service';
+import { ThemeService } from '@core/services/theme.service';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
 import {
@@ -30,6 +31,7 @@ import {
   DEFAULT_SCREEN_CONTENT_MODE,
   DEFAULT_STREAM_FPS,
   DEFAULT_STREAM_HEIGHT,
+  DEFAULT_THEME,
   LOCAL_SETTINGS_VERSION,
 } from '@shared/schemas/local-settings.schema';
 
@@ -47,6 +49,9 @@ describe('SettingsStore', () => {
   };
   let speaker: {
     setMasterVolume: ReturnType<typeof vi.fn>;
+  };
+  let themeService: {
+    applyTheme: ReturnType<typeof vi.fn>;
   };
   let mockNotifications: { open: ReturnType<typeof vi.fn> };
   let ngrxStore: Store;
@@ -94,6 +99,10 @@ describe('SettingsStore', () => {
       setMasterVolume: vi.fn(),
     };
 
+    themeService = {
+      applyTheme: vi.fn(),
+    };
+
     mockNotifications = {
       open: vi.fn().mockReturnValue(of(null)),
     };
@@ -110,6 +119,7 @@ describe('SettingsStore', () => {
         { provide: AUDIO_DEVICE_HANDLER, useValue: audioDeviceHandler },
         { provide: MicrophoneService, useValue: microphone },
         { provide: SpeakerService, useValue: speaker },
+        { provide: ThemeService, useValue: themeService },
         { provide: TuiNotificationService, useValue: mockNotifications },
         SettingsStore,
       ],
@@ -149,6 +159,8 @@ describe('SettingsStore', () => {
     expect(store.inputGain()).toBe(DEFAULT_INPUT_GAIN);
     expect(store.outputVolume()).toBe(DEFAULT_OUTPUT_VOLUME);
     expect(store.echoCancellation()).toBe(DEFAULT_ECHO_CANCELLATION);
+    expect(store.theme()).toBe(DEFAULT_THEME);
+    expect(themeService.applyTheme).toHaveBeenCalledWith(DEFAULT_THEME);
     expect(store.iceServers()).toEqual([]);
     expect(store.attachmentsEnabled()).toBe(true);
     expect(store.attachmentsMaxFileSize()).toBe(attachmentsDefaultMaxFileSize);
@@ -261,6 +273,7 @@ describe('SettingsStore', () => {
       inputGain: DEFAULT_INPUT_GAIN,
       outputVolume: DEFAULT_OUTPUT_VOLUME,
       echoCancellation: DEFAULT_ECHO_CANCELLATION,
+      theme: DEFAULT_THEME,
     });
     expect(store.needsInitialSetup()).toBe(true);
   });
@@ -283,6 +296,7 @@ describe('SettingsStore', () => {
       inputGain: DEFAULT_INPUT_GAIN,
       outputVolume: DEFAULT_OUTPUT_VOLUME,
       echoCancellation: DEFAULT_ECHO_CANCELLATION,
+      theme: DEFAULT_THEME,
     });
   });
 
@@ -316,6 +330,7 @@ describe('SettingsStore', () => {
       inputGain: DEFAULT_INPUT_GAIN,
       outputVolume: DEFAULT_OUTPUT_VOLUME,
       echoCancellation: DEFAULT_ECHO_CANCELLATION,
+      theme: DEFAULT_THEME,
     });
     expect(store.needsInitialSetup()).toBe(false);
   });
@@ -382,6 +397,7 @@ describe('SettingsStore', () => {
       inputGain: DEFAULT_INPUT_GAIN,
       outputVolume: DEFAULT_OUTPUT_VOLUME,
       echoCancellation: DEFAULT_ECHO_CANCELLATION,
+      theme: DEFAULT_THEME,
     });
   });
 
@@ -410,6 +426,31 @@ describe('SettingsStore', () => {
     expect(saved.inputGain).toBe(1.5);
     expect(saved.outputVolume).toBe(0.5);
     expect(saved.echoCancellation).toBe(true);
+  });
+
+  it('should hydrate stored theme on initialization', () => {
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ version: LOCAL_SETTINGS_VERSION, theme: 'dark' }),
+    );
+
+    configureTestBed();
+
+    const hydrated = TestBed.inject(SettingsStore);
+    expect(hydrated.theme()).toBe('dark');
+    expect(themeService.applyTheme).toHaveBeenCalledWith('dark');
+  });
+
+  it('should update theme, persist to local settings and apply it via themeService', () => {
+    store.setTheme('light');
+
+    expect(store.theme()).toBe('light');
+    expect(themeService.applyTheme).toHaveBeenCalledWith('light');
+
+    const stored = JSON.parse(
+      localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}',
+    ) as Record<string, unknown>;
+    expect(stored['theme']).toBe('light');
   });
 
   it('should hydrate audio preferences from LOCAL_SETTINGS', () => {

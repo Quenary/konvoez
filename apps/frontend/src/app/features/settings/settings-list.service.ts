@@ -28,6 +28,12 @@ const DEVICES_ENTRY: ISettingsListEntry = {
   labelKey: 'MENU.SETTINGS.DEVICES',
 };
 
+const APPEARANCE_ENTRY: ISettingsListEntry = {
+  link: '/settings/appearance',
+  icon: icons['settings-appearance'],
+  labelKey: 'MENU.SETTINGS.APPEARANCE',
+};
+
 const NOTIFICATIONS_ENTRY: ISettingsListEntry = {
   link: '/settings/notifications',
   icon: icons['settings-notifications'],
@@ -71,6 +77,7 @@ export class SettingsListService {
       PROFILE_ENTRY,
       SECURITY_ENTRY,
       DEVICES_ENTRY,
+      APPEARANCE_ENTRY,
       NOTIFICATIONS_ENTRY,
       ...(invites ? [INVITES_ENTRY] : []),
       ...(users ? [USERS_ENTRY] : []),

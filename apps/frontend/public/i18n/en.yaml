@@ -60,6 +60,7 @@ MENU:
     PROFILE: Profile
     SECURITY: Security
     DEVICES: Devices
+    APPEARANCE: Appearance
     NOTIFICATIONS: Notifications
     INVITES: Invites
     USERS: Users
@@ -364,6 +365,13 @@ SETTINGS:
     MIC_TEST_STOP: Stop checking
     MIC_TEST_FEEDBACK_WARNING: Headphones are recommended during testing.
     MIC_TEST_OUTPUT_HINT: Playing to default output (browser does not support selecting output device).
+  APPEARANCE:
+    TITLE: Appearance
+    THEME: Theme
+    THEME_DESC: Choose the interface color theme
+    THEME_AUTO: System default
+    THEME_DARK: Dark
+    THEME_LIGHT: Light
   INVITES:
     TITLE: Invites
     SUBTITLE: Manage single-use invites for registration
