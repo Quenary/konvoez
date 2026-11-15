@@ -263,4 +263,15 @@ describe('SettingsNotificationsComponent', () => {
     });
     expect(openNotification).toHaveBeenCalled();
   });
+
+  it('hides topic and mention fieldsets when compact is true', () => {
+    fixture.componentRef.setInput('compact', true);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(
+      compiled.querySelectorAll('.scroll-content > fieldset'),
+    ).toHaveLength(0);
+    expect(compiled.querySelector('.push-section')).not.toBeNull();
+  });
 });

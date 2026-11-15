@@ -4,6 +4,7 @@ import {
   computed,
   DestroyRef,
   inject,
+  input,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -57,6 +58,8 @@ export class SettingsNotificationsComponent {
   private readonly tuiNotificationService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
   private readonly destroyRef = inject(DestroyRef);
+
+  public readonly compact = input<boolean>(false);
 
   protected readonly icons = icons;
   protected readonly isSupported = signal(
