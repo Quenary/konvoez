@@ -1,5 +1,6 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { provideStore, Store } from '@ngrx/store';
 import { provideTranslateService } from '@ngx-translate/core';
@@ -13,6 +14,7 @@ import {
 import { MicrophoneService } from '@core/services/microphone.service';
 import { SpeakerService } from '@core/services/speaker.service';
 import { ThemeService } from '@core/services/theme.service';
+import { LocaleService } from '@core/services/locale.service';
 import { authReducer } from '@core/auth/auth.reducer';
 import { AuthActions } from '@core/auth/auth.actions';
 import {
@@ -20,6 +22,7 @@ import {
   attachmentsDefaultMaxFileSize,
   attachmentsDefaultMaxFilesPerMessage,
   ESettingKey,
+  TLanguage,
   TSetting,
 } from '@konvoez/shared';
 import { ENoiseProcessor, EStorageKey } from '../../app.enums';
@@ -52,6 +55,11 @@ describe('SettingsStore', () => {
   };
   let themeService: {
     applyTheme: ReturnType<typeof vi.fn>;
+  };
+  let localeService: {
+    apply: ReturnType<typeof vi.fn>;
+    currentLanguage: ReturnType<typeof signal<TLanguage>>;
+    onChange$: Observable<TLanguage>;
   };
   let mockNotifications: { open: ReturnType<typeof vi.fn> };
   let ngrxStore: Store;
@@ -103,6 +111,12 @@ describe('SettingsStore', () => {
       applyTheme: vi.fn(),
     };
 
+    localeService = {
+      apply: vi.fn().mockResolvedValue(undefined),
+      currentLanguage: signal<TLanguage>('en'),
+      onChange$: of<TLanguage>('en'),
+    };
+
     mockNotifications = {
       open: vi.fn().mockReturnValue(of(null)),
     };
@@ -120,6 +134,7 @@ describe('SettingsStore', () => {
         { provide: MicrophoneService, useValue: microphone },
         { provide: SpeakerService, useValue: speaker },
         { provide: ThemeService, useValue: themeService },
+        { provide: LocaleService, useValue: localeService },
         { provide: TuiNotificationService, useValue: mockNotifications },
         SettingsStore,
       ],
@@ -453,6 +468,45 @@ describe('SettingsStore', () => {
     expect(stored['theme']).toBe('light');
   });
 
+  it('should hydrate stored language on initialization', () => {
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ version: LOCAL_SETTINGS_VERSION, language: 'ru' }),
+    );
+
+    configureTestBed();
+
+    const hydrated = TestBed.inject(SettingsStore);
+    expect(hydrated.language()).toBe('ru');
+    expect(localeService.apply).toHaveBeenCalledWith('ru');
+  });
+
+  it('should update language, persist to local settings and apply it via localeService', () => {
+    store.setLanguage('ru');
+
+    expect(store.language()).toBe('ru');
+    expect(localeService.apply).toHaveBeenCalledWith('ru');
+
+    const stored = JSON.parse(
+      localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}',
+    ) as Record<string, unknown>;
+    expect(stored['language']).toBe('ru');
+  });
+
+  it('should reset language to null, omit it from local settings and apply resolved fallback language', () => {
+    store.setLanguage('ru');
+    expect(store.language()).toBe('ru');
+
+    store.setLanguage(null);
+    expect(store.language()).toBeNull();
+    expect(localeService.apply).toHaveBeenCalledWith('en');
+
+    const stored = JSON.parse(
+      localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}',
+    ) as Record<string, unknown>;
+    expect(stored['language']).toBeUndefined();
+  });
+
   it('should hydrate audio preferences from LOCAL_SETTINGS', () => {
     localStorage.clear();
     localStorage.setItem(
@@ -587,6 +641,7 @@ describe('SettingsStore', () => {
           twoFactorEnabled: false,
           emailVerified: true,
           pendingEmail: null,
+          lastDetectedLocale: 'en',
         },
       }),
     );

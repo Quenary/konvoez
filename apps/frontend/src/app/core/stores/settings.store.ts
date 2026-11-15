@@ -5,6 +5,7 @@ import { selectIsAuthorized } from '@core/auth/auth.selectors';
 import {
   ESettingKey,
   TIceServersSettingValue,
+  TLanguage,
   TSetting,
   TSettingsUpdate,
   defaultSettingValues,
@@ -31,6 +32,7 @@ import { ApiErrorService } from '@core/services/api-error.service';
 import {
   DEFAULT_ECHO_CANCELLATION,
   DEFAULT_INPUT_GAIN,
+  DEFAULT_LANGUAGE,
   DEFAULT_NOISE_PROCESSOR,
   DEFAULT_OUTPUT_VOLUME,
   DEFAULT_SCREEN_PREVIEW_AUTO_PAUSE_WHEN_HIDDEN,
@@ -47,6 +49,7 @@ import {
   TStreamVideoCodec,
   TTheme,
 } from '@shared/schemas/local-settings.schema';
+import { LocaleService, resolveLanguage } from '@core/services/locale.service';
 import { ENoiseProcessor } from '../../app.enums';
 import { isMobileOrIos, isSimdSupported } from '@core/audio/audio-capabilities';
 import { MicrophoneService } from '@core/services/microphone.service';
@@ -89,6 +92,7 @@ export type SettingsStoreState = {
   outputVolume: number;
   echoCancellation: boolean;
   theme: TTheme;
+  language: TLanguage | null;
   /** Stored schema version; null if LOCAL_SETTINGS is missing / has no version. */
   localSettingsVersion: number | null;
 };
@@ -120,6 +124,7 @@ export const SettingsStore = signalStore(
     outputVolume: DEFAULT_OUTPUT_VOLUME,
     echoCancellation: DEFAULT_ECHO_CANCELLATION,
     theme: DEFAULT_THEME,
+    language: DEFAULT_LANGUAGE,
     localSettingsVersion: null,
   }),
   withEntities(settingsConfig),
@@ -241,6 +246,7 @@ export const SettingsStore = signalStore(
       tuiNotificationsService = inject(TuiNotificationService),
       apiErrorService = inject(ApiErrorService),
       themeService = inject(ThemeService),
+      localeService = inject(LocaleService),
     ) => {
       const showError = (error: unknown): void => {
         tuiNotificationsService
@@ -278,6 +284,7 @@ export const SettingsStore = signalStore(
           outputVolume: store.outputVolume(),
           echoCancellation: store.echoCancellation(),
           theme: store.theme(),
+          language: store.language(),
         });
       };
 
@@ -311,6 +318,7 @@ export const SettingsStore = signalStore(
               outputVolume: store.outputVolume(),
               echoCancellation: store.echoCancellation(),
               theme: store.theme(),
+              language: store.language(),
             },
             { stampVersion: true },
           );
@@ -321,6 +329,14 @@ export const SettingsStore = signalStore(
           patchState(store, { theme });
           persistLocal();
           themeService.applyTheme(theme);
+        },
+
+        setLanguage(language: TLanguage | null): void {
+          patchState(store, { language });
+          persistLocal();
+          const resolved = resolveLanguage(language);
+          translateService.use?.(resolved);
+          void localeService.apply(resolved).catch(() => undefined);
         },
 
         setAudioInput(audioInput: MediaDeviceInfo | null): void {
@@ -494,6 +510,8 @@ export const SettingsStore = signalStore(
       const microphoneService = inject(MicrophoneService);
       const speakerService = inject(SpeakerService);
       const themeService = inject(ThemeService);
+      const localeService = inject(LocaleService);
+      const translateService = inject(TranslateService);
 
       const partial = readLocalSettings();
       const audioInput =
@@ -512,6 +530,7 @@ export const SettingsStore = signalStore(
       const echoCancellation =
         partial.echoCancellation ?? DEFAULT_ECHO_CANCELLATION;
       const theme = partial.theme ?? DEFAULT_THEME;
+      const language = partial.language ?? DEFAULT_LANGUAGE;
 
       patchState(store, {
         audioInput,
@@ -539,11 +558,15 @@ export const SettingsStore = signalStore(
         outputVolume,
         echoCancellation,
         theme,
+        language,
         localSettingsVersion:
           typeof partial.version === 'number' ? partial.version : null,
       });
 
       themeService.applyTheme(theme);
+      const resolvedLang = resolveLanguage(language);
+      translateService.use?.(resolvedLang);
+      void localeService.apply(resolvedLang).catch(() => undefined);
 
       if (audioInput) {
         audioDeviceHandler.setAudioInput(audioInput);

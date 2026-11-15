@@ -1,5 +1,5 @@
 import { defineEntity, p, Cascade } from '@mikro-orm/core';
-import { IUserSafe } from '@konvoez/shared';
+import { FALLBACK_LANGUAGE, IUserSafe } from '@konvoez/shared';
 import { KonvoezBaseEntitySchema } from '../../shared/types/base.entity';
 import { RoomEntitySchema } from '../rooms/rooms.entity';
 import { MessageEntitySchema } from '../text-rooms/text-rooms.entity';
@@ -30,6 +30,8 @@ export const UserEntitySchema = defineEntity({
     twoFactorSecret: p.text().nullable().hidden(),
     twoFactorEnabledAt: p.datetime().nullable().hidden(),
     twoFactorLastStep: p.integer().nullable().hidden(),
+    language: p.string().length(16).nullable().default(null),
+    lastDetectedLocale: p.string().length(64).default(FALLBACK_LANGUAGE),
 
     rooms: () =>
       p

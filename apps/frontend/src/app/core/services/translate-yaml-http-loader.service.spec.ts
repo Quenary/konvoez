@@ -178,10 +178,31 @@ describe('TranslateYamlHttpLoader Service', () => {
       throwError(() => new Error('404 Not Found')),
     );
 
-    const result = await firstValueFrom(loader.getTranslation('nonexistent'));
+    const result = await firstValueFrom(loader.getTranslation('en'));
 
     expect(result).toEqual({});
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
+  });
+
+  it('should fall back to loading en.yaml when non-en language fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    httpClientMock.get
+      .mockReturnValueOnce(throwError(() => new Error('404 Not Found')))
+      .mockReturnValueOnce(of('FALLBACK: EnglishText'));
+
+    const result = await firstValueFrom(loader.getTranslation('de'));
+
+    expect(httpClientMock.get).toHaveBeenNthCalledWith(
+      1,
+      `i18n/de.yaml?v=${APP_VERSION}`,
+      { responseType: 'text' },
+    );
+    expect(httpClientMock.get).toHaveBeenNthCalledWith(
+      2,
+      `i18n/en.yaml?v=${APP_VERSION}`,
+      { responseType: 'text' },
+    );
+    expect(result).toEqual({ FALLBACK: 'EnglishText' });
   });
 });

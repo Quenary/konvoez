@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { runInInjectionContext } from '@angular/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { of } from 'rxjs';
 import { provideTranslateService } from '@ngx-translate/core';
@@ -74,7 +75,10 @@ describe('SettingsUserManagementComponent', () => {
   it('should render username, email, and created date', async () => {
     await setup([sampleUser]);
     const compiled = fixture.nativeElement as HTMLElement;
-    const expectedCreatedAt = new DayjsPipe().transform(sampleUser.createdAt);
+    const expectedCreatedAt = runInInjectionContext(
+      fixture.debugElement.injector,
+      () => new DayjsPipe().transform(sampleUser.createdAt),
+    );
 
     expect(compiled.querySelector('.empty-cell')).toBeNull();
     expect(compiled.textContent).toContain('alice');

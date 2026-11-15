@@ -6,6 +6,7 @@ import {
   userAvatarKeySchema,
   usernameSchema,
 } from './fields.schemas';
+import { languageSchema } from './user.schemas';
 
 /** Self-profile update: no role (role changes go through user-management). */
 export const profileUpdateSchema = z
@@ -15,6 +16,7 @@ export const profileUpdateSchema = z
     fullname: fullnameSchema,
     email: emailSchema,
     avatar: userAvatarKeySchema.nullish(),
+    language: languageSchema.nullish(),
   })
   .partial();
 

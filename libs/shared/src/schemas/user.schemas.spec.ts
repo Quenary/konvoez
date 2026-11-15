@@ -23,18 +23,22 @@ describe('userSafeSchema', () => {
     expect(parsed.username).toBe('alice');
   });
 
-  it('strips email, twoFactorEnabled, emailVerified, and pendingEmail from public user payloads', () => {
+  it('strips email, twoFactorEnabled, emailVerified, pendingEmail, language, and lastDetectedLocale from public user payloads', () => {
     const parsed = userSafeSchema.parse({
       ...baseUser,
       email: 'alice@example.com',
       twoFactorEnabled: true,
       emailVerified: true,
       pendingEmail: 'pending@example.com',
+      language: 'ru',
+      lastDetectedLocale: 'ru-RU',
     });
     expect(parsed).not.toHaveProperty('email');
     expect(parsed).not.toHaveProperty('twoFactorEnabled');
     expect(parsed).not.toHaveProperty('emailVerified');
     expect(parsed).not.toHaveProperty('pendingEmail');
+    expect(parsed).not.toHaveProperty('language');
+    expect(parsed).not.toHaveProperty('lastDetectedLocale');
   });
 });
 
@@ -51,16 +55,29 @@ describe('userFullSchema', () => {
     expect(parsed.pendingEmail).toBeUndefined();
   });
 
-  it('preserves twoFactorEnabled, emailVerified, and pendingEmail', () => {
+  it('preserves twoFactorEnabled, emailVerified, pendingEmail, language, and lastDetectedLocale', () => {
     const parsed = userFullSchema.parse({
       ...baseUser,
       email: 'alice@example.com',
       twoFactorEnabled: true,
       emailVerified: true,
       pendingEmail: 'new@example.com',
+      language: 'ru',
+      lastDetectedLocale: 'ru-RU',
     });
     expect(parsed.twoFactorEnabled).toBe(true);
     expect(parsed.emailVerified).toBe(true);
     expect(parsed.pendingEmail).toBe('new@example.com');
+    expect(parsed.language).toBe('ru');
+    expect(parsed.lastDetectedLocale).toBe('ru-RU');
+  });
+
+  it('defaults lastDetectedLocale to en and language to undefined', () => {
+    const parsed = userFullSchema.parse({
+      ...baseUser,
+      email: 'alice@example.com',
+    });
+    expect(parsed.lastDetectedLocale).toBe('en');
+    expect(parsed.language).toBeUndefined();
   });
 });

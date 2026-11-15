@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
-import { APP_FILTER, APP_PIPE } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { RoomsModule } from './features/rooms/rooms.module';
@@ -23,6 +23,7 @@ import { PermissionsModule } from './features/permissions/permissions.module';
 import { RolesModule } from './features/roles/roles.module';
 import { TwoFactorModule } from './features/two-factor/two-factor.module';
 import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
+import { ClientLanguageInterceptor } from './shared/interceptors/client-language.interceptor';
 import { createMikroOrmConfig } from './mikro-orm.config';
 
 @Module({
@@ -59,6 +60,10 @@ import { createMikroOrmConfig } from './mikro-orm.config';
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ClientLanguageInterceptor,
     },
   ],
 })

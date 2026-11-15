@@ -376,10 +376,11 @@ SETTINGS:
   APPEARANCE:
     TITLE: Внешний вид
     THEME: Тема оформления
-    THEME_DESC: Выберите цветовую тему интерфейса
     THEME_AUTO: Системная
     THEME_DARK: Тёмная
     THEME_LIGHT: Светлая
+    LANGUAGE: Язык
+    LANGUAGE_AUTO: Системный
   INVITES:
     TITLE: Приглашения
     SUBTITLE: Управление одноразовыми приглашениями для регистрации

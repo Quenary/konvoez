@@ -1,13 +1,41 @@
+import { ChangeDetectorRef, signal, type WritableSignal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ru';
+import { Subject } from 'rxjs';
+import { LocaleService } from '@core/services/locale.service';
+import { type TLanguage } from '@konvoez/shared';
 import { TodayDayjsPipe } from './today-dayjs.pipe';
 
 describe('TodayDayjsPipe', () => {
   let pipe: TodayDayjsPipe;
+  let currentLanguageSignal: WritableSignal<TLanguage>;
+  let onChangeSubject: Subject<TLanguage>;
+  let changeDetectorRefMock: { markForCheck: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
-    pipe = new TodayDayjsPipe();
+    currentLanguageSignal = signal<TLanguage>('en');
+    onChangeSubject = new Subject<TLanguage>();
+    changeDetectorRefMock = { markForCheck: vi.fn() };
+
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: ChangeDetectorRef,
+          useValue: changeDetectorRefMock,
+        },
+        {
+          provide: LocaleService,
+          useValue: {
+            currentLanguage: currentLanguageSignal.asReadonly(),
+            onChange$: onChangeSubject.asObservable(),
+          },
+        },
+      ],
+    });
+
+    pipe = TestBed.runInInjectionContext(() => new TodayDayjsPipe());
     vi.spyOn(navigator, 'language', 'get').mockReturnValue('en');
   });
 
@@ -43,11 +71,17 @@ describe('TodayDayjsPipe', () => {
     expect(pipe.transform(otherDay, 'YYYY-MM-DD', 'HH:mm')).toBe('2020-01-15');
   });
 
-  it('formats using navigator.language', () => {
-    vi.spyOn(navigator, 'language', 'get').mockReturnValue('ru');
+  it('formats using current language from LocaleService', () => {
+    currentLanguageSignal.set('ru');
     const today = dayjs().hour(13).minute(5).second(9).millisecond(0).toDate();
 
     expect(pipe.transform(today)).toBe('13:05');
+  });
+
+  it('marks change detector for check when locale changes', () => {
+    onChangeSubject.next('ru');
+
+    expect(changeDetectorRefMock.markForCheck).toHaveBeenCalled();
   });
 
   it('returns null for an invalid date', () => {
@@ -65,5 +99,13 @@ describe('TodayDayjsPipe', () => {
 
     expect(pipe.transform(value)).toBeNull();
     expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it('returns memoized result when called with identical arguments', () => {
+    const otherDay = new Date(2020, 0, 15, 13, 5, 9);
+    const first = pipe.transform(otherDay, 'YYYY-MM-DD', 'HH:mm');
+    const second = pipe.transform(otherDay, 'YYYY-MM-DD', 'HH:mm');
+    expect(first).toBe('2020-01-15');
+    expect(second).toBe(first);
   });
 });

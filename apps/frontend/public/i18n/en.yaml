@@ -368,10 +368,11 @@ SETTINGS:
   APPEARANCE:
     TITLE: Appearance
     THEME: Theme
-    THEME_DESC: Choose the interface color theme
     THEME_AUTO: System default
     THEME_DARK: Dark
     THEME_LIGHT: Light
+    LANGUAGE: Language
+    LANGUAGE_AUTO: System default
   INVITES:
     TITLE: Invites
     SUBTITLE: Manage single-use invites for registration

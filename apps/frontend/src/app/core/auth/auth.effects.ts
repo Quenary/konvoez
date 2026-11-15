@@ -23,6 +23,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { ApiErrorService } from '@core/services/api-error.service';
 import { PushNotificationService } from '@core/services/push-notification.service';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
+import { SettingsStore } from '@core/stores/settings.store';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { IUserFull } from '@konvoez/shared';
 
@@ -41,6 +42,7 @@ export class AuthEffects {
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly pushNotificationService = inject(PushNotificationService);
   private readonly voiceLeaveService = inject(VoiceLeaveService);
+  private readonly settingsStore = inject(SettingsStore);
 
   readonly init$ = createEffect(() =>
     this.actions$.pipe(
@@ -97,6 +99,27 @@ export class AuthEffects {
         switchMap(() =>
           this.pushNotificationService.syncExistingSubscription(),
         ),
+      ),
+    { dispatch: false },
+  );
+
+  readonly syncUserLanguage$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(
+          AuthActions.initEnd,
+          AuthActions.requestLoginSuccess,
+          AuthActions.requestLoginTwoFactorSuccess,
+          AuthActions.requestPatchUserSuccess,
+        ),
+        map((action) => action.user),
+        filter((user): user is IUserFull => user != null),
+        tap((user) => {
+          const userLanguage = user.language ?? null;
+          if (userLanguage !== this.settingsStore.language()) {
+            this.settingsStore.setLanguage(userLanguage);
+          }
+        }),
       ),
     { dispatch: false },
   );

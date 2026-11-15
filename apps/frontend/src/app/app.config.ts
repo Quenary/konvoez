@@ -28,6 +28,7 @@ import { authReducer } from './core/auth/auth.reducer';
 import { AuthEffects } from './core/auth/auth.effects';
 import { AuthActions } from './core/auth/auth.actions';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
+import { clientLanguageInterceptor } from './core/interceptors/client-language.interceptor';
 import { VoiceRoomSocketToken } from './core/tokens/voice-room-socket.token';
 import { io } from 'socket.io-client';
 import { TextRoomSocketToken } from './core/tokens/text-room-socket.token';
@@ -40,7 +41,9 @@ import { pwaUpdateInitializer } from './core/initializers/pwa-update-initializer
 import { DesktopBridgeService } from './core/desktop/desktop-bridge.service';
 import { NotificationNavigationService } from './core/services/notification-navigation.service';
 import { AuthSocketManager } from './core/auth/auth-socket-manager.service';
-import { supportedLocales } from './app.constants';
+import { resolveLanguage } from './core/services/locale.service';
+import { readLocalSettings } from './core/stores/local-settings.storage';
+import { FALLBACK_LANGUAGE } from '@konvoez/shared';
 import { NgDompurifySanitizer } from '@taiga-ui/dompurify';
 import { environment } from '../environments/environment';
 import { AUDIO_DEVICE_HANDLER } from './core/tokens/audio-device-handler.token';
@@ -49,7 +52,10 @@ import { provideServiceWorker } from '@angular/service-worker';
 
 // Fetch throws if upload progress is requested. XHR is what reports it.
 export function provideAppHttpClient() {
-  return provideHttpClient(withInterceptors([authInterceptor]), withXhr());
+  return provideHttpClient(
+    withInterceptors([authInterceptor, clientLanguageInterceptor]),
+    withXhr(),
+  );
 }
 
 export const appConfig: ApplicationConfig = {
@@ -66,7 +72,7 @@ export const appConfig: ApplicationConfig = {
         provide: TranslateLoader,
         useClass: TranslateYamlHttpLoader,
       },
-      fallbackLang: 'en',
+      fallbackLang: FALLBACK_LANGUAGE,
     }),
     provideEffects(AuthEffects),
     provideStore({
@@ -104,17 +110,16 @@ export const appConfig: ApplicationConfig = {
     {
       provide: LOCALE_ID,
       useFactory: () => {
-        const locale = navigator.language
-          ? navigator.language.split('-')[0]
-          : 'en';
-        return supportedLocales.find((l) => l === locale) || 'en';
+        return resolveLanguage(readLocalSettings().language);
       },
     },
 
     // Initializers
     provideAppInitializer(() => {
       const translateService = inject(TranslateService);
-      return translateService.use(translateService.getBrowserLang() || 'en');
+      return translateService.use(
+        resolveLanguage(readLocalSettings().language),
+      );
     }),
     provideAppInitializer(() => {
       const store = inject(Store);

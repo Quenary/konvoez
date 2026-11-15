@@ -62,6 +62,7 @@ describe('UsersService', () => {
     mockForkedEm = {
       count: jest.fn().mockResolvedValue(1),
       findOne: jest.fn().mockResolvedValue(mockUser),
+      nativeUpdate: jest.fn().mockResolvedValue(1),
     } as unknown as jest.Mocked<EntityManager>;
 
     mockEm = {
@@ -208,6 +209,8 @@ describe('UsersService', () => {
 
       expect(dto.email).toBe('test@example.com');
       expect(dto.twoFactorEnabled).toBe(false);
+      expect(dto.language).toBeNull();
+      expect(dto.lastDetectedLocale).toBe('en');
       expect(dto).not.toHaveProperty('password');
       expect(dto).not.toHaveProperty('sessionVersion');
       expect(dto).not.toHaveProperty('twoFactorSecret');
@@ -215,8 +218,25 @@ describe('UsersService', () => {
       const enabledDto = service.toFullDto({
         ...mockUser,
         twoFactorEnabledAt: new Date(),
+        language: 'ru',
+        lastDetectedLocale: 'ru-RU',
       } as UserEntity);
       expect(enabledDto.twoFactorEnabled).toBe(true);
+      expect(enabledDto.language).toBe('ru');
+      expect(enabledDto.lastDetectedLocale).toBe('ru-RU');
+    });
+  });
+
+  describe('updateLastDetectedLocale', () => {
+    it('should natively update lastDetectedLocale for given user', async () => {
+      await service.updateLastDetectedLocale(10, 'ru-RU');
+
+      expect(mockEm.fork).toHaveBeenCalled();
+      expect(mockForkedEm.nativeUpdate).toHaveBeenCalledWith(
+        UserEntity,
+        { id: 10 },
+        { lastDetectedLocale: 'ru-RU' },
+      );
     });
   });
 
