@@ -15,6 +15,7 @@ describe('RoomsStore', () => {
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
+    reorder: ReturnType<typeof vi.fn>;
   };
   let mockNotifications: { open: ReturnType<typeof vi.fn> };
 
@@ -27,6 +28,7 @@ describe('RoomsStore', () => {
     allowedUserIds: [],
     avatar: null,
     avatarUrl: null,
+    order: 0,
     author: { id: 1, username: 'alice', fullname: 'Alice' },
     createdAt: new Date(),
     updatedAt: null,
@@ -41,6 +43,7 @@ describe('RoomsStore', () => {
     allowedUserIds: [],
     avatar: null,
     avatarUrl: null,
+    order: 0,
     author: { id: 1, username: 'alice', fullname: 'Alice' },
     createdAt: new Date(),
     updatedAt: null,
@@ -59,6 +62,7 @@ describe('RoomsStore', () => {
       create: vi.fn().mockReturnValue(of(betaTextRoom)),
       update: vi.fn().mockReturnValue(of({ ...textRoom, name: 'renamed' })),
       remove: vi.fn().mockReturnValue(of(undefined)),
+      reorder: vi.fn().mockReturnValue(of([])),
     };
 
     mockNotifications = {
@@ -197,5 +201,47 @@ describe('RoomsStore', () => {
 
     expect(store.entityMap()[betaTextRoom.id]).toEqual(betaTextRoom);
     expect(store.entityMap()[anotherRoom.id]).toEqual(anotherRoom);
+  });
+
+  it('orders rooms by order field ascending before name', () => {
+    const roomA: IRoom = { ...textRoom, id: 1, name: 'alpha', order: 2 };
+    const roomB: IRoom = { ...textRoom, id: 2, name: 'beta', order: 1 };
+    store.upsertOne(roomA);
+    store.upsertOne(roomB);
+
+    expect(store.textRooms().map((r) => r.name)).toEqual(['beta', 'alpha']);
+  });
+
+  it('optimistically updates order and calls apiService.reorder', () => {
+    const roomA: IRoom = { ...textRoom, id: 1, name: 'alpha', order: 0 };
+    const roomB: IRoom = { ...textRoom, id: 2, name: 'beta', order: 1 };
+    store.upsertOne(roomA);
+    store.upsertOne(roomB);
+
+    const updatedA = { ...roomA, order: 1 };
+    const updatedB = { ...roomB, order: 0 };
+    apiService.reorder.mockReturnValue(of([updatedB, updatedA]));
+
+    store.reorder([2, 1]);
+
+    expect(apiService.reorder).toHaveBeenCalledWith([2, 1]);
+    expect(store.textRooms().map((r) => r.id)).toEqual([2, 1]);
+  });
+
+  it('reloads all rooms on reorder error and notifies', () => {
+    const roomA: IRoom = { ...textRoom, id: 1, name: 'alpha', order: 0 };
+    const roomB: IRoom = { ...textRoom, id: 2, name: 'beta', order: 1 };
+    store.upsertOne(roomA);
+    store.upsertOne(roomB);
+
+    apiService.reorder.mockReturnValue(
+      throwError(() => new Error('Reorder failed')),
+    );
+    apiService.list.mockReturnValue(of([roomA, roomB]));
+
+    store.reorder([2, 1]);
+
+    expect(mockNotifications.open).toHaveBeenCalled();
+    expect(apiService.list).toHaveBeenCalled();
   });
 });

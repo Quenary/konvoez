@@ -15,6 +15,7 @@ export const RoomEntitySchema = defineEntity({
     type: p.enum(() => ERoomType),
     avatar: p.string().length(512).nullable(),
     author: () => p.manyToOne(UserEntitySchema),
+    order: p.integer().default(0).index(),
     isPrivate: p.boolean().default(false),
     allowedRoles: () =>
       p

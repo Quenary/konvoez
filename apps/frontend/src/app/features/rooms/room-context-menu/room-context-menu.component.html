@@ -11,6 +11,23 @@
       <hr />
       <button
         tuiOption
+        [iconEnd]="icons['chevron-up']"
+        [disabled]="!canMoveUp()"
+        type="button"
+        (click)="onMoveUp()">
+        {{ 'ROOMS.MOVE_UP' | translate }}
+      </button>
+      <button
+        tuiOption
+        [iconEnd]="icons['chevron-down']"
+        [disabled]="!canMoveDown()"
+        type="button"
+        (click)="onMoveDown()">
+        {{ 'ROOMS.MOVE_DOWN' | translate }}
+      </button>
+      <hr />
+      <button
+        tuiOption
         [iconEnd]="icons.edit"
         type="button"
         (click)="onEdit()">

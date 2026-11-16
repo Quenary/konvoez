@@ -196,6 +196,8 @@ VOICE:
 ROOMS:
   TEXT_TITLE: Текстовые
   VOICE_TITLE: Голосовые
+  MOVE_UP: Переместить выше
+  MOVE_DOWN: Переместить ниже
   ADD_TEXT_ROOM: Создать текстовую комнату
   ADD_VOICE_ROOM: Создать голосовую комнату
   EMPTY_TEXT_ROOMS: Нет текстовых комнат

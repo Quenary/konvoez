@@ -196,6 +196,8 @@ VOICE:
 ROOMS:
   TEXT_TITLE: Text
   VOICE_TITLE: Voice
+  MOVE_UP: Move up
+  MOVE_DOWN: Move down
   ADD_TEXT_ROOM: Create text room
   ADD_VOICE_ROOM: Create voice room
   EMPTY_TEXT_ROOMS: No text rooms

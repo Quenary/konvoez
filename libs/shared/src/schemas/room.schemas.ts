@@ -20,6 +20,7 @@ export const roomCreateSchema = z.object({
   isPrivate: z.boolean().optional(),
   allowedRoleIds: z.array(z.number().int()).optional(),
   allowedUserIds: z.array(z.number().int()).optional(),
+  order: z.number().int().min(0).optional(),
 });
 
 export const roomUpdateSchema = z.object({
@@ -28,6 +29,7 @@ export const roomUpdateSchema = z.object({
   isPrivate: z.boolean().optional(),
   allowedRoleIds: z.array(z.number().int()).optional(),
   allowedUserIds: z.array(z.number().int()).optional(),
+  order: z.number().int().min(0).optional(),
 });
 
 export const roomAuthorSchema = userBriefSchema.clone();
@@ -43,10 +45,21 @@ export const roomSchema = baseEntitySchema.extend({
   isPrivate: z.boolean().default(false),
   allowedRoleIds: z.array(z.number().int()).default([]),
   allowedUserIds: z.array(z.number().int()).default([]),
+  order: z.number().int().default(0),
+});
+
+export const roomReorderSchema = z.object({
+  roomIds: z
+    .array(z.number().int().positive())
+    .min(1)
+    .refine((ids) => new Set(ids).size === ids.length, {
+      message: 'Room IDs must be unique',
+    }),
 });
 
 export type IRoomCreate = z.infer<typeof roomCreateSchema>;
 export type IRoomUpdate = z.infer<typeof roomUpdateSchema>;
+export type IRoomReorder = z.infer<typeof roomReorderSchema>;
 export type IRoom = z.infer<typeof roomSchema>;
 
 export const roomDeletedSchema = entityDeletedSchema.clone();

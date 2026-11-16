@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   roomAvatarKeySchema,
   roomCreateSchema,
+  roomReorderSchema,
   roomSchema,
   roomUpdateSchema,
 } from '@konvoez/shared';
@@ -10,6 +11,8 @@ import {
 export class CreateRoomDto extends createZodDto(roomCreateSchema) {}
 
 export class UpdateRoomDto extends createZodDto(roomUpdateSchema) {}
+
+export class ReorderRoomsDto extends createZodDto(roomReorderSchema) {}
 
 export class GetRoomDto extends createZodDto(roomSchema) {}
 

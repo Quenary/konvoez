@@ -1,8 +1,8 @@
 # Rooms
 
-The app supports text and voice rooms. Any authenticated user can list and use the rooms they have access to. Creating, editing and deleting rooms (and uploading a room avatar) requires `MANAGE_ROOMS` or `OWNER`; other users get `403`.
+The app supports text and voice rooms. Any authenticated user can list and use the rooms they have access to. Creating, editing, deleting and reordering rooms (and uploading a room avatar) requires `MANAGE_ROOMS` or `OWNER`; other users get `403`.
 
-The room author (id, username, full name) is recorded for audit and returned with the room, but it does not grant edit or delete rights. Room names are unique; a duplicate returns `409`.
+The room author (id, username, full name) is recorded for audit and returned with the room, but it does not grant edit or delete rights. Room names are unique; a duplicate returns `409`. Rooms are ordered by their server-persisted order, and secondarily by name. Reordering is scoped within each room type (text rooms among text, voice rooms among voice).
 
 ## Access control
 
@@ -63,7 +63,8 @@ sequenceDiagram
 - On the next breakpoint the sidebar stays and collapses automatically. Navigation collapses it again.
 - On a wide screen the sidebar stays. The text and voice section headers open the room lists.
 - The **add** buttons (text, voice) in the rooms list and list screen headers are shown only to users with `MANAGE_ROOMS` or the `OWNER`.
-- The per-room right-click context menu and the header ellipsis menu include a top «Подробнее» action for all users. The edit and delete options are shown only to users with `MANAGE_ROOMS` or the `OWNER`.
+- The per-room right-click context menu and the header ellipsis menu include a top «Подробнее» action for all users. The edit, delete, and "Move up" / "Move down" options are shown only to users with `MANAGE_ROOMS` or the `OWNER`.
+- In the sidebar and room lists, users with `MANAGE_ROOMS` or the `OWNER` can reorder rooms by drag-and-drop within each room's group (text rooms or voice rooms).
 - Clicking a room header (avatar and title) opens the **details dialog** (`room-details-dialog`) without a window title. Clicking a direct chat header opens the **user dialog** (`user-dialog`).
 - The details dialog displays the avatar, the room name, and the room type. Edit and delete, shown to users with `MANAGE_ROOMS` or the `OWNER`, are icon buttons aligned to the right. For text rooms it embeds a **files gallery** (`media-gallery`) with attachment counts by type (images, videos, audio, files). Selecting a type opens an in-dialog grid with newest-first infinite scroll. Clicking an item opens a full preview or downloads the file; "Go to message" opens that message in the chat and scrolls it into view. The gallery is hidden for voice rooms.
 - The user dialog shows the nickname and, when it differs, the full name underneath. Opened from a direct chat header, it shows the files gallery and hides the message field. Opened from a voice-room peer in the sidebar, or from «Подробнее» in the user context menu on a voice tile (including the local participant), it shows the message field and hides the gallery. "Go to message" opens the message in the direct chat. An active direct call switches to the chat first.

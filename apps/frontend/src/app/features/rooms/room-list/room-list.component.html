@@ -1,7 +1,15 @@
 @if (type() === ERoomType.TEXT) {
-  <div class="room-rows">
+  <div
+    class="room-rows"
+    cdkDropList
+    [cdkDropListDisabled]="!roomView.canManageRooms()"
+    (cdkDropListDropped)="onRoomDropped($event, ERoomType.TEXT)">
     @for (room of roomView.textRooms(); track room.id) {
       <app-list-item
+        cdkDrag
+        [cdkDragData]="room"
+        [cdkDragDisabled]="!roomView.canManageRooms()"
+        [cdkDragStartDelay]="dragStartDelay"
         [tuiDropdown]="roomContextMenu"
         tuiDropdownContext
         [tuiDropdownSided]="true"
@@ -19,9 +27,17 @@
     }
   </div>
 } @else if (type() === ERoomType.VOICE) {
-  <div class="room-rows">
+  <div
+    class="room-rows"
+    cdkDropList
+    [cdkDropListDisabled]="!roomView.canManageRooms()"
+    (cdkDropListDropped)="onRoomDropped($event, ERoomType.VOICE)">
     @for (room of voiceRooms(); track room.id) {
       <app-list-item
+        cdkDrag
+        [cdkDragData]="room"
+        [cdkDragDisabled]="!roomView.canManageRooms()"
+        [cdkDragStartDelay]="dragStartDelay"
         [tuiDropdown]="roomContextMenu"
         tuiDropdownContext
         [tuiDropdownSided]="true"

@@ -61,11 +61,20 @@
   }
 </button>
 
-<div class="room-rows">
+<div
+  class="room-rows"
+  cdkDropList
+  [cdkDropListDisabled]="!roomView.canManageRooms()"
+  [cdkDropListEnterPredicate]="isTextRoomDrag"
+  (cdkDropListDropped)="onTextRoomDropped($event)">
   @for (room of roomView.textRooms(); track room.id) {
     <button
       class="room-item"
       tuiAsideItem
+      cdkDrag
+      [cdkDragData]="room"
+      [cdkDragDisabled]="!roomView.canManageRooms()"
+      [cdkDragStartDelay]="dragStartDelay"
       [tuiDropdown]="roomContextMenu"
       tuiDropdownContext
       [tuiDropdownSided]="true"
@@ -100,22 +109,33 @@
 
 <div
   class="voice-rooms-group"
-  cdkDropListGroup>
+  cdkDropListGroup
+  cdkDropList
+  [cdkDropListDisabled]="!roomView.canManageRooms()"
+  [cdkDropListEnterPredicate]="isRoomDrag"
+  (cdkDropListDropped)="onVoiceRoomDropped($event)">
   @let dropTargetId = dropTargetRoomId();
   @for (room of voiceRooms(); track room.id) {
     <div
       class="voice-room-container"
       [class.drop-target]="dropTargetId === room.id"
+      cdkDrag
+      [cdkDragData]="room"
+      [cdkDragDisabled]="!roomView.canManageRooms()"
+      [cdkDragStartDelay]="dragStartDelay"
       cdkDropList
       [cdkDropListData]="room"
       [cdkDropListDisabled]="!canMoveMembers()"
       [cdkDropListSortingDisabled]="true"
+      [cdkDropListEnterPredicate]="isPeerDrag"
       (cdkDropListEntered)="onMemberDragEntered(room)"
       (cdkDropListExited)="onMemberDragExited(room)"
       (cdkDropListDropped)="onMemberDropped($event, room)">
       <button
         class="room-item"
         tuiAsideItem
+        cdkDragHandle
+        [cdkDragHandleDisabled]="!roomView.canManageRooms()"
         [tuiDropdown]="roomContextMenu"
         tuiDropdownContext
         [tuiDropdownSided]="true"

@@ -59,6 +59,7 @@ describe('EntitySyncGateway', () => {
     type: ERoomType.TEXT,
     avatar: null,
     avatarUrl: null,
+    order: 0,
     author: { id: 1, username: 'alice', fullname: 'Alice' },
     isPrivate: false,
     allowedRoleIds: [],

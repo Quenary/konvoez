@@ -37,6 +37,7 @@ describe('RoomDetailsDialogComponent', () => {
     type: ERoomType.TEXT,
     avatar: null,
     avatarUrl: 'https://example.com/avatar.png',
+    order: 0,
     isPrivate: false,
     allowedRoleIds: [],
     allowedUserIds: [],

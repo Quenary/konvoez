@@ -15,7 +15,12 @@ import {
   type FileService,
 } from '@shared/services/file.service';
 import { RoomEntity } from './rooms.entity';
-import { CreateRoomDto, GetRoomDto, UpdateRoomDto } from './rooms.dto';
+import {
+  CreateRoomDto,
+  GetRoomDto,
+  ReorderRoomsDto,
+  UpdateRoomDto,
+} from './rooms.dto';
 import {
   EntityManager,
   EntityRepository,
@@ -172,6 +177,7 @@ export class RoomsService {
     return ensureRequestContext(this.em, async () => {
       const rooms = await this.repo.findAll({
         populate: ['author', 'allowedRoles', 'allowedUsers'],
+        orderBy: [{ order: 'ASC' }, { name: 'ASC' }],
       });
       if (!author) {
         return rooms.filter((r) => !r.isPrivate);
@@ -214,11 +220,21 @@ export class RoomsService {
         );
       }
 
+      let order = dto.order;
+      if (order === undefined) {
+        const lastRoom = await this.repo.findOne(
+          { type: dto.type },
+          { orderBy: { order: 'DESC' } },
+        );
+        order = lastRoom ? lastRoom.order + 1 : 0;
+      }
+
       const room = this.repo.create(
         {
           name: dto.name,
           type: dto.type,
           avatar: dto.avatar,
+          order,
           isPrivate: dto.isPrivate ?? false,
           author: this.em.getReference(UserEntity, author.id),
         },
@@ -279,6 +295,7 @@ export class RoomsService {
       if (dto.name !== undefined) room.name = dto.name;
       if (dto.avatar !== undefined) room.avatar = dto.avatar;
       if (dto.isPrivate !== undefined) room.isPrivate = dto.isPrivate;
+      if (dto.order !== undefined) room.order = dto.order;
 
       if (dto.allowedRoleIds !== undefined) {
         const roles = await this.permissionsFacade.findRolesByIds(
@@ -313,6 +330,82 @@ export class RoomsService {
         this.toDto(room),
       );
       return room;
+    });
+  }
+
+  async reorder(dto: ReorderRoomsDto): Promise<RoomEntity[]> {
+    return ensureRequestContext(this.em, async () => {
+      if (dto.roomIds.length === 0) {
+        return [];
+      }
+
+      if (new Set(dto.roomIds).size !== dto.roomIds.length) {
+        throw AppException.badRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Room IDs must be unique',
+        );
+      }
+
+      const rooms = await this.repo.find(
+        { id: { $in: dto.roomIds } },
+        { populate: ['author', 'allowedRoles', 'allowedUsers'] },
+      );
+      if (rooms.length !== dto.roomIds.length) {
+        throw AppException.notFound(
+          ApiErrorCode.ROOM_NOT_FOUND,
+          'One or more rooms not found',
+        );
+      }
+
+      const firstType = rooms[0].type;
+      if (rooms.some((r) => r.type !== firstType)) {
+        throw AppException.badRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'Cannot reorder rooms across different types',
+        );
+      }
+
+      const totalCount = await this.repo.count({ type: firstType });
+      if (rooms.length !== totalCount) {
+        throw AppException.badRequest(
+          ApiErrorCode.BAD_REQUEST,
+          'All rooms of the specified type must be included in reorder',
+        );
+      }
+
+      const roomMap = new Map(rooms.map((r) => [r.id, r]));
+      const updatedRooms: RoomEntity[] = [];
+
+      for (let i = 0; i < dto.roomIds.length; i++) {
+        const id = dto.roomIds[i];
+        if (id === undefined) {
+          continue;
+        }
+        const room = roomMap.get(id);
+        if (!room) {
+          continue;
+        }
+        if (room.order !== i) {
+          room.order = i;
+          this.em.persist(room);
+          updatedRooms.push(room);
+        }
+      }
+
+      if (updatedRooms.length > 0) {
+        await this.em.flush();
+        for (const room of updatedRooms) {
+          emitRoomsDomainEvent(
+            this.eventEmitter,
+            RoomsDomainEvents.ROOM_UPDATED,
+            this.toDto(room),
+          );
+        }
+      }
+
+      return dto.roomIds
+        .map((id) => roomMap.get(id))
+        .filter((r): r is NonNullable<typeof r> => r !== undefined);
     });
   }
 
@@ -419,6 +512,7 @@ export class RoomsService {
       type: room.type,
       avatar: room.avatar,
       avatarUrl: this.getAvatarUrl(room.avatar),
+      order: room.order ?? 0,
       author: {
         id: room.author.id,
         username: room.author.username,

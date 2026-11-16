@@ -41,6 +41,16 @@ export class RoomsApiService {
     );
   }
 
+  reorder(roomIds: number[]): Observable<IRoom[]> {
+    return this.httpClient.put<IRoom[]>(
+      `${environment.apiPath}/rooms/reorder`,
+      { roomIds },
+      {
+        withCredentials: true,
+      },
+    );
+  }
+
   remove(id: number): Observable<void> {
     return this.httpClient.delete<void>(`${environment.apiPath}/rooms/${id}`, {
       withCredentials: true,

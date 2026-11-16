@@ -9,7 +9,9 @@ import { roomAvatarQuerySchema } from './rooms.dto';
 
 describe('RoomsController', () => {
   let controller: RoomsController;
-  let roomsService: jest.Mocked<Pick<RoomsService, 'findOneAsSafeDto'>>;
+  let roomsService: jest.Mocked<
+    Pick<RoomsService, 'findOneAsSafeDto' | 'reorder' | 'toDto'>
+  >;
   let roomsAvatarsService: jest.Mocked<Pick<RoomsAvatarsService, 'getStream'>>;
   let voiceRoomGrantsService: jest.Mocked<
     Pick<VoiceRoomGrantsService, 'grant'>
@@ -19,6 +21,8 @@ describe('RoomsController', () => {
   beforeEach(() => {
     roomsService = {
       findOneAsSafeDto: jest.fn(),
+      reorder: jest.fn(),
+      toDto: jest.fn((r) => r as never),
     };
     roomsAvatarsService = {
       getStream: jest.fn(),
@@ -79,6 +83,18 @@ describe('RoomsController', () => {
       expect(() =>
         roomAvatarQuerySchema.parse({ key: 'users-avatars/user.webp' }),
       ).toThrow();
+    });
+  });
+
+  describe('reorder', () => {
+    it('delegates reordering to service and maps to DTOs', async () => {
+      const room = { id: 1, name: 'Room 1', order: 0 } as never;
+      roomsService.reorder.mockResolvedValueOnce([room]);
+
+      const result = await controller.reorder({ roomIds: [1] });
+
+      expect(roomsService.reorder).toHaveBeenCalledWith({ roomIds: [1] });
+      expect(result).toEqual([room]);
     });
   });
 });
