@@ -322,6 +322,30 @@ describe('RoomsService', () => {
     });
   });
 
+  describe('update', () => {
+    it('clears avatar when avatar is null and emits ROOM_UPDATED', async () => {
+      const existingRoom = {
+        ...room,
+        avatar: 'rooms-avatars/old-avatar.webp',
+      } as unknown as RoomEntity;
+      mockRepo.findOne.mockResolvedValue(existingRoom);
+
+      const result = await service.update(1, { avatar: null });
+
+      expect(result.avatar).toBeNull();
+      expect(mockEm.persist).toHaveBeenCalledWith(existingRoom);
+      expect(mockEm.flush).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomsDomainEvents.ROOM_UPDATED,
+        expect.objectContaining({
+          id: 1,
+          avatar: null,
+          avatarUrl: null,
+        }),
+      );
+    });
+  });
+
   describe('deleteRoomsByAuthor', () => {
     it('deletes rooms by author and emits ROOM_DELETED for each', async () => {
       mockRepo.find.mockResolvedValueOnce([

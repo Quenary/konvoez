@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   inject,
   signal,
 } from '@angular/core';
@@ -22,7 +23,6 @@ import {
   TuiError,
   TuiInput,
   TuiLabel,
-  TuiLink,
   TuiNotificationService,
   TuiTextfield,
   TUI_ITEMS_HANDLERS,
@@ -31,10 +31,8 @@ import {
 import { TuiForm } from '@taiga-ui/layout';
 import {
   TuiAutoColorPipe,
-  TuiAvatar,
   TuiDataListWrapper,
   TuiFileLike,
-  TuiFiles,
   TuiSelect,
   TuiSwitch,
 } from '@taiga-ui/kit';
@@ -46,9 +44,9 @@ import {
 import { RoomsApiService } from '@core/api/rooms-api.service';
 import { RolesApiService } from '@core/api/roles-api.service';
 import { UsersStore } from '@core/stores/users.store';
-import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
-import { catchError, of } from 'rxjs';
+import { catchError, of, Subscription } from 'rxjs';
 import { ApiErrorService } from '@core/services/api-error.service';
+import { AvatarSelectComponent } from '@shared/components/avatar-select/avatar-select.component';
 import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import {
   createZodError,
@@ -56,7 +54,6 @@ import {
   createZodFormValidator,
 } from '@shared/functions/zod-validator.function';
 import { roomFormSchema } from '@shared/schemas/forms.schema';
-import { icons } from '@constants';
 
 export type RoomDialogData = Partial<IRoom>;
 
@@ -76,12 +73,11 @@ export interface IRoomUserOption {
 @Component({
   selector: 'app-room-dialog',
   imports: [
+    AvatarSelectComponent,
     DayjsPipe,
     FormsModule,
     ReactiveFormsModule,
     TranslatePipe,
-    LowerCasePipe,
-    NgOptimizedImage,
     TuiButton,
     TuiCheckbox,
     TuiError,
@@ -91,10 +87,7 @@ export interface IRoomUserOption {
     TuiLabel,
     TuiSelect,
     TuiDataListWrapper,
-    TuiFiles,
     TuiAutoColorPipe,
-    TuiAvatar,
-    TuiLink,
     TuiSwitch,
   ],
   providers: [
@@ -121,7 +114,6 @@ export interface IRoomUserOption {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RoomDialogComponent {
-  protected readonly icons = icons;
   private readonly context =
     injectContext<TuiDialogContext<RoomDialogData | null, RoomDialogData>>();
   private readonly translateService = inject(TranslateService);
@@ -130,8 +122,8 @@ export class RoomDialogComponent {
   private readonly usersStore = inject(UsersStore);
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly apiErrorService = inject(ApiErrorService);
+  private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly maxAvatarSize = maxAvatarSize;
   protected readonly typeOptions = [ERoomType.TEXT, ERoomType.VOICE];
   protected readonly form = new FormGroup(
     {
@@ -204,8 +196,14 @@ export class RoomDialogComponent {
       }
     : null;
 
+  private avatarUploadSub?: Subscription;
+
   constructor() {
     this.usersStore.loadAll();
+
+    this.destroyRef.onDestroy(() => {
+      this.avatarUploadSub?.unsubscribe();
+    });
 
     this.form.controls.avatarFile.valueChanges
       .pipe(takeUntilDestroyed())
@@ -228,24 +226,29 @@ export class RoomDialogComponent {
             .subscribe();
           return;
         }
-        this.roomsApiService.avatarUpload(avatarFile as File).subscribe({
-          next: (result) => {
-            this.form.patchValue({
-              avatar: result.key,
-            });
-            this.avatarUrl.set(result.url);
-          },
-          error: (err) => {
-            this.tuiNotificationsService
-              .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
-                appearance: 'negative',
-                autoClose: 5000,
-                closable: true,
-                label: this.translateService.instant('GENERAL.REQ_ERR'),
-              })
-              .subscribe();
-          },
-        });
+        this.avatarUploadSub?.unsubscribe();
+        this.avatarUploadSub = this.roomsApiService
+          .avatarUpload(avatarFile as File)
+          .subscribe({
+            next: (result) => {
+              this.avatarUploadSub = undefined;
+              this.form.patchValue({
+                avatar: result.key,
+              });
+              this.avatarUrl.set(result.url);
+            },
+            error: (err) => {
+              this.avatarUploadSub = undefined;
+              this.tuiNotificationsService
+                .open(this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'), {
+                  appearance: 'negative',
+                  autoClose: 5000,
+                  closable: true,
+                  label: this.translateService.instant('GENERAL.REQ_ERR'),
+                })
+                .subscribe();
+            },
+          });
       });
   }
 
@@ -285,6 +288,15 @@ export class RoomDialogComponent {
     return this.selectedUserIds().has(userId);
   }
 
+  protected onAvatarRemove(): void {
+    this.avatarUploadSub?.unsubscribe();
+    this.avatarUploadSub = undefined;
+    this.form.controls.avatar.setValue(null);
+    this.form.controls.avatar.markAsDirty();
+    this.form.controls.avatarFile.setValue(null, { emitEvent: false });
+    this.avatarUrl.set(null);
+  }
+
   submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -296,7 +308,7 @@ export class RoomDialogComponent {
       ...this.context.data,
       name,
       type,
-      avatar: avatar ?? undefined,
+      avatar,
       avatarUrl: this.avatarUrl(),
       isPrivate,
       allowedRoleIds: isPrivate ? Array.from(this.selectedRoleIds()) : [],

@@ -16,7 +16,7 @@ export const roomTypeSchema = z.enum(ERoomType, {
 export const roomCreateSchema = z.object({
   name: roomNameSchema,
   type: roomTypeSchema,
-  avatar: roomAvatarKeySchema.optional(),
+  avatar: roomAvatarKeySchema.nullish(),
   isPrivate: z.boolean().optional(),
   allowedRoleIds: z.array(z.number().int()).optional(),
   allowedUserIds: z.array(z.number().int()).optional(),

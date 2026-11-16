@@ -21,6 +21,14 @@ describe('room schemas avatar validation', () => {
     ).not.toThrow();
 
     expect(() =>
+      roomCreateSchema.parse({
+        name: 'General',
+        type: ERoomType.TEXT,
+        avatar: null,
+      }),
+    ).not.toThrow();
+
+    expect(() =>
       roomUpdateSchema.parse({
         avatar: null,
       }),

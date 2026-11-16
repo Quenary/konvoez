@@ -13,55 +13,12 @@
     </header>
 
     <div class="scroll-content">
-      <label tuiInputFiles>
-        <input
-          tuiInputFiles
-          id="profile-avatar"
-          accept="image/*"
-          [maxFileSize]="maxAvatarSize"
-          [formControl]="form.controls.avatarFile"
-          type="file" />
-
-        <ng-template let-dragged>
-          @if (dragged) {
-            <div
-              appearance="secondary"
-              size="xxl"
-              [tuiAvatar]="icons.droplet">
-            </div>
-            <div>
-              {{ 'GENERAL.DROP_IT' | translate }}
-            </div>
-          } @else {
-            @if (avatarUrl(); as au) {
-              <div
-                appearance="secondary"
-                size="xxl"
-                tuiAvatar>
-                <img
-                  [ngSrc]="au"
-                  fill
-                  priority
-                  [alt]="au" />
-              </div>
-            } @else {
-              <div
-                appearance="secondary"
-                size="xxl"
-                [tuiAvatar]="icons['cloud-upload']">
-              </div>
-            }
-
-            <div>
-              {{ 'GENERAL.DRAG_FILE' | translate }}
-              {{ 'GENERAL.OR' | translate | lowercase }}
-              <a tuiLink>
-                {{ 'GENERAL.CLICK_TO_SELECT' | translate | lowercase }}
-              </a>
-            </div>
-          }
-        </ng-template>
-      </label>
+      <app-avatar-select
+        inputId="profile-avatar"
+        [avatarUrl]="avatarUrl()"
+        [control]="form.controls.avatarFile"
+        [priority]="true"
+        (remove)="onAvatarRemove()" />
 
       <tui-textfield [iconStart]="icons.user">
         <label
