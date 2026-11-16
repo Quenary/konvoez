@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { InjectRepository } from '@mikro-orm/nestjs';
-import webPush from 'web-push';
+import * as webPush from 'web-push';
 import {
   ApiErrorCode,
   DEFAULT_USER_NOTIFICATION_SETTINGS,

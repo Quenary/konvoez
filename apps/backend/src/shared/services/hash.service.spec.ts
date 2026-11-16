@@ -12,7 +12,7 @@ describe('HashService', () => {
       const plaintext = 'SuperSecret123!';
       const hash = await service.hash(plaintext);
 
-      expect(hash).toMatch(/^\$argon2id\$v=19\$m=65536,p=1,t=3\$/);
+      expect(hash).toMatch(/^\$argon2id\$v=19\$m=65536,t=3,p=1\$/);
     });
 
     it('generates different hashes for identical plaintext due to random salting', async () => {
@@ -39,6 +39,16 @@ describe('HashService', () => {
       const isValid = await service.verify(unicodeString, hash);
       expect(isValid).toBe(true);
     });
+
+    it('successfully hashes and verifies an empty string', async () => {
+      const hash = await service.hash('');
+
+      expect(hash).toMatch(/^\$argon2id\$v=19\$m=65536,t=3,p=1\$/);
+      const isValid = await service.verify('', hash);
+      expect(isValid).toBe(true);
+      const isInvalid = await service.verify('wrong', hash);
+      expect(isInvalid).toBe(false);
+    });
   });
 
   describe('verify', () => {
@@ -47,6 +57,15 @@ describe('HashService', () => {
       const hash = await service.hash(plaintext);
 
       const result = await service.verify(plaintext, hash);
+      expect(result).toBe(true);
+    });
+
+    it('verifies legacy argon2 hashes with alternative parameter ordering', async () => {
+      const plaintext = 'SuperSecret123!';
+      const legacyHash =
+        '$argon2id$v=19$m=65536,p=1,t=3$WN1F2uIfEHFbJ2DVu08ZWQ$Txj/ehvp9+lnkBadYfKqZgp/8G7X87Y2HCRJ86rEv+c';
+
+      const result = await service.verify(plaintext, legacyHash);
       expect(result).toBe(true);
     });
 

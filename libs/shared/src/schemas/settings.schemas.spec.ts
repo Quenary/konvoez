@@ -13,6 +13,7 @@ import {
   settingItemUpdateSchema,
   settingSchema,
   streamMaxBitrateKbpsSettingValueSchema,
+  toVapidSubject,
   voiceMaxBitrateKbpsSettingSchema,
   voiceMaxBitrateKbpsSettingValueSchema,
 } from '../index';
@@ -241,6 +242,23 @@ describe('Settings Schemas', () => {
           value: 30,
         }).success,
       ).toBe(true);
+    });
+  });
+
+  describe('toVapidSubject', () => {
+    it.each([
+      [null, null],
+      [undefined, null],
+      ['', null],
+      ['   ', null],
+      ['invalid-email', null],
+      ['mailto:admin@example.com', 'mailto:admin@example.com'],
+      ['  mailto:admin@example.com  ', 'mailto:admin@example.com'],
+      ['https://example.com/vapid', 'https://example.com/vapid'],
+      ['admin@example.com', 'mailto:admin@example.com'],
+      ['  admin@example.com  ', 'mailto:admin@example.com'],
+    ])('maps %s to %s', (input, expected) => {
+      expect(toVapidSubject(input)).toBe(expected);
     });
   });
 });

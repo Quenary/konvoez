@@ -166,8 +166,10 @@ export const vapidEmailSettingSchema = vapidEmailSettingBaseSchema
   .extend(settingMetaSchema.shape);
 export type TVapidEmailSetting = z.infer<typeof vapidEmailSettingSchema>;
 
-export function toVapidSubject(value: string): string | null {
-  const normalized = value.trim();
+export function toVapidSubject(
+  value: string | null | undefined,
+): string | null {
+  const normalized = value?.trim();
   if (!normalized) {
     return null;
   }
