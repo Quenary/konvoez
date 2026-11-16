@@ -1,3 +1,13 @@
+## 1.33.0 (2026-11-16)
+
+### Features
+
+- **server:** rooms re-ordering ([#91](https://github.com/Quenary/konvoez/issues/91))
+- **server:** avatar removal (user,room) ([3ac0a36a](https://github.com/Quenary/konvoez/commit/3ac0a36a))
+- **frontend:** appearance in initial setup, compact notification and devices initial setup ([532c5896](https://github.com/Quenary/konvoez/commit/532c5896))
+- **server:** language selection ([#94](https://github.com/Quenary/konvoez/issues/94))
+- **frontend:** theme selection ([#95](https://github.com/Quenary/konvoez/issues/95))
+
 ## 1.32.1 (2026-11-12)
 
 ### Bug Fixes
