@@ -17,10 +17,24 @@ import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
 import { ApiErrorService } from '@core/services/api-error.service';
 import { TuiNotificationService } from '@taiga-ui/core';
-import { catchError, EMPTY, mergeMap, pipe, switchMap, tap } from 'rxjs';
+import {
+  catchError,
+  concatMap,
+  EMPTY,
+  mergeMap,
+  pipe,
+  switchMap,
+  tap,
+} from 'rxjs';
 import { RoomsApiService } from '@core/api/rooms-api.service';
 
-const sortByName = (a: IRoom, b: IRoom): number => a.name.localeCompare(b.name);
+const sortByOrder = (a: IRoom, b: IRoom): number => {
+  const orderDiff = (a.order ?? 0) - (b.order ?? 0);
+  if (orderDiff !== 0) {
+    return orderDiff;
+  }
+  return a.name.localeCompare(b.name);
+};
 
 export const RoomsStore = signalStore(
   { providedIn: 'root' },
@@ -30,12 +44,12 @@ export const RoomsStore = signalStore(
     textRooms: computed(() =>
       entities()
         .filter((room) => room.type === ERoomType.TEXT)
-        .sort(sortByName),
+        .sort(sortByOrder),
     ),
     voiceRooms: computed(() =>
       entities()
         .filter((room) => room.type === ERoomType.VOICE)
-        .sort(sortByName),
+        .sort(sortByOrder),
     ),
   })),
   withMethods(
@@ -148,6 +162,44 @@ export const RoomsStore = signalStore(
                 catchError((error) => {
                   showError(error);
                   return EMPTY;
+                }),
+              ),
+            ),
+          ),
+        ),
+
+        reorder: rxMethod<number[]>(
+          pipe(
+            tap((roomIds) => {
+              const currentEntities = store.entities();
+              const roomMap = new Map(currentEntities.map((r) => [r.id, r]));
+              const updatedRooms: IRoom[] = [];
+              for (let i = 0; i < roomIds.length; i++) {
+                const room = roomMap.get(roomIds[i]);
+                if (room && room.order !== i) {
+                  updatedRooms.push({ ...room, order: i });
+                }
+              }
+              if (updatedRooms.length > 0) {
+                patchState(
+                  store,
+                  ...updatedRooms.map((room) => setEntity(room)),
+                );
+              }
+            }),
+            concatMap((roomIds) =>
+              roomsApiService.reorder(roomIds).pipe(
+                tap((updated) => {
+                  patchState(store, ...updated.map((r) => setEntity(r)));
+                }),
+                catchError((error) => {
+                  showError(error);
+                  return roomsApiService.list().pipe(
+                    tap((rooms) => {
+                      patchState(store, setAllEntities(rooms));
+                    }),
+                    catchError(() => EMPTY),
+                  );
                 }),
               ),
             ),

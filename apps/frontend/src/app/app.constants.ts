@@ -1,18 +1,4 @@
 /**
- * List of supported locales
- */
-export const supportedLocales = [
-  'ru',
-  'de',
-  'fr',
-  'ja',
-  'it',
-  'es',
-  'zh',
-  'en',
-];
-
-/**
  * List of shared icons
  * @see https://lucide.dev/icons
  */
@@ -28,6 +14,7 @@ export const icons = {
   direct: '@tui.message-circle-heart',
   settings: '@tui.settings',
   'settings-profile': '@tui.user-pen',
+  'settings-appearance': '@tui.palette',
   'settings-security': '@tui.shield-user',
   'settings-devices': '@tui.file-headphone',
   'settings-notifications': '@tui.bell-ring',
@@ -35,6 +22,11 @@ export const icons = {
   'settings-roles': '@tui.user-cog',
   'settings-users': '@tui.users',
   'settings-admin': '@tui.shield',
+  /* Theme / Appearance */
+  sun: '@tui.sun',
+  moon: '@tui.moon',
+  'sun-moon': '@tui.sun-moon',
+  languages: '@tui.languages',
   /* Navigation / shell */
   home: '@tui.home',
   info: '@tui.info',

@@ -16,19 +16,22 @@ jest.mock('@mikro-orm/core', () => {
     p: createProxy(),
   };
 });
-jest.mock('web-push', () => ({
-  __esModule: true,
-  default: {
-    setVapidDetails: jest.fn(),
-    generateVAPIDKeys: jest.fn(() => ({
-      publicKey: 'generated-pub',
-      privateKey: 'generated-priv',
-    })),
-    sendNotification: jest.fn().mockResolvedValue(undefined),
-  },
-}));
+jest.mock('web-push', () => {
+  const setVapidDetails = jest.fn();
+  const generateVAPIDKeys = jest.fn(() => ({
+    publicKey: 'generated-pub',
+    privateKey: 'generated-priv',
+  }));
+  const sendNotification = jest.fn().mockResolvedValue(undefined);
+  return {
+    __esModule: true,
+    setVapidDetails,
+    generateVAPIDKeys,
+    sendNotification,
+  };
+});
 
-import webPush from 'web-push';
+import * as webPush from 'web-push';
 import { EntityManager, EntityRepository } from '@mikro-orm/core';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
@@ -154,6 +157,68 @@ describe('NotificationsService', () => {
 
   afterEach(() => {
     service.onModuleDestroy();
+  });
+
+  describe('ensureVapidKeys', () => {
+    it('returns stored keys from disk when they exist without generating new ones', () => {
+      const keys = service.ensureVapidKeys();
+
+      expect(
+        vapidKeyStorageService.assertCanGenerateVapidKeys,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        vapidKeyStorageService.readVapidKeysFromDisk,
+      ).toHaveBeenCalledTimes(1);
+      expect(webPush.generateVAPIDKeys).not.toHaveBeenCalled();
+      expect(vapidKeyStorageService.saveVapidKeysToDisk).not.toHaveBeenCalled();
+      expect(keys).toEqual({
+        publicKey: 'stored-pub',
+        privateKey: 'stored-priv',
+      });
+    });
+
+    it('generates, saves and returns new keys when no stored keys exist on disk', () => {
+      (
+        vapidKeyStorageService.readVapidKeysFromDisk as jest.Mock
+      ).mockReturnValue(null);
+
+      const keys = service.ensureVapidKeys();
+
+      expect(
+        vapidKeyStorageService.assertCanGenerateVapidKeys,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        vapidKeyStorageService.readVapidKeysFromDisk,
+      ).toHaveBeenCalledTimes(1);
+      expect(webPush.generateVAPIDKeys).toHaveBeenCalledTimes(1);
+      expect(vapidKeyStorageService.saveVapidKeysToDisk).toHaveBeenCalledWith({
+        publicKey: 'generated-pub',
+        privateKey: 'generated-priv',
+      });
+      expect(keys).toEqual({
+        publicKey: 'generated-pub',
+        privateKey: 'generated-priv',
+      });
+    });
+  });
+
+  describe('getPublicKeyIfEnabled', () => {
+    it('returns null if VAPID subject is not resolved or configured', async () => {
+      (service['settingsService'].getValue as jest.Mock).mockResolvedValue(
+        null,
+      );
+
+      const key = await service.getPublicKeyIfEnabled();
+
+      expect(key).toBeNull();
+      expect(webPush.generateVAPIDKeys).not.toHaveBeenCalled();
+    });
+
+    it('returns public key when VAPID subject is configured', async () => {
+      const key = await service.getPublicKeyIfEnabled();
+
+      expect(key).toBe('stored-pub');
+    });
   });
 
   describe('saveSubscription', () => {

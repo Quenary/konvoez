@@ -3,6 +3,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { injectContext } from '@taiga-ui/polymorpheus';
 import { TuiButton, TuiDialogContext } from '@taiga-ui/core';
 import { TuiForm } from '@taiga-ui/layout';
+import { SettingsAppearanceComponent } from '../settings-appearance/settings-appearance.component';
 import { SettingsDevicesComponent } from '../settings-devices/settings-devices.component';
 import { SettingsNotificationsComponent } from '../settings-notifications/settings-notifications.component';
 import { SettingsStore } from '@core/stores/settings.store';
@@ -13,6 +14,7 @@ import { SettingsStore } from '@core/stores/settings.store';
     TranslatePipe,
     TuiButton,
     TuiForm,
+    SettingsAppearanceComponent,
     SettingsNotificationsComponent,
     SettingsDevicesComponent,
   ],

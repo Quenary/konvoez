@@ -214,6 +214,40 @@ describe('ProfileService', () => {
       expect(result).toEqual({ user: author, sessionVersion: undefined });
     });
 
+    it('should assign avatar as null when removing avatar', async () => {
+      mockRepo.findOne.mockResolvedValue(null);
+
+      const dto = {
+        avatar: null,
+      } as UpdateProfileDto;
+
+      await service.updateSelf(author, dto);
+
+      expect(mockRepo.assign).toHaveBeenCalledWith(
+        mockUser,
+        expect.objectContaining({
+          avatar: null,
+        }),
+      );
+    });
+
+    it('should update language setting and assign it to user', async () => {
+      mockRepo.findOne.mockResolvedValue(null);
+
+      const dto = {
+        language: 'ru',
+      } as UpdateProfileDto;
+
+      await service.updateSelf(author, dto);
+
+      expect(mockRepo.assign).toHaveBeenCalledWith(
+        mockUser,
+        expect.objectContaining({
+          language: 'ru',
+        }),
+      );
+    });
+
     it('should hold old email and send verification code when SMTP is configured', async () => {
       mailService.isConfigured = true;
       mockRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(null);

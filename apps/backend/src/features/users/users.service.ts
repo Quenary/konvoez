@@ -6,6 +6,8 @@ import { EntityManager, EntityRepository, FilterQuery } from '@mikro-orm/core';
 import {
   ApiErrorCode,
   EPermission,
+  FALLBACK_LANGUAGE,
+  TLanguage,
   userAvatarKeyRegexp,
 } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
@@ -352,7 +354,21 @@ export class UsersService {
       twoFactorEnabled: user.twoFactorEnabledAt != null,
       emailVerified: user.emailVerified ?? false,
       pendingEmail: user.pendingEmail ?? null,
+      language: (user.language as TLanguage) ?? null,
+      lastDetectedLocale: user.lastDetectedLocale ?? FALLBACK_LANGUAGE,
     };
+  }
+
+  async updateLastDetectedLocale(
+    userId: number,
+    locale: string,
+  ): Promise<void> {
+    const em = this.em.fork();
+    await em.nativeUpdate(
+      UserEntity,
+      { id: userId },
+      { lastDetectedLocale: locale },
+    );
   }
 
   async setTwoFactorSecret(

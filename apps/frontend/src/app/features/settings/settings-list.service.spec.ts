@@ -30,6 +30,7 @@ describe('SettingsListService', () => {
     '/settings/profile',
     '/settings/security',
     '/settings/devices',
+    '/settings/appearance',
     '/settings/notifications',
   ];
 

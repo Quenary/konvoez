@@ -20,6 +20,7 @@ import { VoiceRoomGrantsService } from '../voice-rooms/voice-room-grants.service
 import {
   CreateRoomDto,
   GetRoomDto,
+  ReorderRoomsDto,
   RoomAvatarQueryDto,
   UpdateRoomDto,
 } from './rooms.dto';
@@ -102,6 +103,14 @@ export class RoomsController {
     });
 
     return new StreamableFile(stream);
+  }
+
+  @Put('reorder')
+  @RequirePermissions([EPermission.MANAGE_ROOMS])
+  @ApiOkResponse({ type: GetRoomDto, isArray: true })
+  async reorder(@Body() dto: ReorderRoomsDto): Promise<GetRoomDto[]> {
+    const rooms = await this.roomsService.reorder(dto);
+    return rooms.map((room) => this.roomsService.toDto(room));
   }
 
   @Get(':id')

@@ -60,6 +60,7 @@ MENU:
     PROFILE: Profile
     SECURITY: Security
     DEVICES: Devices
+    APPEARANCE: Appearance
     NOTIFICATIONS: Notifications
     INVITES: Invites
     USERS: Users
@@ -195,6 +196,8 @@ VOICE:
 ROOMS:
   TEXT_TITLE: Text
   VOICE_TITLE: Voice
+  MOVE_UP: Move up
+  MOVE_DOWN: Move down
   ADD_TEXT_ROOM: Create text room
   ADD_VOICE_ROOM: Create voice room
   EMPTY_TEXT_ROOMS: No text rooms
@@ -364,6 +367,14 @@ SETTINGS:
     MIC_TEST_STOP: Stop checking
     MIC_TEST_FEEDBACK_WARNING: Headphones are recommended during testing.
     MIC_TEST_OUTPUT_HINT: Playing to default output (browser does not support selecting output device).
+  APPEARANCE:
+    TITLE: Appearance
+    THEME: Theme
+    THEME_AUTO: System default
+    THEME_DARK: Dark
+    THEME_LIGHT: Light
+    LANGUAGE: Language
+    LANGUAGE_AUTO: System default
   INVITES:
     TITLE: Invites
     SUBTITLE: Manage single-use invites for registration

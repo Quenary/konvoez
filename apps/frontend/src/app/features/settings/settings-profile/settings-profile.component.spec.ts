@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { computed, signal } from '@angular/core';
 import { provideStore, Store } from '@ngrx/store';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { provideTranslateService } from '@ngx-translate/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
@@ -187,5 +187,76 @@ describe('SettingsProfileComponent', () => {
 
     component['cancelEmailChange']();
     expect(mockProfileApi.cancelEmailChange).toHaveBeenCalled();
+  });
+
+  it('clears avatar state and dispatches patch user with avatar null on submit', async () => {
+    const user = createDummyUser({
+      avatar: 'user-avatars/old-avatar.webp',
+      avatarUrl: 'https://example.com/old-avatar.webp',
+    });
+    await setupTestBed(user);
+
+    const store = TestBed.inject(Store);
+    const dispatchSpy = vi.spyOn(store, 'dispatch');
+
+    const removeBtn = fixture.nativeElement.querySelector(
+      '.avatar-select-remove',
+    ) as HTMLButtonElement;
+    expect(removeBtn).toBeTruthy();
+
+    removeBtn.click();
+    fixture.detectChanges();
+
+    expect(component['avatarUrl']()).toBeNull();
+    expect(component['form'].controls.avatar.value).toBeNull();
+    expect(component['form'].dirty).toBe(true);
+    expect(component['isSaveDisabled']()).toBe(false);
+
+    component['onSubmit']();
+
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      AuthActions.requestPatchUser({
+        body: expect.objectContaining({
+          username: 'alice',
+          fullname: 'Alice Smith',
+          email: 'alice@example.com',
+          avatar: null,
+        }),
+      }),
+    );
+  });
+
+  it('cancels in-flight avatar upload when avatar is removed', async () => {
+    const uploadSubject = new Subject<{ key: string; url: string }>();
+    mockProfileApi.avatarUpload.mockReturnValue(uploadSubject.asObservable());
+
+    const user = createDummyUser({
+      avatar: 'user-avatars/old-avatar.webp',
+      avatarUrl: 'https://example.com/old-avatar.webp',
+    });
+    await setupTestBed(user);
+
+    const dummyFile = new File(['content'], 'avatar.png', {
+      type: 'image/png',
+    });
+    component['form'].controls.avatarFile.setValue(dummyFile);
+
+    expect(mockProfileApi.avatarUpload).toHaveBeenCalledWith(dummyFile);
+
+    component['onAvatarRemove']();
+    fixture.detectChanges();
+
+    expect(component['avatarUrl']()).toBeNull();
+    expect(component['form'].controls.avatar.value).toBeNull();
+
+    // Now emit from upload after removal
+    uploadSubject.next({
+      key: 'user-avatars/late.webp',
+      url: 'https://example.com/late.webp',
+    });
+    fixture.detectChanges();
+
+    expect(component['avatarUrl']()).toBeNull();
+    expect(component['form'].controls.avatar.value).toBeNull();
   });
 });

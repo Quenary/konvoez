@@ -6,6 +6,7 @@ import {
   DestroyRef,
   effect,
   inject,
+  input,
   signal,
 } from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -168,6 +169,8 @@ export class SettingsDevicesComponent {
   private readonly translateService = inject(TranslateService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly layoutService = inject(LayoutService);
+
+  public readonly compact = input<boolean>(false);
 
   protected readonly icons = icons;
   protected readonly isNarrow = this.layoutService.isNarrow;

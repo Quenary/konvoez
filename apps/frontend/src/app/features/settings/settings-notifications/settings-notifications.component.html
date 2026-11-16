@@ -53,140 +53,142 @@
         </div>
       }
 
-      @if (settingsLoadFailed()) {
-        <div class="settings-load-error">
-          <p class="settings-load-error-message">
-            {{ 'SETTINGS.NOTIFICATIONS.LOAD_ERROR' | translate }}
-          </p>
-          <button
-            tuiButton
-            type="button"
-            size="s"
-            appearance="secondary"
-            (click)="loadSettings()">
-            {{ 'GENERAL.RETRY' | translate }}
-          </button>
-        </div>
+      @if (!compact()) {
+        @if (settingsLoadFailed()) {
+          <div class="settings-load-error">
+            <p class="settings-load-error-message">
+              {{ 'SETTINGS.NOTIFICATIONS.LOAD_ERROR' | translate }}
+            </p>
+            <button
+              tuiButton
+              type="button"
+              size="s"
+              appearance="secondary"
+              (click)="loadSettings()">
+              {{ 'GENERAL.RETRY' | translate }}
+            </button>
+          </div>
+        }
+
+        @let settingsLocked = isSettingsLoading() || settingsLoadFailed();
+
+        <fieldset [disabled]="settingsLocked">
+          <legend tuiTitle>
+            {{ 'SETTINGS.NOTIFICATIONS.TOPICS_TITLE' | translate }}
+          </legend>
+
+          <div class="setting-item">
+            <label tuiLabel>
+              <input
+                tuiSwitch
+                type="checkbox"
+                [ngModel]="settings().directMessages"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="onUpdateDirectMessages($event)" />
+              {{ 'SETTINGS.NOTIFICATIONS.DIRECT_MESSAGES' | translate }}
+            </label>
+            <p class="setting-item-description">
+              {{ 'SETTINGS.NOTIFICATIONS.DIRECT_MESSAGES_DESC' | translate }}
+            </p>
+          </div>
+
+          <div class="setting-item">
+            <label tuiLabel>
+              <input
+                tuiSwitch
+                type="checkbox"
+                [ngModel]="settings().directCalls"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="onUpdateDirectCalls($event)" />
+              {{ 'SETTINGS.NOTIFICATIONS.DIRECT_CALLS' | translate }}
+            </label>
+            <p class="setting-item-description">
+              {{ 'SETTINGS.NOTIFICATIONS.DIRECT_CALLS_DESC' | translate }}
+            </p>
+          </div>
+
+          <div class="setting-item">
+            <label tuiLabel>
+              <input
+                tuiSwitch
+                type="checkbox"
+                [ngModel]="settings().replies"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="onUpdateReplies($event)" />
+              {{ 'SETTINGS.NOTIFICATIONS.REPLIES' | translate }}
+            </label>
+            <p class="setting-item-description">
+              {{ 'SETTINGS.NOTIFICATIONS.REPLIES_DESC' | translate }}
+            </p>
+          </div>
+
+          <div class="setting-item">
+            <label tuiLabel>
+              <input
+                tuiSwitch
+                type="checkbox"
+                [ngModel]="settings().reactions"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="onUpdateReactions($event)" />
+              {{ 'SETTINGS.NOTIFICATIONS.REACTIONS' | translate }}
+            </label>
+            <p class="setting-item-description">
+              {{ 'SETTINGS.NOTIFICATIONS.REACTIONS_DESC' | translate }}
+            </p>
+          </div>
+        </fieldset>
+
+        <fieldset [disabled]="settingsLocked">
+          <legend tuiTitle>
+            {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_TITLE' | translate }}
+          </legend>
+
+          <div class="setting-item">
+            <label tuiLabel>
+              <input
+                tuiSwitch
+                type="checkbox"
+                [ngModel]="settings().mentions.username"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="onUpdateMention('username', $event)" />
+              {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_USERNAME' | translate }}
+            </label>
+            <p class="setting-item-description">
+              {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_USERNAME_DESC' | translate }}
+            </p>
+          </div>
+
+          <div class="setting-item">
+            <label tuiLabel>
+              <input
+                tuiSwitch
+                type="checkbox"
+                [ngModel]="settings().mentions.role"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="onUpdateMention('role', $event)" />
+              {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_ROLE' | translate }}
+            </label>
+            <p class="setting-item-description">
+              {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_ROLE_DESC' | translate }}
+            </p>
+          </div>
+
+          <div class="setting-item">
+            <label tuiLabel>
+              <input
+                tuiSwitch
+                type="checkbox"
+                [ngModel]="settings().mentions.everyone"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="onUpdateMention('everyone', $event)" />
+              {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_EVERYONE' | translate }}
+            </label>
+            <p class="setting-item-description">
+              {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_EVERYONE_DESC' | translate }}
+            </p>
+          </div>
+        </fieldset>
       }
-
-      @let settingsLocked = isSettingsLoading() || settingsLoadFailed();
-
-      <fieldset [disabled]="settingsLocked">
-        <legend tuiTitle>
-          {{ 'SETTINGS.NOTIFICATIONS.TOPICS_TITLE' | translate }}
-        </legend>
-
-        <div class="setting-item">
-          <label tuiLabel>
-            <input
-              tuiSwitch
-              type="checkbox"
-              [ngModel]="settings().directMessages"
-              [ngModelOptions]="{ standalone: true }"
-              (ngModelChange)="onUpdateDirectMessages($event)" />
-            {{ 'SETTINGS.NOTIFICATIONS.DIRECT_MESSAGES' | translate }}
-          </label>
-          <p class="setting-item-description">
-            {{ 'SETTINGS.NOTIFICATIONS.DIRECT_MESSAGES_DESC' | translate }}
-          </p>
-        </div>
-
-        <div class="setting-item">
-          <label tuiLabel>
-            <input
-              tuiSwitch
-              type="checkbox"
-              [ngModel]="settings().directCalls"
-              [ngModelOptions]="{ standalone: true }"
-              (ngModelChange)="onUpdateDirectCalls($event)" />
-            {{ 'SETTINGS.NOTIFICATIONS.DIRECT_CALLS' | translate }}
-          </label>
-          <p class="setting-item-description">
-            {{ 'SETTINGS.NOTIFICATIONS.DIRECT_CALLS_DESC' | translate }}
-          </p>
-        </div>
-
-        <div class="setting-item">
-          <label tuiLabel>
-            <input
-              tuiSwitch
-              type="checkbox"
-              [ngModel]="settings().replies"
-              [ngModelOptions]="{ standalone: true }"
-              (ngModelChange)="onUpdateReplies($event)" />
-            {{ 'SETTINGS.NOTIFICATIONS.REPLIES' | translate }}
-          </label>
-          <p class="setting-item-description">
-            {{ 'SETTINGS.NOTIFICATIONS.REPLIES_DESC' | translate }}
-          </p>
-        </div>
-
-        <div class="setting-item">
-          <label tuiLabel>
-            <input
-              tuiSwitch
-              type="checkbox"
-              [ngModel]="settings().reactions"
-              [ngModelOptions]="{ standalone: true }"
-              (ngModelChange)="onUpdateReactions($event)" />
-            {{ 'SETTINGS.NOTIFICATIONS.REACTIONS' | translate }}
-          </label>
-          <p class="setting-item-description">
-            {{ 'SETTINGS.NOTIFICATIONS.REACTIONS_DESC' | translate }}
-          </p>
-        </div>
-      </fieldset>
-
-      <fieldset [disabled]="settingsLocked">
-        <legend tuiTitle>
-          {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_TITLE' | translate }}
-        </legend>
-
-        <div class="setting-item">
-          <label tuiLabel>
-            <input
-              tuiSwitch
-              type="checkbox"
-              [ngModel]="settings().mentions.username"
-              [ngModelOptions]="{ standalone: true }"
-              (ngModelChange)="onUpdateMention('username', $event)" />
-            {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_USERNAME' | translate }}
-          </label>
-          <p class="setting-item-description">
-            {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_USERNAME_DESC' | translate }}
-          </p>
-        </div>
-
-        <div class="setting-item">
-          <label tuiLabel>
-            <input
-              tuiSwitch
-              type="checkbox"
-              [ngModel]="settings().mentions.role"
-              [ngModelOptions]="{ standalone: true }"
-              (ngModelChange)="onUpdateMention('role', $event)" />
-            {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_ROLE' | translate }}
-          </label>
-          <p class="setting-item-description">
-            {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_ROLE_DESC' | translate }}
-          </p>
-        </div>
-
-        <div class="setting-item">
-          <label tuiLabel>
-            <input
-              tuiSwitch
-              type="checkbox"
-              [ngModel]="settings().mentions.everyone"
-              [ngModelOptions]="{ standalone: true }"
-              (ngModelChange)="onUpdateMention('everyone', $event)" />
-            {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_EVERYONE' | translate }}
-          </label>
-          <p class="setting-item-description">
-            {{ 'SETTINGS.NOTIFICATIONS.MENTIONS_EVERYONE_DESC' | translate }}
-          </p>
-        </div>
-      </fieldset>
     </div>
   </app-route-page>
 </form>

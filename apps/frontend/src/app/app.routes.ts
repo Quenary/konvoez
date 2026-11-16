@@ -123,6 +123,13 @@ export const routes: Routes = [
               ),
           },
           {
+            path: 'appearance',
+            loadComponent: () =>
+              import('./features/settings/settings-appearance/settings-appearance.component').then(
+                (m) => m.SettingsAppearanceComponent,
+              ),
+          },
+          {
             path: 'notifications',
             loadComponent: () =>
               import('./features/settings/settings-notifications/settings-notifications.component').then(

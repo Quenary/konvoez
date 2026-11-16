@@ -1,0 +1,59 @@
+<form
+  novalidate
+  tuiForm="m">
+  <app-route-page>
+    <header tuiHeader>
+      <app-header-back-button to="/settings" />
+      <h2 tuiTitle>
+        <tui-icon [icon]="icons['settings-appearance']" />
+        <span tuiFade>{{ 'SETTINGS.APPEARANCE.TITLE' | translate }}</span>
+      </h2>
+    </header>
+
+    <div class="scroll-content">
+      <div class="setting-item">
+        <label tuiLabel>
+          {{ 'SETTINGS.APPEARANCE.THEME' | translate }}
+          <tui-textfield
+            [iconStart]="themeIcon()"
+            tuiChevron
+            tuiTextfieldSize="m"
+            [stringify]="stringifyTheme()"
+            [tuiTextfieldCleaner]="false">
+            <input
+              tuiSelect
+              [ngModel]="theme()"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onSelectTheme($event)" />
+
+            <tui-data-list-wrapper
+              *tuiDropdown
+              [items]="themes" />
+          </tui-textfield>
+        </label>
+      </div>
+
+      <div class="setting-item">
+        <label tuiLabel>
+          {{ 'SETTINGS.APPEARANCE.LANGUAGE' | translate }}
+          <tui-textfield
+            [iconStart]="icons.languages"
+            tuiChevron
+            tuiTextfieldSize="m"
+            [stringify]="stringifyLanguage()"
+            [tuiTextfieldCleaner]="false">
+            <input
+              tuiSelect
+              [ngModel]="selectedLanguage()"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onSelectLanguage($event)" />
+
+            <tui-data-list-wrapper
+              *tuiDropdown
+              [items]="languages" />
+          </tui-textfield>
+        </label>
+      </div>
+    </div>
+  </app-route-page>
+</form>

@@ -27,6 +27,7 @@ import { UsersStore } from '@core/stores/users.store';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
 import { VoiceLobbyStore } from '@core/voice/voice-lobby.store';
 import { UserDialogService } from '@shared/user-dialog/user-dialog.service';
+import { RoomManageService } from '../room-manage.service';
 import { RoomNavigationService } from '../room-navigation.service';
 import { RoomAsideListComponent } from './room-aside-list.component';
 import type {
@@ -76,6 +77,7 @@ describe('RoomAsideListComponent', () => {
     type: ERoomType.TEXT,
     avatar: null,
     avatarUrl: null,
+    order: 0,
     isPrivate: false,
     allowedRoleIds: [],
     allowedUserIds: [],
@@ -90,6 +92,7 @@ describe('RoomAsideListComponent', () => {
     type: ERoomType.VOICE,
     avatar: null,
     avatarUrl: null,
+    order: 0,
     isPrivate: false,
     allowedRoleIds: [],
     allowedUserIds: [],
@@ -452,5 +455,62 @@ describe('RoomAsideListComponent', () => {
       peer,
       roomId: room.id,
     });
+  });
+
+  it('reorders text rooms and voice rooms on drop', () => {
+    const roomManageService = TestBed.inject(RoomManageService);
+    const reorderSpy = vi.spyOn(roomManageService, 'reorderRooms');
+    const dummyContainer = {} as never;
+
+    component['onTextRoomDropped']({
+      previousIndex: 0,
+      currentIndex: 1,
+      previousContainer: dummyContainer,
+      container: dummyContainer,
+    } as never);
+    expect(reorderSpy).toHaveBeenCalledWith(ERoomType.TEXT, 0, 1);
+
+    component['onVoiceRoomDropped']({
+      previousIndex: 1,
+      currentIndex: 0,
+      previousContainer: dummyContainer,
+      container: dummyContainer,
+    } as never);
+    expect(reorderSpy).toHaveBeenCalledWith(ERoomType.VOICE, 1, 0);
+
+    reorderSpy.mockClear();
+    component['onTextRoomDropped']({
+      previousIndex: 1,
+      currentIndex: 1,
+      previousContainer: dummyContainer,
+      container: dummyContainer,
+    } as never);
+    expect(reorderSpy).not.toHaveBeenCalled();
+
+    component['onTextRoomDropped']({
+      previousIndex: 0,
+      currentIndex: 1,
+      previousContainer: {} as never,
+      container: {} as never,
+    } as never);
+    expect(reorderSpy).not.toHaveBeenCalled();
+  });
+
+  it('distinguishes room drag from peer drag in predicates', () => {
+    const voiceRoomDrag = { data: { id: 1, type: ERoomType.VOICE } } as never;
+    const textRoomDrag = { data: { id: 2, type: ERoomType.TEXT } } as never;
+    const peerDrag = { data: { id: 3, canMove: true } } as never;
+
+    expect(component['isRoomDrag'](voiceRoomDrag)).toBe(true);
+    expect(component['isRoomDrag'](textRoomDrag)).toBe(false);
+    expect(component['isRoomDrag'](peerDrag)).toBe(false);
+
+    expect(component['isTextRoomDrag'](textRoomDrag)).toBe(true);
+    expect(component['isTextRoomDrag'](voiceRoomDrag)).toBe(false);
+    expect(component['isTextRoomDrag'](peerDrag)).toBe(false);
+
+    expect(component['isPeerDrag'](peerDrag)).toBe(true);
+    expect(component['isPeerDrag'](voiceRoomDrag)).toBe(false);
+    expect(component['isPeerDrag'](textRoomDrag)).toBe(false);
   });
 });

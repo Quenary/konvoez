@@ -37,6 +37,56 @@ export class RoomManageService {
     );
   });
 
+  public moveRoom(room: IRoom, direction: 'up' | 'down'): void {
+    if (!this.canManageRooms()) return;
+
+    const list =
+      room.type === ERoomType.TEXT
+        ? this.roomsStore.textRooms()
+        : this.roomsStore.voiceRooms();
+    const currentIndex = list.findIndex((r) => r.id === room.id);
+    if (currentIndex === -1) return;
+
+    const targetIndex =
+      direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= list.length) return;
+
+    const reordered = [...list];
+    const [moved] = reordered.splice(currentIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    this.roomsStore.reorder(reordered.map((r) => r.id));
+  }
+
+  public reorderRooms(
+    type: ERoomType,
+    previousIndex: number,
+    currentIndex: number,
+  ): void {
+    if (!this.canManageRooms()) return;
+    if (previousIndex === currentIndex) return;
+
+    const list =
+      type === ERoomType.TEXT
+        ? this.roomsStore.textRooms()
+        : this.roomsStore.voiceRooms();
+
+    if (
+      previousIndex < 0 ||
+      previousIndex >= list.length ||
+      currentIndex < 0 ||
+      currentIndex >= list.length
+    ) {
+      return;
+    }
+
+    const reordered = [...list];
+    const [moved] = reordered.splice(previousIndex, 1);
+    reordered.splice(currentIndex, 0, moved);
+
+    this.roomsStore.reorder(reordered.map((r) => r.id));
+  }
+
   public async openRoomDetails(room: IRoom): Promise<void> {
     const { RoomDetailsDialogComponent } =
       await import('./room-details-dialog/room-details-dialog.component');

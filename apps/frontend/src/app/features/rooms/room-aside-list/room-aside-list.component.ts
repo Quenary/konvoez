@@ -14,6 +14,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   CdkDrag,
   CdkDragDrop,
+  CdkDragHandle,
   CdkDropList,
   CdkDropListGroup,
 } from '@angular/cdk/drag-drop';
@@ -76,6 +77,7 @@ export interface IRoomWithPeers extends IVoiceRoomRow {
     RouterLinkActive,
     TranslatePipe,
     CdkDrag,
+    CdkDragHandle,
     CdkDropList,
     CdkDropListGroup,
     TuiAutoColorPipe,
@@ -157,6 +159,25 @@ export class RoomAsideListComponent {
     }));
   });
 
+  protected readonly isTextRoomDrag = (drag: CdkDrag): boolean => {
+    const data = drag.data as { type?: ERoomType; canMove?: boolean } | null;
+    return Boolean(
+      data && data.type === ERoomType.TEXT && !('canMove' in data),
+    );
+  };
+
+  protected readonly isRoomDrag = (drag: CdkDrag): boolean => {
+    const data = drag.data as { type?: ERoomType; canMove?: boolean } | null;
+    return Boolean(
+      data && data.type === ERoomType.VOICE && !('canMove' in data),
+    );
+  };
+
+  protected readonly isPeerDrag = (drag: CdkDrag): boolean => {
+    const data = drag.data as { canMove?: boolean } | null;
+    return Boolean(data && 'canMove' in data);
+  };
+
   private readonly currentUser = this.store.selectSignal(selectCurrentUser);
   private readonly peerClickGuard = createLongtapClickGuard(() =>
     this.isTouch(),
@@ -190,6 +211,26 @@ export class RoomAsideListComponent {
       return;
     }
     this.openPeerDialog(peer);
+  }
+
+  protected onTextRoomDropped(event: CdkDragDrop<unknown>): void {
+    if (event.previousContainer !== event.container) return;
+    if (event.previousIndex === event.currentIndex) return;
+    this.roomManageService.reorderRooms(
+      ERoomType.TEXT,
+      event.previousIndex,
+      event.currentIndex,
+    );
+  }
+
+  protected onVoiceRoomDropped(event: CdkDragDrop<unknown>): void {
+    if (event.previousContainer !== event.container) return;
+    if (event.previousIndex === event.currentIndex) return;
+    this.roomManageService.reorderRooms(
+      ERoomType.VOICE,
+      event.previousIndex,
+      event.currentIndex,
+    );
   }
 
   protected openPeerDialog(peer: TVoiceRoomPeerUser): void {

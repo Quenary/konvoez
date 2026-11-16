@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   Injector,
@@ -22,7 +23,6 @@ import {
   TuiHint,
   TuiIcon,
   TuiInput,
-  TuiLink,
   TuiNotification,
   TuiNotificationService,
   TuiTextfield,
@@ -33,8 +33,6 @@ import { TuiForm, TuiHeader } from '@taiga-ui/layout';
 import {
   TuiFade,
   TuiSwitch,
-  TuiFiles,
-  TuiAvatar,
   TuiBadge,
   TuiFileLike,
   TuiButtonLoading,
@@ -56,7 +54,6 @@ import {
 } from '@konvoez/shared';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ProfileApiService } from '@core/api/profile-api.service';
-import { LowerCasePipe, NgOptimizedImage } from '@angular/common';
 import { ApiErrorService } from '@core/services/api-error.service';
 import { PublicStore } from '@core/stores/public.store';
 import type { IUserDeleteDialogResult } from '@shared/components/user-delete-dialog/user-delete-dialog.component';
@@ -66,34 +63,31 @@ import {
   createZodFormValidator,
 } from '@shared/functions/zod-validator.function';
 import { getProfileFormSchema } from '@shared/schemas/forms.schema';
-import { finalize, map, startWith } from 'rxjs';
+import { finalize, map, startWith, Subscription } from 'rxjs';
 import { icons } from '@constants';
 import { LayoutService } from '@core/services/layout.service';
+import { AvatarSelectComponent } from '@shared/components/avatar-select/avatar-select.component';
 import { HeaderBackButtonComponent } from '@shared/components/header-back-button/header-back-button.component';
 import { RoutePageComponent } from '@shared/components/route-page/route-page.component';
 
 @Component({
   selector: 'app-settings-profile',
   imports: [
+    AvatarSelectComponent,
     HeaderBackButtonComponent,
     RoutePageComponent,
     FormsModule,
     ReactiveFormsModule,
     TranslatePipe,
-    LowerCasePipe,
-    NgOptimizedImage,
     TuiButton,
     TuiTextfield,
     TuiError,
     TuiFade,
     TuiForm,
     TuiHeader,
-    TuiFiles,
     TuiInput,
     TuiSwitch,
-    TuiAvatar,
     TuiBadge,
-    TuiLink,
     TuiButtonLoading,
     TuiIcon,
     TuiHint,
@@ -114,11 +108,11 @@ export class SettingsProfileComponent {
   private readonly injector = inject(Injector);
   private readonly layoutService = inject(LayoutService);
   private readonly publicStore = inject(PublicStore);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly icons = icons;
   protected readonly isNarrow = this.layoutService.isNarrow;
   protected readonly currentUser = this.store.selectSignal(selectCurrentUser);
-  protected readonly maxAvatarSize = maxAvatarSize;
 
   protected readonly smtpConfigured = this.publicStore.isSmtpConfigured;
   protected readonly isEmailVerified = computed(() =>
@@ -199,7 +193,13 @@ export class SettingsProfileComponent {
   );
   protected readonly loading = this.store.selectSignal(selectAuthLoading);
 
+  private avatarUploadSub?: Subscription;
+
   constructor() {
+    this.destroyRef.onDestroy(() => {
+      this.avatarUploadSub?.unsubscribe();
+    });
+
     this.form.controls.isChangingPassword.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe((isChangingPassword) => {
@@ -256,26 +256,40 @@ export class SettingsProfileComponent {
           );
           return;
         }
-        this.profileApiService.avatarUpload(avatarFile as File).subscribe({
-          next: (result) => {
-            this.form.patchValue({
-              avatar: result.key,
-            });
-            this.avatarUrl.set(result.url);
-          },
-          error: (err) => {
-            this.tuiNotificationsService.open(
-              this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'),
-              {
-                appearance: 'negative',
-                autoClose: 5000,
-                closable: true,
-                label: this.translateService.instant('GENERAL.REQ_ERR'),
-              },
-            );
-          },
-        });
+        this.avatarUploadSub?.unsubscribe();
+        this.avatarUploadSub = this.profileApiService
+          .avatarUpload(avatarFile as File)
+          .subscribe({
+            next: (result) => {
+              this.avatarUploadSub = undefined;
+              this.form.patchValue({
+                avatar: result.key,
+              });
+              this.avatarUrl.set(result.url);
+            },
+            error: (err) => {
+              this.avatarUploadSub = undefined;
+              this.tuiNotificationsService.open(
+                this.apiErrorService.translate(err, 'GENERAL.REQ_ERR'),
+                {
+                  appearance: 'negative',
+                  autoClose: 5000,
+                  closable: true,
+                  label: this.translateService.instant('GENERAL.REQ_ERR'),
+                },
+              );
+            },
+          });
       });
+  }
+
+  protected onAvatarRemove(): void {
+    this.avatarUploadSub?.unsubscribe();
+    this.avatarUploadSub = undefined;
+    this.form.controls.avatar.setValue(null);
+    this.form.controls.avatar.markAsDirty();
+    this.form.controls.avatarFile.setValue(null, { emitEvent: false });
+    this.avatarUrl.set(null);
   }
 
   protected onSubmit(): void {
@@ -289,7 +303,7 @@ export class SettingsProfileComponent {
       username: values.username,
       fullname: values.fullname,
       email: values.email,
-      avatar: values.avatar ?? undefined,
+      avatar: values.avatar,
     };
 
     if (values.isChangingPassword) {

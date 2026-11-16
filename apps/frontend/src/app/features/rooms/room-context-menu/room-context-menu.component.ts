@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   input,
   output,
@@ -9,7 +10,8 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { TuiDataList, TuiOptGroup, TuiOption } from '@taiga-ui/core';
 
 import { icons } from '@constants';
-import { IRoom } from '@konvoez/shared';
+import { ERoomType, IRoom } from '@konvoez/shared';
+import { RoomsStore } from '@core/stores/rooms.store';
 import { RoomManageService } from '../room-manage.service';
 
 @Component({
@@ -21,6 +23,7 @@ import { RoomManageService } from '../room-manage.service';
 })
 export class RoomContextMenuComponent {
   private readonly roomManageService = inject(RoomManageService);
+  private readonly roomsStore = inject(RoomsStore);
 
   public readonly room = input.required<IRoom>();
   public readonly closeMenu = output<void>();
@@ -28,8 +31,40 @@ export class RoomContextMenuComponent {
   protected readonly icons = icons;
   protected readonly canManage = this.roomManageService.canManageRooms;
 
+  protected readonly canMoveUp = computed(() => {
+    const room = this.room();
+    const list =
+      room.type === ERoomType.TEXT
+        ? this.roomsStore.textRooms()
+        : this.roomsStore.voiceRooms();
+    const idx = list.findIndex((r) => r.id === room.id);
+    return idx > 0;
+  });
+
+  protected readonly canMoveDown = computed(() => {
+    const room = this.room();
+    const list =
+      room.type === ERoomType.TEXT
+        ? this.roomsStore.textRooms()
+        : this.roomsStore.voiceRooms();
+    const idx = list.findIndex((r) => r.id === room.id);
+    return idx >= 0 && idx < list.length - 1;
+  });
+
   protected onOpenDetails(): void {
     void this.roomManageService.openRoomDetails(this.room());
+    this.closeMenu.emit();
+  }
+
+  protected onMoveUp(): void {
+    if (!this.canMoveUp()) return;
+    this.roomManageService.moveRoom(this.room(), 'up');
+    this.closeMenu.emit();
+  }
+
+  protected onMoveDown(): void {
+    if (!this.canMoveDown()) return;
+    this.roomManageService.moveRoom(this.room(), 'down');
     this.closeMenu.emit();
   }
 

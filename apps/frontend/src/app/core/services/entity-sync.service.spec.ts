@@ -108,6 +108,7 @@ describe('EntitySyncService', () => {
     type: ERoomType.TEXT,
     avatar: null,
     avatarUrl: null,
+    order: 0,
     isPrivate: false,
     allowedRoleIds: [],
     allowedUserIds: [],

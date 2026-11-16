@@ -227,4 +227,21 @@ describe('SettingsDevicesComponent', () => {
       'hp',
     ]);
   });
+
+  it('renders only microphone and output selects when compact is true', () => {
+    fixture.detectChanges();
+    let compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('#input-gain')).not.toBeNull();
+    expect(compiled.querySelector('.mic-test-container')).not.toBeNull();
+    expect(compiled.querySelector('#output-volume')).not.toBeNull();
+
+    fixture.componentRef.setInput('compact', true);
+    fixture.detectChanges();
+
+    compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('#input-gain')).toBeNull();
+    expect(compiled.querySelector('.mic-test-container')).toBeNull();
+    expect(compiled.querySelector('#output-volume')).toBeNull();
+    expect(compiled.querySelectorAll('input[tuiSelect]')).toHaveLength(2);
+  });
 });

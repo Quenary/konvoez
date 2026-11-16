@@ -41,4 +41,16 @@ describe('profileUpdateSchema avatar validation', () => {
       profileUpdateSchema.parse({ avatar: '/etc/passwd' }),
     ).toThrow();
   });
+
+  it('validates language field in profileUpdateSchema', () => {
+    expect(() => profileUpdateSchema.parse({ language: 'en' })).not.toThrow();
+    expect(() => profileUpdateSchema.parse({ language: 'ru' })).not.toThrow();
+    expect(() => profileUpdateSchema.parse({ language: null })).not.toThrow();
+    expect(() =>
+      profileUpdateSchema.parse({ language: undefined }),
+    ).not.toThrow();
+    expect(() =>
+      profileUpdateSchema.parse({ language: 'unsupported' }),
+    ).toThrow();
+  });
 });

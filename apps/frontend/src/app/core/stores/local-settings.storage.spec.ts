@@ -149,4 +149,64 @@ describe('local-settings.storage stream fields', () => {
     expect(readLocalSettings().cameraCodec).toBe('h264');
     expect(readLocalSettings().version).toBeUndefined();
   });
+
+  it.each(['auto', 'dark', 'light'] as const)(
+    'round-trips theme "%s"',
+    (theme) => {
+      writeLocalSettings({ theme });
+      expect(readLocalSettings().theme).toBe(theme);
+
+      const stored = JSON.parse(
+        localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}',
+      ) as Record<string, unknown>;
+      expect(stored['theme']).toBe(theme);
+    },
+  );
+
+  it('drops invalid theme values', () => {
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ theme: 'solarized' }),
+    );
+    expect(readLocalSettings().theme).toBeUndefined();
+  });
+
+  it.each(['en', 'ru'] as const)('round-trips language "%s"', (language) => {
+    writeLocalSettings({ language });
+    expect(readLocalSettings().language).toBe(language);
+
+    const stored = JSON.parse(
+      localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}',
+    ) as Record<string, unknown>;
+    expect(stored['language']).toBe(language);
+  });
+
+  it('drops language from stored settings when set to null (Auto)', () => {
+    writeLocalSettings({ language: 'ru' });
+    expect(readLocalSettings().language).toBe('ru');
+
+    writeLocalSettings({ language: null });
+    expect(readLocalSettings().language).toBeUndefined();
+
+    const stored = JSON.parse(
+      localStorage.getItem(EStorageKey.LOCAL_SETTINGS) ?? '{}',
+    ) as Record<string, unknown>;
+    expect(stored['language']).toBeUndefined();
+  });
+
+  it('returns undefined language when not present in stored settings', () => {
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ theme: 'dark' }),
+    );
+    expect(readLocalSettings().language).toBeUndefined();
+  });
+
+  it('drops invalid language values', () => {
+    localStorage.setItem(
+      EStorageKey.LOCAL_SETTINGS,
+      JSON.stringify({ language: 'unsupported' }),
+    );
+    expect(readLocalSettings().language).toBeUndefined();
+  });
 });

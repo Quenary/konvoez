@@ -16,6 +16,24 @@ if (typeof globalThis.AudioWorkletNode === 'undefined') {
     class AudioWorkletNode {};
 }
 
+const noop = (): void => undefined;
+
+if (typeof window !== 'undefined' && !window.matchMedia) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: noop,
+      removeListener: noop,
+      addEventListener: noop,
+      removeEventListener: noop,
+      dispatchEvent: () => false,
+    }),
+  });
+}
+
 // The unit-test runner keeps one TestBed per worker (isolate is off).
 // Angular resets it after a test only while destroyAfterEach stays at the
 // default, so a spec that leaves the module instantiated breaks the next

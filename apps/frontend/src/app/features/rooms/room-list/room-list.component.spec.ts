@@ -46,6 +46,7 @@ describe('RoomListComponent', () => {
     type: ERoomType.TEXT,
     avatar: null,
     avatarUrl: null,
+    order: 0,
     isPrivate: false,
     allowedRoleIds: [],
     allowedUserIds: [],
@@ -60,6 +61,7 @@ describe('RoomListComponent', () => {
     type: ERoomType.VOICE,
     avatar: null,
     avatarUrl: null,
+    order: 0,
     isPrivate: false,
     allowedRoleIds: [],
     allowedUserIds: [],
@@ -93,8 +95,17 @@ describe('RoomListComponent', () => {
     selectRoom: vi.fn(),
   };
 
+  const mockRoomManageService = {
+    canManageRooms: signal(false),
+    openRoomDetails: vi.fn(),
+    editRoom: vi.fn(),
+    deleteRoom: vi.fn(),
+    reorderRooms: vi.fn(),
+  };
+
   beforeEach(async () => {
     lobby.set({});
+    mockRoomManageService.reorderRooms.mockClear();
 
     await TestBed.configureTestingModule({
       imports: [RoomListComponent],
@@ -111,12 +122,7 @@ describe('RoomListComponent', () => {
         },
         {
           provide: RoomManageService,
-          useValue: {
-            canManageRooms: signal(false),
-            openRoomDetails: vi.fn(),
-            editRoom: vi.fn(),
-            deleteRoom: vi.fn(),
-          },
+          useValue: mockRoomManageService,
         },
         { provide: RoomNavigationService, useValue: mockRoomNavigationService },
         {
@@ -190,4 +196,47 @@ describe('RoomListComponent', () => {
       expect(fixture.nativeElement.querySelector('app-room-peer')).toBeNull();
     },
   );
+
+  it('calls roomManageService.reorderRooms when onRoomDropped has different indices', () => {
+    const dummyContainer = {} as never;
+    component['onRoomDropped'](
+      {
+        previousIndex: 0,
+        currentIndex: 1,
+        previousContainer: dummyContainer,
+        container: dummyContainer,
+      } as never,
+      ERoomType.TEXT,
+    );
+    expect(mockRoomManageService.reorderRooms).toHaveBeenCalledWith(
+      ERoomType.TEXT,
+      0,
+      1,
+    );
+  });
+
+  it('ignores onRoomDropped when indices are equal or containers differ', () => {
+    const dummyContainer = {} as never;
+    component['onRoomDropped'](
+      {
+        previousIndex: 2,
+        currentIndex: 2,
+        previousContainer: dummyContainer,
+        container: dummyContainer,
+      } as never,
+      ERoomType.TEXT,
+    );
+    expect(mockRoomManageService.reorderRooms).not.toHaveBeenCalled();
+
+    component['onRoomDropped'](
+      {
+        previousIndex: 0,
+        currentIndex: 1,
+        previousContainer: {} as never,
+        container: {} as never,
+      } as never,
+      ERoomType.TEXT,
+    );
+    expect(mockRoomManageService.reorderRooms).not.toHaveBeenCalled();
+  });
 });

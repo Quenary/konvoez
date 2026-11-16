@@ -8,6 +8,12 @@ import { emailSchema, fullnameSchema, usernameSchema } from './fields.schemas';
 import { EPermission } from '../enums';
 import { roleSummarySchema } from './role.schemas';
 
+export const SUPPORTED_LANGUAGES = ['en', 'ru'] as const;
+export const languageSchema = z.enum(SUPPORTED_LANGUAGES);
+export type TLanguage = z.infer<typeof languageSchema>;
+export const FALLBACK_LANGUAGE: TLanguage = 'en';
+export const CLIENT_LANGUAGE_HEADER = 'x-konvoez-lang';
+
 /** Complete user (includes email). Self/admin only. */
 export const userFullSchema = baseEntitySchema.extend({
   id: z.number().int(),
@@ -23,6 +29,8 @@ export const userFullSchema = baseEntitySchema.extend({
   twoFactorEnabled: z.boolean().default(false),
   emailVerified: z.boolean().default(false),
   pendingEmail: emailSchema.nullish(),
+  language: languageSchema.nullish(),
+  lastDetectedLocale: z.string().max(64).default(FALLBACK_LANGUAGE).optional(),
 });
 
 export type IUserFull = z.infer<typeof userFullSchema>;
@@ -33,6 +41,8 @@ export const userSafeSchema = userFullSchema.omit({
   twoFactorEnabled: true,
   emailVerified: true,
   pendingEmail: true,
+  language: true,
+  lastDetectedLocale: true,
 });
 
 export type IUserSafe = z.infer<typeof userSafeSchema>;

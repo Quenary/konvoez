@@ -7,6 +7,7 @@ import {
 } from '@angular/core';
 import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
+import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
 import { TuiDropdown } from '@taiga-ui/core';
 import {
   TuiAvatar,
@@ -22,6 +23,7 @@ import { ListItemComponent } from '@shared/components/list-item/list-item.compon
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { RoomContextMenuComponent } from '../room-context-menu/room-context-menu.component';
+import { RoomManageService } from '../room-manage.service';
 import { IVoiceRoomRow, RoomViewService } from '../room-view.service';
 import { formatVoiceStackExtra, voiceRoomStack } from './room-list-stack';
 
@@ -36,6 +38,8 @@ interface IVoiceListRoom extends IVoiceRoomRow {
     NgOptimizedImage,
     NgTemplateOutlet,
     TranslatePipe,
+    CdkDrag,
+    CdkDropList,
     TuiAvatar,
     TuiAvatarStack,
     TuiBadgedContent,
@@ -56,11 +60,12 @@ interface IVoiceListRoom extends IVoiceRoomRow {
 export class RoomListComponent {
   protected readonly roomView = inject(RoomViewService);
   protected readonly unreadCountsStore = inject(UnreadCountsStore);
+  private readonly roomManageService = inject(RoomManageService);
 
   public readonly type = input.required<ERoomType>();
 
   protected readonly ERoomType = ERoomType;
-
+  protected readonly dragStartDelay = { touch: 300, mouse: 0 };
   protected readonly voiceRooms = computed<IVoiceListRoom[]>(() => {
     const rooms = this.roomView.voiceRows();
     return rooms.map((room) => {
@@ -72,4 +77,14 @@ export class RoomListComponent {
       };
     });
   });
+
+  protected onRoomDropped(event: CdkDragDrop<unknown>, type: ERoomType): void {
+    if (event.previousContainer !== event.container) return;
+    if (event.previousIndex === event.currentIndex) return;
+    this.roomManageService.reorderRooms(
+      type,
+      event.previousIndex,
+      event.currentIndex,
+    );
+  }
 }

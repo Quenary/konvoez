@@ -7,7 +7,11 @@ import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
-import { EVoiceSessionType } from '@konvoez/shared';
+import {
+  EVoiceSessionType,
+  type IUserFull,
+  type TLanguage,
+} from '@konvoez/shared';
 import { AudioService } from '@core/services/audio.service';
 import { DirectCallService } from '@core/services/direct-call.service';
 import { MediasoupSessionService } from '@core/services/mediasoup-session.service';
@@ -24,6 +28,7 @@ import { VoiceSessionStore } from '@core/voice/voice-session.store';
 import { OutgoingMessagesStore } from '@core/chat/outgoing/outgoing-messages.store';
 import { UsersStore } from '@core/stores/users.store';
 import { RoomsStore } from '@core/stores/rooms.store';
+import { SettingsStore } from '@core/stores/settings.store';
 import { DirectChatsStore } from '../../features/direct-chats/direct-chats.store';
 import { AuthApiService } from '@core/api/auth-api.service';
 import { AuthEffects } from './auth.effects';
@@ -54,10 +59,18 @@ describe('AuthEffects logout', () => {
   let setActiveSession: (session: unknown) => void;
   let roomsStore: { clear: ReturnType<typeof vi.fn> };
   let directChatsStore: { clear: ReturnType<typeof vi.fn> };
+  let settingsStore: {
+    language: ReturnType<typeof signal<TLanguage | null>>;
+    setLanguage: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     roomsStore = { clear: vi.fn() };
     directChatsStore = { clear: vi.fn() };
+    settingsStore = {
+      language: signal<TLanguage | null>(null),
+      setLanguage: vi.fn(),
+    };
     const hanging = () => new Promise(() => undefined);
     socket = {
       on: vi.fn(),
@@ -98,6 +111,7 @@ describe('AuthEffects logout', () => {
         { provide: AuthApiService, useValue: { logout: () => of(undefined) } },
         { provide: ProfileApiService, useValue: {} },
         { provide: UsersStore, useValue: { clear: vi.fn() } },
+        { provide: SettingsStore, useValue: settingsStore },
         {
           provide: OutgoingMessagesStore,
           useValue: { cancelAll: vi.fn() },
@@ -208,6 +222,55 @@ describe('AuthEffects logout', () => {
       expect(router.navigate).toHaveBeenCalledWith(['/auth']);
       expect(roomsStore.clear).toHaveBeenCalled();
       expect(directChatsStore.clear).toHaveBeenCalled();
+    });
+  });
+
+  it('syncs user language to SettingsStore on initEnd when different', async () => {
+    const mockUser = {
+      id: 1,
+      email: 'test@example.com',
+      username: 'test',
+      language: 'ru',
+      lastDetectedLocale: 'en',
+    } as IUserFull;
+
+    store.dispatch(AuthActions.initEnd({ user: mockUser }));
+
+    await vi.waitFor(() => {
+      expect(settingsStore.setLanguage).toHaveBeenCalledWith('ru');
+    });
+  });
+
+  it('does not call setLanguage when user language matches settingsStore', async () => {
+    settingsStore.language.set('ru');
+    const mockUser = {
+      id: 1,
+      email: 'test@example.com',
+      username: 'test',
+      language: 'ru',
+      lastDetectedLocale: 'en',
+    } as IUserFull;
+
+    store.dispatch(AuthActions.initEnd({ user: mockUser }));
+
+    await vi.waitFor(() => {
+      expect(settingsStore.setLanguage).not.toHaveBeenCalled();
+    });
+  });
+
+  it('syncs user language to SettingsStore on requestPatchUserSuccess when different', async () => {
+    const mockUser = {
+      id: 1,
+      email: 'test@example.com',
+      username: 'test',
+      language: 'en',
+      lastDetectedLocale: 'en',
+    } as IUserFull;
+
+    store.dispatch(AuthActions.requestPatchUserSuccess({ user: mockUser }));
+
+    await vi.waitFor(() => {
+      expect(settingsStore.setLanguage).toHaveBeenCalledWith('en');
     });
   });
 });

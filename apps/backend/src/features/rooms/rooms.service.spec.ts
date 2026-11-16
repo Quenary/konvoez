@@ -78,6 +78,7 @@ describe('RoomsService', () => {
       findOne: jest.fn(),
       findAll: jest.fn().mockResolvedValue([room]),
       find: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
       create: jest.fn().mockReturnValue(room),
       assign: jest.fn(),
     } as unknown as jest.Mocked<EntityRepository<RoomEntity>>;
@@ -322,6 +323,30 @@ describe('RoomsService', () => {
     });
   });
 
+  describe('update', () => {
+    it('clears avatar when avatar is null and emits ROOM_UPDATED', async () => {
+      const existingRoom = {
+        ...room,
+        avatar: 'rooms-avatars/old-avatar.webp',
+      } as unknown as RoomEntity;
+      mockRepo.findOne.mockResolvedValue(existingRoom);
+
+      const result = await service.update(1, { avatar: null });
+
+      expect(result.avatar).toBeNull();
+      expect(mockEm.persist).toHaveBeenCalledWith(existingRoom);
+      expect(mockEm.flush).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        RoomsDomainEvents.ROOM_UPDATED,
+        expect.objectContaining({
+          id: 1,
+          avatar: null,
+          avatarUrl: null,
+        }),
+      );
+    });
+  });
+
   describe('deleteRoomsByAuthor', () => {
     it('deletes rooms by author and emits ROOM_DELETED for each', async () => {
       mockRepo.find.mockResolvedValueOnce([
@@ -376,6 +401,105 @@ describe('RoomsService', () => {
       expect(mockRepo.find).toHaveBeenCalledWith(
         { avatar: { $ne: null } },
         { fields: ['avatar'] },
+      );
+    });
+  });
+
+  describe('reorder', () => {
+    it('returns empty array when roomIds is empty', async () => {
+      const result = await service.reorder({ roomIds: [] });
+      expect(result).toEqual([]);
+      expect(mockRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('reorders rooms and emits ROOM_UPDATED for changed rooms', async () => {
+      const room1 = {
+        id: 1,
+        name: 'Room 1',
+        type: ERoomType.TEXT,
+        order: 0,
+        avatar: null,
+        author: { id: 1, username: 'alice', fullname: 'Alice Example' },
+        isPrivate: false,
+        allowedRoles: [],
+        allowedUsers: [],
+        createdAt: new Date(),
+        updatedAt: null,
+      } as unknown as RoomEntity;
+
+      const room2 = {
+        id: 2,
+        name: 'Room 2',
+        type: ERoomType.TEXT,
+        order: 1,
+        avatar: null,
+        author: { id: 1, username: 'alice', fullname: 'Alice Example' },
+        isPrivate: false,
+        allowedRoles: [],
+        allowedUsers: [],
+        createdAt: new Date(),
+        updatedAt: null,
+      } as unknown as RoomEntity;
+
+      mockRepo.find.mockResolvedValueOnce([room1, room2]);
+      mockRepo.count.mockResolvedValueOnce(2);
+
+      const result = await service.reorder({ roomIds: [2, 1] });
+
+      expect(result).toHaveLength(2);
+      expect(room2.order).toBe(0);
+      expect(room1.order).toBe(1);
+      expect(mockRepo.find).toHaveBeenCalledWith(
+        { id: { $in: [2, 1] } },
+        { populate: ['author', 'allowedRoles', 'allowedUsers'] },
+      );
+      expect(mockRepo.count).toHaveBeenCalledWith({ type: ERoomType.TEXT });
+      expect(mockEm.persist).toHaveBeenCalledWith(room2);
+      expect(mockEm.persist).toHaveBeenCalledWith(room1);
+      expect(mockEm.flush).toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws not found if a room does not exist', async () => {
+      mockRepo.find.mockResolvedValueOnce([
+        { id: 1, type: ERoomType.TEXT } as RoomEntity,
+      ]);
+
+      await expect(service.reorder({ roomIds: [1, 2] })).rejects.toThrow(
+        expect.objectContaining({ code: ApiErrorCode.ROOM_NOT_FOUND }),
+      );
+    });
+
+    it('throws bad request if roomIds contains duplicates', async () => {
+      await expect(service.reorder({ roomIds: [1, 1] })).rejects.toThrow(
+        expect.objectContaining({ code: ApiErrorCode.BAD_REQUEST }),
+      );
+    });
+
+    it('throws bad request if rooms have mixed types', async () => {
+      mockRepo.find.mockResolvedValueOnce([
+        { id: 1, type: ERoomType.TEXT } as RoomEntity,
+        { id: 2, type: ERoomType.VOICE } as RoomEntity,
+      ]);
+
+      await expect(service.reorder({ roomIds: [1, 2] })).rejects.toThrow(
+        expect.objectContaining({ code: ApiErrorCode.BAD_REQUEST }),
+      );
+    });
+
+    it('throws bad request if not all rooms of the type are provided', async () => {
+      const room1 = {
+        id: 1,
+        name: 'Room 1',
+        type: ERoomType.TEXT,
+        order: 0,
+      } as unknown as RoomEntity;
+
+      mockRepo.find.mockResolvedValueOnce([room1]);
+      mockRepo.count.mockResolvedValueOnce(2);
+
+      await expect(service.reorder({ roomIds: [1] })).rejects.toThrow(
+        expect.objectContaining({ code: ApiErrorCode.BAD_REQUEST }),
       );
     });
   });

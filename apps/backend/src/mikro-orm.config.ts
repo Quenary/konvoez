@@ -49,6 +49,8 @@ import { Migration20261101000000_EmailVerification } from './migrations/Migratio
 import { Migration20261102004712_MasterKeyMessageContent } from './migrations/Migration20261102004712_MasterKeyMessageContent';
 import { Migration20261108005129_InviteEmailSent } from './migrations/Migration20261108005129_InviteEmailSent';
 import { Migration20261112041029_PasswordRecoveryAttempts } from './migrations/Migration20261112041029_PasswordRecoveryAttempts';
+import { Migration20261115023712_UserLanguageAndDetectedLocale } from './migrations/Migration20261115023712_UserLanguageAndDetectedLocale';
+import { Migration20261116083850_RoomOrder } from './migrations/Migration20261116083850_RoomOrder';
 
 import { RoleEntitySchema } from './features/roles/roles.entity';
 
@@ -108,6 +110,8 @@ export async function createMikroOrmConfig() {
         Migration20261102004712_MasterKeyMessageContent,
         Migration20261108005129_InviteEmailSent,
         Migration20261112041029_PasswordRecoveryAttempts,
+        Migration20261115023712_UserLanguageAndDetectedLocale,
+        Migration20261116083850_RoomOrder,
       ],
     },
   } satisfies Partial<Options>;

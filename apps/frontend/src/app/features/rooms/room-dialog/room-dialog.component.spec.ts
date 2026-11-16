@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { provideTranslateService } from '@ngx-translate/core';
 import {
   TUI_OPTIONS,
@@ -162,5 +162,65 @@ describe('RoomDialogComponent', () => {
   it('completes with null on close', () => {
     component.close();
     expect(mockDialogContext.completeWith).toHaveBeenCalledWith(null);
+  });
+
+  it('clears avatar state and completes with avatar null on submit', () => {
+    component['form'].controls.avatar.setValue('rooms-avatars/test.webp');
+    component['avatarUrl'].set('https://example.com/test.webp');
+    fixture.detectChanges();
+
+    const removeBtn = fixture.nativeElement.querySelector(
+      '.avatar-select-remove',
+    ) as HTMLButtonElement;
+    expect(removeBtn).toBeTruthy();
+
+    removeBtn.click();
+    fixture.detectChanges();
+
+    expect(component['avatarUrl']()).toBeNull();
+    expect(component['form'].controls.avatar.value).toBeNull();
+    expect(component['form'].dirty).toBe(true);
+
+    component.submit();
+
+    expect(mockDialogContext.completeWith).toHaveBeenCalledWith(
+      expect.objectContaining({
+        avatar: null,
+        avatarUrl: null,
+      }),
+    );
+  });
+
+  it('cancels in-flight avatar upload when avatar is removed', () => {
+    const uploadSubject = new Subject<{ key: string; url: string }>();
+    mockRoomsApiService.avatarUpload.mockReturnValue(
+      uploadSubject.asObservable(),
+    );
+
+    const dummyFile = new File(['content'], 'avatar.png', {
+      type: 'image/png',
+    });
+    component['form'].controls.avatarFile.setValue(dummyFile);
+
+    expect(mockRoomsApiService.avatarUpload).toHaveBeenCalledWith(dummyFile);
+
+    component['avatarUrl'].set('https://example.com/uploading.webp');
+    fixture.detectChanges();
+
+    component['onAvatarRemove']();
+    fixture.detectChanges();
+
+    expect(component['avatarUrl']()).toBeNull();
+    expect(component['form'].controls.avatar.value).toBeNull();
+
+    // Now emit from upload after removal
+    uploadSubject.next({
+      key: 'rooms-avatars/late.webp',
+      url: 'https://example.com/late.webp',
+    });
+    fixture.detectChanges();
+
+    expect(component['avatarUrl']()).toBeNull();
+    expect(component['form'].controls.avatar.value).toBeNull();
   });
 });

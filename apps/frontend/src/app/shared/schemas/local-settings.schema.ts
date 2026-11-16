@@ -1,9 +1,11 @@
 import {
   DEFAULT_STREAM_VIDEO_CODEC,
+  languageSchema,
   STREAM_BITRATE_SLIDER_MIN_KBPS,
   STREAM_EXTRA_LAYERS_MAX,
   STREAM_SVC_MODES,
   streamVideoCodecSchema,
+  TLanguage,
   TStreamContentMode,
   TStreamLayer,
   TStreamSvcMode,
@@ -82,6 +84,12 @@ export const DEFAULT_OUTPUT_VOLUME = 1;
 export const echoCancellationSchema = z.boolean();
 export const DEFAULT_ECHO_CANCELLATION = false;
 
+export const themeSchema = z.enum(['auto', 'dark', 'light']);
+export type TTheme = z.infer<typeof themeSchema>;
+export const DEFAULT_THEME: TTheme = 'auto';
+
+export const DEFAULT_LANGUAGE: TLanguage | null = null;
+
 /**
  * Current local settings document. Devices are optional — browsers may lack
  * MediaDevices API; voice flow falls back to defaults when unset.
@@ -109,6 +117,8 @@ export const localSettingsSchema = z.object({
   inputGain: inputGainSchema.optional(),
   outputVolume: outputVolumeSchema.optional(),
   echoCancellation: echoCancellationSchema.optional(),
+  theme: themeSchema.optional(),
+  language: languageSchema.nullish(),
 });
 
 export type TLocalSettings = z.infer<typeof localSettingsSchema>;
@@ -136,6 +146,8 @@ export const localSettingsLooseSchema = z.looseObject({
   inputGain: inputGainSchema.optional(),
   outputVolume: outputVolumeSchema.optional(),
   echoCancellation: echoCancellationSchema.optional(),
+  theme: themeSchema.optional(),
+  language: languageSchema.nullish(),
 });
 
 export type TLocalSettingsPartial = z.infer<typeof localSettingsLooseSchema>;

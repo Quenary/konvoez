@@ -148,7 +148,7 @@ describe('voice DI graph', () => {
         },
         {
           provide: TranslateService,
-          useValue: { instant: (k: string) => k },
+          useValue: { instant: (k: string) => k, use: vi.fn() },
         },
         {
           provide: TuiNotificationService,

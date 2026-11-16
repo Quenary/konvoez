@@ -1,0 +1,22 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.avatar-select {
+  position: relative;
+  display: block;
+  width: 100%;
+
+  label[tuiInputFiles] {
+    display: block;
+    width: 100%;
+  }
+
+  &-remove {
+    position: absolute;
+    inset-block-start: 0.5rem;
+    inset-inline-end: 0.5rem;
+    z-index: 2;
+  }
+}

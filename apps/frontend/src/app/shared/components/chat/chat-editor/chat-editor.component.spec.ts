@@ -680,6 +680,7 @@ describe('ChatEditorComponent', () => {
         allowedUserIds: [alice.id],
         allowedRoleIds: [],
         author: { id: 99, username: 'owner', fullname: 'Owner' },
+        order: 0,
         createdAt: new Date(),
         updatedAt: null,
         avatar: null,
