@@ -141,6 +141,8 @@ apps/desktop/package-lock.json
 .angular
 
 __screenshots__/
+test-results/
+playwright-report/
 
 # SQLite / DB files
 *.sqlite

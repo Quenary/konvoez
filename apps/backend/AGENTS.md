@@ -76,4 +76,5 @@ Jest with `@nestjs/testing`.
 
 - Build units with `Test.createTestingModule` and mocked providers. Mock MikroORM at the module boundary when entity imports are noisy (see existing `*.spec.ts`).
 - Mock external I/O (S3, push, mediasoup); unit tests never reach real services.
+- Integration health checks live in `apps/backend-e2e` and call a running instance. CI runs them against sqlite, MySQL, and Postgres. The Docker stack and DB profiles (`sqlite`, `my`, `pg`) live in `tools/e2e` and are shared with a future frontend suite.
 - When touching authorization paths (roles, invites, owner bootstrap), cover their edge cases.

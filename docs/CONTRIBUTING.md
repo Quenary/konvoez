@@ -71,6 +71,8 @@ flowchart LR
    node node_modules/electron/install.js
    ```
 
+   `npm ci` installs `@playwright/test` and downloads its browsers. `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` skips that download; the e2e image already contains the browsers.
+
 3. **Configure the environment**: copy `.env.example` to `.env`. `MASTER_KEY`, `JWT_SECRET` and `MEDIASOUP_ANNOUNCED_IP` must be set.
 
 4. **Run**:
@@ -121,7 +123,8 @@ Nx publishes two independent release groups. The paths touched by a commit decid
 - Parameterize cases that differ only by inputs and expected results.
 - Update existing tests when changing existing behavior.
 - Before submitting, run `npm run test`, `npm run lint` and `npm run fmt` (or `npx nx run <project>:format:check` to only check).
-- To check a single project, use `npx nx run <project>:test`, `npx nx run <project>:eslint:lint` and `npx nx run <project>:format:check`. Projects: `backend`, `frontend`, `shared`, `client-shell`, `desktop-ui`, `desktop`, `desktop-native`.
+- To check a single project, use `npx nx run <project>:test`, `npx nx run <project>:eslint:lint` and `npx nx run <project>:format:check`. Projects: `backend`, `frontend`, `shared`, `client-shell`, `desktop-ui`, `desktop`, `desktop-native`. `backend-e2e` has `eslint:lint` and `format:check`; its run target is `e2e`.
+- `npx nx run backend-e2e:e2e` runs the backend integration suite in Docker for the `sqlite`, `my`, and `pg` profiles (`--configuration` selects one profile). The suite uses the root `@playwright/test` install, does not need a browser on the host, and is not part of `npm run test`. GitHub Actions runs this command in its own job. The stack and the profile runner live in `tools/e2e` and are shared with a future frontend suite.
 
 ## Pull requests
 

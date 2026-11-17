@@ -5,6 +5,7 @@ WORKDIR /app
 # Skip mediasoup worker compilation in builder stage since we only compile TS/JS bundles
 ENV MEDIASOUP_WORKER_BIN=/bin/true
 ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 ENV CI=true
 
 COPY package.json package-lock.json ./

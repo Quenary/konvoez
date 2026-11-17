@@ -2,12 +2,14 @@ jest.mock('@mikro-orm/nestjs', () => ({
   InjectRepository: () => () => undefined,
 }));
 jest.mock('@mikro-orm/core', () => {
+  class MikroORM {}
   const createProxy = (): unknown =>
     new Proxy(() => createProxy(), {
       get: () => createProxy(),
       apply: () => createProxy(),
     });
   return {
+    MikroORM,
     defineEntity: () => ({
       class: class {},
       setClass: () => undefined,
@@ -31,7 +33,9 @@ describe('PublicController', () => {
   let authService: jest.Mocked<Pick<AuthService, 'isOwnerSetupRequired'>>;
   let settingsService: jest.Mocked<Pick<SettingsService, 'getValue'>>;
   let mailService: { isConfigured: boolean };
-  let publicService: jest.Mocked<Pick<PublicService, 'getVersion'>>;
+  let publicService: jest.Mocked<
+    Pick<PublicService, 'getVersion' | 'assertDatabaseAlive'>
+  >;
 
   beforeEach(async () => {
     authService = {
@@ -54,6 +58,7 @@ describe('PublicController', () => {
         releaseUrl: null,
         updateAvailable: false,
       }),
+      assertDatabaseAlive: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -69,8 +74,9 @@ describe('PublicController', () => {
     controller = module.get<PublicController>(PublicController);
   });
 
-  it('should return status ok on health check', () => {
-    expect(controller.health()).toEqual({ status: 'ok' });
+  it('should return status ok when the database is alive', async () => {
+    await expect(controller.health()).resolves.toEqual({ status: 'ok' });
+    expect(publicService.assertDatabaseAlive).toHaveBeenCalled();
   });
 
   it('should return public settings with isOwnerSetupRequired, inviteOnlySignUp, smtpConfigured and appUrlConfigured', async () => {

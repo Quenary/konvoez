@@ -65,6 +65,7 @@ jobs:
         env:
           MEDIASOUP_WORKER_BIN: /bin/true
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
         run: npm ci
 
       - name: Git identity
@@ -144,6 +145,8 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libclang-dev libpipewire-0.3-dev
       - name: Install
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
         run: npm ci
       - name: Build native module
         run: npx nx run desktop-native:build
