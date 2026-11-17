@@ -1,3 +1,14 @@
+# 2.0.0 (2026-11-17)
+
+### Features
+
+- ⚠️ **backend:** cross-dbm declarative migrations, squash migrations into the v2 baseline, my/pg support ([4c628339](https://github.com/Quenary/konvoez/commit/4c628339))
+
+### ⚠️ Breaking Changes
+
+- **backend:** cross-dbm declarative migrations, squash migrations into the v2 baseline, my/pg support ([4c628339](https://github.com/Quenary/konvoez/commit/4c628339))
+  Instances older than v1.33 must upgrade to the latest v1 release before v2. Startup stamps that schema as the new baseline and does not replay the removed migrations. Fresh installs use declarative migrations on SQLite, PostgreSQL, and MySQL.
+
 ## 1.33.0 (2026-11-16)
 
 ### Features
