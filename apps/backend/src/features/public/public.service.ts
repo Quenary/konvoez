@@ -1,5 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { Cache } from '@nestjs/cache-manager';
+import { MikroORM } from '@mikro-orm/core';
 import { IPublicVersion } from '@konvoez/shared';
 import { AppService } from '@shared/services/app.service';
 
@@ -22,7 +27,19 @@ export class PublicService {
   constructor(
     private readonly cacheManager: Cache,
     private readonly appService: AppService,
+    private readonly orm: MikroORM,
   ) {}
+
+  async assertDatabaseAlive(): Promise<void> {
+    try {
+      await this.orm.em.getConnection().execute('SELECT 1');
+    } catch (error) {
+      this.logger.warn(
+        `Database health check failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new ServiceUnavailableException();
+    }
+  }
 
   async getVersion(): Promise<IPublicVersion> {
     const cached =

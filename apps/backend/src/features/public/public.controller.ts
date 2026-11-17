@@ -19,10 +19,11 @@ export class PublicController {
 
   @Get('health')
   @ApiOkResponse({
-    description: 'Health check',
+    description: 'Health check, including database connectivity',
     schema: { example: { status: 'ok' } },
   })
-  health(): { status: string } {
+  async health(): Promise<{ status: string }> {
+    await this.publicService.assertDatabaseAlive();
     return { status: 'ok' };
   }
 

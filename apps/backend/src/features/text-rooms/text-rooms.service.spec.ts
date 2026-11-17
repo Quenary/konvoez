@@ -73,6 +73,7 @@ describe('TextRoomsService', () => {
   let eventEmitter: { emit: jest.Mock };
   let em: jest.Mocked<EntityManager>;
   let connection: { execute: jest.Mock };
+  let dbPlatformName: string;
   let attachmentsService: {
     findAttachedByMessageIds: jest.Mock;
     claimForMessage: jest.Mock;
@@ -92,12 +93,16 @@ describe('TextRoomsService', () => {
   };
 
   beforeEach(() => {
+    dbPlatformName = 'SqlitePlatform';
     connection = {
       execute: jest.fn().mockResolvedValue({ affectedRows: 1, insertId: 1 }),
     };
 
     em = {
       getConnection: jest.fn().mockReturnValue(connection),
+      getPlatform: jest.fn(() => ({
+        constructor: { name: dbPlatformName },
+      })),
       flush: jest.fn().mockResolvedValue(undefined),
       populate: jest.fn().mockResolvedValue(undefined),
       persist: jest.fn(),
@@ -2773,7 +2778,7 @@ describe('TextRoomsService', () => {
         10,
       );
       expect(connection.execute).toHaveBeenCalledWith(
-        expect.stringContaining('insert or ignore into message_reads'),
+        'insert into message_reads (message_id, reader_id, read_at) select m.id, ?, CURRENT_TIMESTAMP from messages m where m.room_id = ? and m.sender_id != ? and m.id <= ? on conflict (message_id, reader_id) do nothing',
         [mockUser.id, 10, mockUser.id, Buffer.from(maxId)],
         'run',
       );
@@ -2831,7 +2836,7 @@ describe('TextRoomsService', () => {
       });
 
       expect(connection.execute).toHaveBeenCalledWith(
-        expect.stringContaining('insert or ignore into message_reads'),
+        'insert into message_reads (message_id, reader_id, read_at) select m.id, ?, CURRENT_TIMESTAMP from messages m where m.sender_id = ? and m.recipient_id = ? and m.id <= ? on conflict (message_id, reader_id) do nothing',
         [mockUser.id, peerId, mockUser.id, Buffer.from(maxId)],
         'run',
       );
@@ -2846,6 +2851,49 @@ describe('TextRoomsService', () => {
         },
       );
     });
+
+    it.each([
+      {
+        platform: 'SqlitePlatform',
+        insert: 'insert into message_reads',
+        conflict: true,
+      },
+      {
+        platform: 'PostgreSqlPlatform',
+        insert: 'insert into message_reads',
+        conflict: true,
+      },
+      {
+        platform: 'MySqlPlatform',
+        insert: 'insert ignore into message_reads',
+        conflict: false,
+      },
+    ])(
+      'uses $platform syntax for read-all inserts',
+      async ({ platform, insert, conflict }) => {
+        dbPlatformName = platform;
+        const maxId = parse(v7());
+        messageRepository.findOne.mockResolvedValueOnce({
+          id: maxId,
+        } as MessageEntity);
+        connection.execute.mockResolvedValueOnce({ affectedRows: 1 });
+
+        await service.readAll(mockUser, {
+          roomId: 10,
+          recipientId: null,
+        });
+
+        const sql = connection.execute.mock.calls[0]?.[0] as string;
+        expect(sql.startsWith(insert)).toBe(true);
+        expect(sql).toContain(
+          'where m.room_id = ? and m.sender_id != ? and m.id <= ?',
+        );
+        expect(
+          sql.includes('on conflict (message_id, reader_id) do nothing'),
+        ).toBe(conflict);
+        expect(sql).not.toContain('insert or ignore');
+      },
+    );
 
     it('returns counts without writes for self-DM', async () => {
       const result = await service.readAll(mockUser, {

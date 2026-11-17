@@ -1413,22 +1413,14 @@ export class TextRoomsService {
 
     let affectedRows = 0;
     if (dto.roomId) {
-      const result = await this.em
-        .getConnection()
-        .execute<{ affectedRows?: number }>(
-          'insert or ignore into message_reads (message_id, reader_id, read_at) select m.id, ?, CURRENT_TIMESTAMP from messages m where m.room_id = ? and m.sender_id != ? and m.id <= ?',
-          [user.id, dto.roomId, user.id, Buffer.from(maxId)],
-          'run',
-        );
+      const result = await this.em.getConnection().execute<{
+        affectedRows?: number;
+      }>(this.messageReadsInsertSql('m.room_id = ? and m.sender_id != ? and m.id <= ?'), [user.id, dto.roomId, user.id, Buffer.from(maxId)], 'run');
       affectedRows = result.affectedRows ?? 0;
     } else if (dto.recipientId) {
-      const result = await this.em
-        .getConnection()
-        .execute<{ affectedRows?: number }>(
-          'insert or ignore into message_reads (message_id, reader_id, read_at) select m.id, ?, CURRENT_TIMESTAMP from messages m where m.sender_id = ? and m.recipient_id = ? and m.id <= ?',
-          [user.id, dto.recipientId, user.id, Buffer.from(maxId)],
-          'run',
-        );
+      const result = await this.em.getConnection().execute<{
+        affectedRows?: number;
+      }>(this.messageReadsInsertSql('m.sender_id = ? and m.recipient_id = ? and m.id <= ?'), [user.id, dto.recipientId, user.id, Buffer.from(maxId)], 'run');
       affectedRows = result.affectedRows ?? 0;
     }
 
@@ -1456,6 +1448,20 @@ export class TextRoomsService {
       },
     );
     return counts;
+  }
+
+  /**
+   * SQLite and PostgreSQL ignore an existing `(message_id, reader_id)` pair
+   * with `ON CONFLICT`. MySQL uses `INSERT IGNORE` for the same unique key.
+   */
+  private messageReadsInsertSql(where: string): string {
+    const platformName = this.em.getPlatform().constructor.name;
+    const mysql = platformName.includes('MySql');
+    const verb = mysql ? 'insert ignore into' : 'insert into';
+    const conflict = mysql
+      ? ''
+      : ' on conflict (message_id, reader_id) do nothing';
+    return `${verb} message_reads (message_id, reader_id, read_at) select m.id, ?, CURRENT_TIMESTAMP from messages m where ${where}${conflict}`;
   }
 
   async getReaders(

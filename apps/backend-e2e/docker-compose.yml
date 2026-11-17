@@ -1,0 +1,18 @@
+services:
+  e2e:
+    profiles: [sqlite, my, pg]
+    image: mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION:?set by tools/e2e/run.sh}-noble
+    working_dir: /work
+    init: true
+    environment:
+      BASE_URL: http://app
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      PLAYWRIGHT_VERSION: ${PLAYWRIGHT_VERSION:?set by tools/e2e/run.sh}
+    volumes:
+      - ${E2E_SUITE_DIR:?set by tools/e2e/run.sh}/playwright.config.ts:/work/playwright.config.ts:ro
+      - ${E2E_SUITE_DIR:?set by tools/e2e/run.sh}/tsconfig.json:/work/tsconfig.json:ro
+      - ${E2E_SUITE_DIR:?set by tools/e2e/run.sh}/src:/work/src:ro
+      - ${E2E_REPO_ROOT:?set by tools/e2e/run.sh}/node_modules:/work/node_modules:ro
+    depends_on:
+      app:
+        condition: service_healthy

@@ -2,12 +2,14 @@ jest.mock('@mikro-orm/nestjs', () => ({
   InjectRepository: () => () => undefined,
 }));
 jest.mock('@mikro-orm/core', () => {
+  class MikroORM {}
   const createProxy = (): unknown =>
     new Proxy(() => createProxy(), {
       get: () => createProxy(),
       apply: () => createProxy(),
     });
   return {
+    MikroORM,
     defineEntity: () => ({
       class: class {},
       setClass: () => undefined,
@@ -18,8 +20,10 @@ jest.mock('@mikro-orm/core', () => {
   };
 });
 
+import { ServiceUnavailableException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { Cache } from '@nestjs/cache-manager';
+import { MikroORM } from '@mikro-orm/core';
 import { PublicService } from './public.service';
 import { AppService } from '@shared/services/app.service';
 import { IPublicVersion } from '@konvoez/shared';
@@ -31,6 +35,7 @@ describe('PublicService', () => {
     set: jest.Mock;
   };
   let fetchMock: jest.Mock;
+  let execute: jest.Mock;
   let appService: { GITHUB_TOKEN: string | undefined };
 
   const cachedPayload: IPublicVersion = {
@@ -47,6 +52,7 @@ describe('PublicService', () => {
     };
     appService = { GITHUB_TOKEN: undefined };
     fetchMock = jest.fn();
+    execute = jest.fn().mockResolvedValue([{ '1': 1 }]);
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -54,6 +60,14 @@ describe('PublicService', () => {
         PublicService,
         { provide: Cache, useValue: cacheManager },
         { provide: AppService, useValue: appService },
+        {
+          provide: MikroORM,
+          useValue: {
+            em: {
+              getConnection: () => ({ execute }),
+            },
+          },
+        },
       ],
     }).compile();
 
@@ -204,5 +218,17 @@ describe('PublicService', () => {
       releaseUrl: null,
       updateAvailable: false,
     });
+  });
+
+  it('should run SELECT 1 when checking database liveness', async () => {
+    await service.assertDatabaseAlive();
+    expect(execute).toHaveBeenCalledWith('SELECT 1');
+  });
+
+  it('should throw ServiceUnavailableException when the database check fails', async () => {
+    execute.mockRejectedValueOnce(new Error('database down'));
+    await expect(service.assertDatabaseAlive()).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
   });
 });

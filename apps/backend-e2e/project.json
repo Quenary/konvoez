@@ -1,0 +1,40 @@
+{
+  "name": "backend-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/backend-e2e/src",
+  "projectType": "application",
+  "tags": ["scope:server", "type:app"],
+  "implicitDependencies": ["backend"],
+  "targets": {
+    "e2e": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "bash tools/e2e/run.sh apps/backend-e2e all"
+      },
+      "configurations": {
+        "sqlite": {
+          "command": "bash tools/e2e/run.sh apps/backend-e2e sqlite"
+        },
+        "my": {
+          "command": "bash tools/e2e/run.sh apps/backend-e2e my"
+        },
+        "pg": {
+          "command": "bash tools/e2e/run.sh apps/backend-e2e pg"
+        }
+      }
+    },
+    "format:check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --check \"{projectRoot}\""
+      }
+    },
+    "format:write": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "prettier --write \"{projectRoot}\""
+      }
+    }
+  }
+}

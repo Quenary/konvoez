@@ -14,15 +14,9 @@
 
 Passwords, email codes and password-recovery codes use Argon2. Session tokens, attachments and avatars are not protected by `MASTER_KEY`.
 
-## Upgrade
-
-An existing instance starts this version with its current `MASTER_KEY`. That start applies the migration, which rewrites stored ciphertext with that key. Rotation runs after the migration. `MASTER_KEY` changes only after the command succeeds.
-
-If the key cannot decrypt existing messages, the migration stops and stays pending.
-
 ## Rotation
 
-The app service is stopped first, so it cannot write with the old key while the command runs. `OLD_MASTER_KEY` and `NEW_MASTER_KEY` come from the environment, or from `OLD_MASTER_KEY_FILE` and `NEW_MASTER_KEY_FILE` when the values live in files. The command does not apply migrations. It takes an immediate SQLite lock, checks every protected value with the old key, and rewrites the database in one transaction. `vapid.json` is replaced after that commit. `--dry-run` checks every value, rolls the transaction back and does not touch `vapid.json`.
+The app service is stopped first, so it cannot write with the old key while the command runs. `OLD_MASTER_KEY` and `NEW_MASTER_KEY` come from the environment, or from `OLD_MASTER_KEY_FILE` and `NEW_MASTER_KEY_FILE` when the values live in files. The command does not apply migrations. It runs in a single transaction across supported database engines (SQLite immediate lock, PostgreSQL and MySQL standard transactional isolation), checks every protected value with the old key, and rewrites the database in one transaction. `vapid.json` is replaced after that commit. `--dry-run` checks every value, rolls the transaction back and does not touch `vapid.json`.
 
 ```bash
 docker compose stop app
@@ -43,7 +37,7 @@ Without Docker the same entry point is `node main.js rotate-master-key`, with th
 flowchart TD
   stop[Stop the app]
   cmd[rotate-master-key]
-  lock[Lock the database]
+  lock[Start transaction]
   check[Read every protected value with the old key]
   dry{--dry-run?}
   roll[Roll back and leave vapid.json unchanged]

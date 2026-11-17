@@ -48,3 +48,7 @@ coverage
 Dockerfile
 docker-compose.yml
 docker-compose.*.yml
+
+# E2E suites and the shared runner are not part of the runtime image.
+apps/backend-e2e
+tools/e2e

@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { MikroORM } from '@mikro-orm/core';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
+import { runMigrations } from './migrations/migration-runner';
 import { NotificationsService } from './features/notifications/notifications.service';
 import { runRotateMasterKeyCommand } from './shared/master-key/rotate-master-key';
 import { loadFileSecrets } from './shared/utils/file-secrets.util';
@@ -12,7 +13,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const orm = app.get(MikroORM);
-  await orm.migrator.up();
+  await runMigrations(orm);
 
   app.setGlobalPrefix('/api/v1');
   app.use(cookieParser());

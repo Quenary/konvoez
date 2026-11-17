@@ -1,0 +1,61 @@
+# App instance and database profiles shared by e2e suites.
+# A suite adds its own compose file with the Playwright service.
+
+services:
+  app:
+    profiles: [sqlite, my, pg]
+    build:
+      context: ${E2E_REPO_ROOT:?set by tools/e2e/run.sh}
+      dockerfile: Dockerfile
+    image: konvoez:e2e
+    environment:
+      MASTER_KEY: ${MASTER_KEY:?set by tools/e2e/run.sh}
+      JWT_SECRET: ${JWT_SECRET:?set by tools/e2e/run.sh}
+      MEDIASOUP_ANNOUNCED_IP: ${MEDIASOUP_ANNOUNCED_IP:?set by tools/e2e/run.sh}
+      DB_ENGINE: ${DB_ENGINE:-}
+      DB_HOST: ${DB_HOST:-}
+      DB_PORT: ${DB_PORT:-}
+      DB_USER: ${DB_USER:-}
+      DB_PASSWORD: ${DB_PASSWORD:-}
+      DB_NAME: ${DB_NAME:-}
+    # required: false skips a database service whose profile is not selected.
+    depends_on:
+      mysql:
+        condition: service_healthy
+        required: false
+      postgres:
+        condition: service_healthy
+        required: false
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:80/api/v1/public/health']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  mysql:
+    profiles: [my]
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: konvoez
+      MYSQL_ROOT_PASSWORD: root
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-proot']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  postgres:
+    profiles: [pg]
+    image: postgres:17
+    environment:
+      POSTGRES_DB: konvoez
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d konvoez']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
