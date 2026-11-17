@@ -4,7 +4,7 @@ Rules for `apps/backend` — the NestJS API for Konvoez. General rules (scope, T
 
 ## Stack
 
-- **NestJS 11**, **MikroORM 7** with `defineEntity` schemas. SQLite is the supported engine; `DB_ENGINE` keeps the option for other drivers open.
+- **NestJS 11**, **MikroORM 7** with `defineEntity` schemas. Supported database engines via `DB_ENGINE`: `sqlite` (default), `postgres`, `mysql`.
 - **nestjs-zod** with Zod schemas from `@konvoez/shared` for DTOs.
 - **Socket.IO** gateways and **mediasoup** (WebRTC SFU).
 - **JWT** in HTTP-only cookies, **Argon2** passwords and secret hashing (`HashService`), **AES-256-GCM** message encryption at rest (`SecretBoxService`).
@@ -59,7 +59,7 @@ The backend is a **modular monolith** in a single process. Organize by feature m
 
 - Entities use `defineEntity` with `p.*` builders and extend `KonvoezBaseEntitySchema`.
 - Inject `EntityRepository<T>` with `@InjectRepository`; get the `EntityManager` from the repository (`em.fork()` for isolated work). Services own persistence; do not add repository classes unless complexity clearly demands it.
-- Schema changes go through migrations in `src/migrations/`, created only with the CLI, never by hand: `npm run migration:create -- --name DescriptiveSuffix` (the suffix is required). Then add the new migration to `migrationsList` in `mikro-orm.config.ts`, which the webpack bundle needs. Never use ORM `synchronize` instead of migrations.
+- Schema changes go through declarative migrations in `src/migrations/`, extending `KnexMigration` (`./knex-migration`). Because the MikroORM CLI generates dialect-specific raw SQL migrations by default, create a blank migration with `npm run migration:create -- --blank --name DescriptiveSuffix` (the suffix is required), extend `KnexMigration`, and write schema changes declaratively using `this.addKnex(this.schema.createTable(...))` (since `this.schema` without `addKnex` is a no-op) to ensure compatibility across SQLite, PostgreSQL, and MySQL. Then register the new migration in `migrationsList` in `mikro-orm.config.ts`, which the webpack bundle requires. Never use ORM `synchronize` instead of migrations.
 - Message content is encrypted with `SecretBoxService` before persisting and decrypted on read. Search tokens are HMAC-SHA256 trigrams. Plaintext chat bodies are never stored. Rotation: [Key rotation](../../docs/backend/KEY_ROTATION.md).
 
 ## Realtime and voice

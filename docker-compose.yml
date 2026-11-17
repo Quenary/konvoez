@@ -1,6 +1,6 @@
 services:
   app:
-    image: ghcr.io/quenary/konvoez:1
+    image: ghcr.io/quenary/konvoez:2
     container_name: konvoez
     restart: unless-stopped
     ports:
@@ -19,6 +19,13 @@ services:
       - JWT_SECRET=${JWT_SECRET:-}
       # Docker secret instead of MASTER_KEY. Leave MASTER_KEY empty.
       # - MASTER_KEY_FILE=/run/secrets/master_key
+      # Database (optional, defaults to internal SQLite in /konvoez_data)
+      # - DB_ENGINE=${DB_ENGINE:-}
+      # - DB_NAME=${DB_NAME:-}
+      # - DB_HOST=${DB_HOST:-}
+      # - DB_PORT=${DB_PORT:-}
+      # - DB_USER=${DB_USER:-}
+      # - DB_PASSWORD=${DB_PASSWORD:-}
       # Cookies
       - COOKIE_SECURE=${COOKIE_SECURE:-}
       - COOKIE_SAME_SITE=${COOKIE_SAME_SITE:-}

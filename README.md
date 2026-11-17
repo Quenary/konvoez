@@ -71,7 +71,7 @@ Konvoez ships as a single Docker image: Nginx serves the frontend and proxies th
 
 3. Open the server on port `80` (behind a reverse proxy in practice) and register the `OWNER` account.
 
-To update the prebuilt image, run `docker compose pull && docker compose up -d`.
+To update the prebuilt image, run `docker compose pull && docker compose up -d`. When upgrading an existing instance from v1 to v2, refer to the [v1 to v2 Migration Guide](docs/MIGRATION_V1_TO_V2.md).
 
 > [!IMPORTANT]
 > **Initial OWNER setup**: on a fresh install the server prints a one-time token (valid for 5 minutes) to the container logs (`docker compose logs`). The token is required to register the `OWNER` account. If it expires, restart the container to get a new one.
@@ -87,6 +87,7 @@ To update the prebuilt image, run `docker compose pull && docker compose up -d`.
 
 **Using and operating**
 
+- [v1 to v2 Migration Guide](docs/MIGRATION_V1_TO_V2.md)
 - [Networking & Deployment Guide](docs/NETWORKING.md)
 - [Security Policy](docs/SECURITY.md)
 - [Key rotation](docs/backend/KEY_ROTATION.md)

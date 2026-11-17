@@ -1,8 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import { MikroORM, type EntityManager, type Options } from '@mikro-orm/core';
+import knex, { type Knex } from 'knex';
 import { AppService } from '../services/app.service';
 import { createMikroOrmConfig } from '../../mikro-orm.config';
+import { loadFileSecrets } from '../utils/file-secrets.util';
 import { hmacSha256Hex, unwrapRecoveryHmacKey } from './hmac';
 import {
   CHAT_MESSAGE_PURPOSE,
@@ -35,7 +37,40 @@ type SqliteDatabase = {
   exec(sql: string): void;
 };
 
+interface RotationTransaction {
+  commit(): Promise<void>;
+  rollback(): Promise<void>;
+}
+
 const MESSAGE_BATCH = 500;
+
+export function getKnexForOrm(orm: MikroORM): Knex {
+  const platformName = orm.em.getPlatform()?.constructor?.name ?? '';
+  const driverName =
+    (orm.config?.get?.('driver') as { name?: string })?.name ?? '';
+  const dbEngine = process.env['DB_ENGINE']?.toLowerCase();
+  let client = 'better-sqlite3';
+  if (
+    platformName.includes('PostgreSql') ||
+    driverName.includes('PostgreSql') ||
+    dbEngine === 'postgres' ||
+    dbEngine === 'postgresql'
+  ) {
+    client = 'pg';
+  } else if (
+    platformName.includes('MySql') ||
+    driverName.includes('MySql') ||
+    dbEngine === 'mysql' ||
+    dbEngine === 'mariadb'
+  ) {
+    client = 'mysql2';
+  }
+  return knex({
+    client,
+    useNullAsDefault: true,
+    pool: { min: 0, max: 0 },
+  });
+}
 
 export async function rotateMasterKey(input: {
   orm: MikroORM;
@@ -43,6 +78,7 @@ export async function rotateMasterKey(input: {
   newKey: string;
   dryRun: boolean;
   vapidFilePath: string;
+  knex?: Knex;
 }): Promise<RotateCounts> {
   const pending = await input.orm.migrator.getPending();
   if (pending.length > 0) {
@@ -53,14 +89,15 @@ export async function rotateMasterKey(input: {
   const stagedVapid: { current: { tmp: string; dest: string } | null } = {
     current: null,
   };
-  const db = await sqliteDatabase(input.orm);
-  db.exec('BEGIN IMMEDIATE');
+  const em = input.orm.em.fork();
+  const trx = await beginRotationTransaction(em);
   let committed = false;
 
   try {
-    const em = input.orm.em;
+    const k = input.knex ?? getKnexForOrm(input.orm);
     const counts = await rewriteProtectedValues(
       em,
+      k,
       input.oldKey,
       input.newKey,
       input.dryRun,
@@ -68,7 +105,7 @@ export async function rotateMasterKey(input: {
     counts.vapid = vapidPlain !== null;
 
     if (input.dryRun) {
-      db.exec('ROLLBACK');
+      await trx.rollback();
       return counts;
     }
 
@@ -79,13 +116,13 @@ export async function rotateMasterKey(input: {
         input.newKey,
       );
     }
-    db.exec('COMMIT');
+    await trx.commit();
     committed = true;
     replaceVapidFile(stagedVapid.current);
     return counts;
   } catch (error) {
     if (!committed) {
-      rollbackQuietly(db);
+      await trx.rollback();
     }
     if (stagedVapid.current && !renameFailure(error)) {
       fs.rmSync(stagedVapid.current.tmp, { force: true });
@@ -102,6 +139,7 @@ export async function runRotateMasterKeyCommand(
     return 1;
   }
 
+  loadFileSecrets();
   const oldKey = process.env['OLD_MASTER_KEY'] || null;
   const newKey = process.env['NEW_MASTER_KEY'] || null;
   if (!oldKey || !newKey) {
@@ -134,18 +172,58 @@ export async function runRotateMasterKeyCommand(
   }
 }
 
+async function beginRotationTransaction(
+  em: EntityManager,
+): Promise<RotationTransaction> {
+  const conn = em.getConnection() as unknown as {
+    getNativeClient?: () => Promise<unknown> | unknown;
+  };
+  const client = await conn.getNativeClient?.();
+
+  if (isSqliteDatabase(client)) {
+    client.exec('BEGIN IMMEDIATE');
+    return {
+      commit: async () => {
+        client.exec('COMMIT');
+      },
+      rollback: async () => {
+        try {
+          client.exec('ROLLBACK');
+        } catch {
+          // The transaction is already closed.
+        }
+      },
+    };
+  }
+
+  await em.begin();
+  return {
+    commit: async () => {
+      await em.commit();
+    },
+    rollback: async () => {
+      try {
+        await em.rollback();
+      } catch {
+        // The transaction is already closed.
+      }
+    },
+  };
+}
+
 async function rewriteProtectedValues(
   em: EntityManager,
+  k: Knex,
   oldKey: string,
   newKey: string,
   dryRun: boolean,
 ): Promise<RotateCounts> {
-  const messages = await rewriteMessages(em, oldKey, newKey, dryRun);
-  const secrets = await loadSecrets(em, oldKey, newKey);
-  const recoveryWrap = await loadRecoveryWrap(em, oldKey, newKey);
+  const messages = await rewriteMessages(em, k, oldKey, newKey, dryRun);
+  const secrets = await loadSecrets(em, k, oldKey, newKey);
+  const recoveryWrap = await loadRecoveryWrap(em, k, oldKey, newKey);
   if (!dryRun) {
-    await writeSecrets(em, newKey, secrets);
-    await writeRecoveryWrap(em, newKey, recoveryWrap);
+    await writeSecrets(em, k, newKey, secrets);
+    await writeRecoveryWrap(em, k, newKey, recoveryWrap);
   }
   return {
     messages: messages.messages,
@@ -158,16 +236,16 @@ async function rewriteProtectedValues(
 
 async function rewriteMessages(
   em: EntityManager,
+  k: Knex,
   oldKey: string,
   newKey: string,
   dryRun: boolean,
 ): Promise<{ messages: number; searchTokens: number }> {
-  const orphans = readCount(
-    await query(
-      em,
-      'select count(*) as count from `message_search_tokens` t left join `messages` m on m.`id` = t.`message_id` where m.`id` is null',
-    ),
-  );
+  const orphanQuery = k('message_search_tokens as t')
+    .leftJoin('messages as m', 'm.id', 't.message_id')
+    .whereNull('m.id')
+    .count('* as count');
+  const orphans = readCount(await executeKnex(em, orphanQuery));
   if (orphans > 0) {
     throw new Error('Search token does not match a message');
   }
@@ -176,20 +254,21 @@ async function rewriteMessages(
   let searchTokens = 0;
   let after: Buffer | null = null;
   for (;;) {
-    const rows = await query(
-      em,
-      after === null
-        ? 'select `id`, `content` from `messages` order by `id` limit ?'
-        : 'select `id`, `content` from `messages` where `id` > ? order by `id` limit ?',
-      after === null ? [MESSAGE_BATCH] : [after, MESSAGE_BATCH],
-    );
+    let builder = k('messages')
+      .select('id', 'content')
+      .orderBy('id', 'asc')
+      .limit(MESSAGE_BATCH);
+    if (after !== null) {
+      builder = builder.where('id', '>', after);
+    }
+    const rows = await executeKnex(em, builder);
     if (rows.length === 0) {
       return { messages, searchTokens };
     }
 
-    const prepared = await prepareMessageBatch(em, oldKey, newKey, rows);
+    const prepared = await prepareMessageBatch(em, k, oldKey, newKey, rows);
     if (!dryRun) {
-      await writeMessages(em, newKey, prepared);
+      await writeMessages(em, k, newKey, prepared);
     }
     messages += prepared.length;
     searchTokens += prepared.reduce(
@@ -206,12 +285,13 @@ async function rewriteMessages(
 
 async function prepareMessageBatch(
   em: EntityManager,
+  k: Knex,
   oldKey: string,
   newKey: string,
   rows: SqlRow[],
 ): Promise<PreparedMessage[]> {
   const ids = rows.map((row) => asBuffer(row['id']));
-  const tokensByMessage = await loadMessageTokens(em, ids);
+  const tokensByMessage = await loadMessageTokens(em, k, ids);
   return rows.map((row) => {
     const id = asBuffer(row['id']);
     const stored = String(row['content'] ?? '');
@@ -239,18 +319,17 @@ async function prepareMessageBatch(
 
 async function loadMessageTokens(
   em: EntityManager,
+  k: Knex,
   ids: Buffer[],
 ): Promise<Map<string, string[]>> {
   const tokensByMessage = new Map<string, string[]>();
   if (ids.length === 0) {
     return tokensByMessage;
   }
-  const placeholders = ids.map(() => '?').join(', ');
-  const tokenRows = await query(
-    em,
-    `select \`message_id\`, \`token_hash\` from \`message_search_tokens\` where \`message_id\` in (${placeholders})`,
-    ids,
-  );
+  const builder = k('message_search_tokens')
+    .select('message_id', 'token_hash')
+    .whereIn('message_id', ids);
+  const tokenRows = await executeKnex(em, builder);
   for (const row of tokenRows) {
     const key = asBuffer(row['message_id']).toString('hex');
     const hash = String(row['token_hash']);
@@ -266,13 +345,14 @@ async function loadMessageTokens(
 
 async function loadSecrets(
   em: EntityManager,
+  k: Knex,
   oldKey: string,
   newKey: string,
 ): Promise<{ id: number; next: string; plain: string }[]> {
-  const rows = await query(
-    em,
-    'select `id`, `two_factor_secret` from `users` where `two_factor_secret` is not null',
-  );
+  const builder = k('users')
+    .select('id', 'two_factor_secret')
+    .whereNotNull('two_factor_secret');
+  const rows = await executeKnex(em, builder);
   return rows.map((row) => {
     const stored = String(row['two_factor_secret']);
     if (!stored.startsWith('v1:')) {
@@ -289,18 +369,16 @@ async function loadSecrets(
 
 async function loadRecoveryWrap(
   em: EntityManager,
+  k: Knex,
   oldKey: string,
   newKey: string,
 ): Promise<{ id: number; next: string; plain: string } | null> {
-  const rows = await query(
+  const rows = await executeKnex(
     em,
-    'select `id`, `wrapped` from `two_factor_recovery_key`',
+    k('two_factor_recovery_key').select('id', 'wrapped'),
   );
   const codeCount = readCount(
-    await query(
-      em,
-      'select count(*) as count from `two_factor_recovery_codes`',
-    ),
+    await executeKnex(em, k('two_factor_recovery_codes').count('* as count')),
   );
   if (rows.length === 0) {
     if (codeCount > 0) {
@@ -330,30 +408,37 @@ async function loadRecoveryWrap(
 
 async function writeMessages(
   em: EntityManager,
+  k: Knex,
   newKey: string,
   messages: PreparedMessage[],
 ): Promise<void> {
   for (const message of messages) {
-    await query(em, 'update `messages` set `content` = ? where `id` = ?', [
-      message.next,
-      message.id,
-    ]);
-    await query(
+    await executeKnex(
       em,
-      'delete from `message_search_tokens` where `message_id` = ?',
-      [message.id],
+      k('messages').where('id', message.id).update({ content: message.next }),
+      'run',
     );
-    for (const token of message.tokens) {
-      await query(
+    await executeKnex(
+      em,
+      k('message_search_tokens').where('message_id', message.id).delete(),
+      'run',
+    );
+    if (message.tokens.length > 0) {
+      await executeKnex(
         em,
-        'insert into `message_search_tokens` (`message_id`, `token_hash`) values (?, ?)',
-        [message.id, token],
+        k('message_search_tokens').insert(
+          message.tokens.map((token) => ({
+            message_id: message.id,
+            token_hash: token,
+          })),
+        ),
+        'run',
       );
     }
-    const stored = await query(
+    const stored = await executeKnex(
       em,
-      'select `content` from `messages` where `id` = ?',
-      [message.id],
+      k('messages').select('content').where('id', message.id),
+      'all',
     );
     const plain = decryptSecretBox(
       newKey,
@@ -368,19 +453,22 @@ async function writeMessages(
 
 async function writeSecrets(
   em: EntityManager,
+  k: Knex,
   newKey: string,
   secrets: { id: number; next: string; plain: string }[],
 ): Promise<void> {
   for (const secret of secrets) {
-    await query(
+    await executeKnex(
       em,
-      'update `users` set `two_factor_secret` = ? where `id` = ?',
-      [secret.next, secret.id],
+      k('users')
+        .where('id', secret.id)
+        .update({ two_factor_secret: secret.next }),
+      'run',
     );
-    const stored = await query(
+    const stored = await executeKnex(
       em,
-      'select `two_factor_secret` from `users` where `id` = ?',
-      [secret.id],
+      k('users').select('two_factor_secret').where('id', secret.id),
+      'all',
     );
     const plain = decryptSecretBox(
       newKey,
@@ -395,21 +483,24 @@ async function writeSecrets(
 
 async function writeRecoveryWrap(
   em: EntityManager,
+  k: Knex,
   newKey: string,
   recoveryWrap: { id: number; next: string; plain: string } | null,
 ): Promise<void> {
   if (!recoveryWrap) {
     return;
   }
-  await query(
+  await executeKnex(
     em,
-    'update `two_factor_recovery_key` set `wrapped` = ? where `id` = ?',
-    [recoveryWrap.next, recoveryWrap.id],
+    k('two_factor_recovery_key')
+      .where('id', recoveryWrap.id)
+      .update({ wrapped: recoveryWrap.next }),
+    'run',
   );
-  const stored = await query(
+  const stored = await executeKnex(
     em,
-    'select `wrapped` from `two_factor_recovery_key` where `id` = ?',
-    [recoveryWrap.id],
+    k('two_factor_recovery_key').select('wrapped').where('id', recoveryWrap.id),
+    'all',
   );
   const plain = decryptSecretBox(
     newKey,
@@ -509,59 +600,56 @@ function renameFailure(error: unknown): boolean {
   return error instanceof RenameFailed;
 }
 
-async function sqliteDatabase(orm: MikroORM): Promise<SqliteDatabase> {
-  const conn = orm.em.getConnection() as unknown as {
-    getNativeClient: () => Promise<unknown>;
-  };
-  const client = await conn.getNativeClient();
-  if (!isSqliteDatabase(client)) {
-    throw new Error('Master key rotation requires SQLite');
-  }
-  return client;
-}
-
 function isSqliteDatabase(client: unknown): client is SqliteDatabase {
   return (
     typeof client === 'object' &&
     client !== null &&
     'exec' in client &&
-    typeof client.exec === 'function'
+    typeof (client as SqliteDatabase).exec === 'function'
   );
-}
-
-function rollbackQuietly(db: SqliteDatabase): void {
-  try {
-    db.exec('ROLLBACK');
-  } catch {
-    // The transaction is already closed.
-  }
 }
 
 function shellSingleQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-async function query(
+async function executeKnex(
   em: EntityManager,
-  sql: string,
-  params: unknown[] = [],
+  builder: Knex.QueryBuilder,
+  method: 'all' | 'run' = 'all',
 ): Promise<SqlRow[]> {
+  const { sql, bindings } = builder.toSQL();
   const rows = await em
     .getConnection()
-    .execute(sql, params, 'all', em.getTransactionContext());
-  return rows as SqlRow[];
+    .execute(sql, bindings as unknown[], method, em.getTransactionContext());
+  return (Array.isArray(rows) ? rows : []) as SqlRow[];
 }
 
 function readCount(rows: SqlRow[]): number {
-  return Number(rows[0]?.['count'] ?? 0);
+  const row = rows[0];
+  if (!row) {
+    return 0;
+  }
+  return Number(row['count'] ?? row['COUNT(*)'] ?? Object.values(row)[0] ?? 0);
 }
 
-function asBuffer(value: unknown): Buffer {
+export function asBuffer(value: unknown): Buffer {
   if (Buffer.isBuffer(value)) {
     return value;
   }
   if (value instanceof Uint8Array) {
-    return Buffer.from(value);
+    return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
+  }
+  if (typeof value === 'string') {
+    if (value.startsWith('\\x')) {
+      return Buffer.from(value.slice(2), 'hex');
+    }
+    if (/^[0-9a-fA-F]{32}$/.test(value)) {
+      return Buffer.from(value, 'hex');
+    }
+    if (value.length === 16) {
+      return Buffer.from(value, 'latin1');
+    }
   }
   throw new Error('Expected a blob column');
 }

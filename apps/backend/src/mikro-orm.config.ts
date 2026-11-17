@@ -25,36 +25,23 @@ import { TwoFactorRecoveryCodeEntitySchema } from './features/two-factor/two-fac
 import { TwoFactorRecoveryKeyEntitySchema } from './features/two-factor/two-factor-recovery-key.entity';
 import { MessageAttachmentEntitySchema } from './features/attachments/attachments.entity';
 import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
-import { Migration20260801010402_InitialSchema } from './migrations/Migration20260801010402_InitialSchema';
-import { Migration20260915000000_MessageReplyTo } from './migrations/Migration20260915000000_MessageReplyTo';
-import { Migration20260916000000_SettingsKeyPrimaryKey } from './migrations/Migration20260916000000_SettingsKeyPrimaryKey';
-import { Migration20260916010000_InvitesAndInviteOnlySignup } from './migrations/Migration20260916010000_InvitesAndInviteOnlySignup';
-import { Migration20260917123217_MessageSearchTokens } from './migrations/Migration20260917123217_MessageSearchTokens';
 import { getDefaultSqliteDbPath } from './shared/storage.utils';
-import { Migration20260922000000_MessageReads } from './migrations/Migration20260922000000_MessageReads';
-import { Migration20260923111848_PushSubscriptionNotifications } from './migrations/Migration20260923111848_PushSubscriptionNotifications';
-import { Migration20260929152327_PasswordRecoveryCodes } from './migrations/Migration20260929152327_PasswordRecoveryCodes';
-import { Migration20260930120000_NormalizeEmails } from './migrations/Migration20260930120000_NormalizeEmails';
-import { Migration20260930092254_UserSoftDelete } from './migrations/Migration20260930092254_UserSoftDelete';
-import { Migration20261003224050_MessageAttachments } from './migrations/Migration20261003224050_MessageAttachments';
-import { Migration20261009130000_MessageReactions } from './migrations/Migration20261009130000_MessageReactions';
-import { Migration20261017170127_RolesAndRoomAccess } from './migrations/Migration20261017170127_RolesAndRoomAccess';
-import { Migration20261019120000_MentionableRoles } from './migrations/Migration20261019120000_MentionableRoles';
-import { Migration20261019130000_MessageMentions } from './migrations/Migration20261019130000_MessageMentions';
-import { Migration20261026090000_SessionVersion } from './migrations/Migration20261026090000_SessionVersion';
-import { Migration20261026100000_TwoFactor } from './migrations/Migration20261026100000_TwoFactor';
-import { Migration20261026172220_UserNotificationSettings } from './migrations/Migration20261026172220_UserNotificationSettings';
-import { Migration20261027192655_UserNotificationSettingsReplies } from './migrations/Migration20261027192655_UserNotificationSettingsReplies';
-import { Migration20261101000000_EmailVerification } from './migrations/Migration20261101000000_EmailVerification';
-import { Migration20261102004712_MasterKeyMessageContent } from './migrations/Migration20261102004712_MasterKeyMessageContent';
-import { Migration20261108005129_InviteEmailSent } from './migrations/Migration20261108005129_InviteEmailSent';
-import { Migration20261112041029_PasswordRecoveryAttempts } from './migrations/Migration20261112041029_PasswordRecoveryAttempts';
-import { Migration20261115023712_UserLanguageAndDetectedLocale } from './migrations/Migration20261115023712_UserLanguageAndDetectedLocale';
-import { Migration20261116083850_RoomOrder } from './migrations/Migration20261116083850_RoomOrder';
+import { Migration20261116120000_Baseline } from './migrations/Migration20261116120000_Baseline';
 
 import { RoleEntitySchema } from './features/roles/roles.entity';
 
 export type DbEngine = 'sqlite' | 'mysql' | 'postgres';
+
+export function resolveDbEngine(rawEngine?: string): DbEngine {
+  const normalized = rawEngine?.toLowerCase();
+  if (normalized === 'postgres' || normalized === 'postgresql') {
+    return 'postgres';
+  }
+  if (normalized === 'mysql' || normalized === 'mariadb') {
+    return 'mysql';
+  }
+  return 'sqlite';
+}
 
 export async function createMikroOrmConfig() {
   const baseOptions: object = {
@@ -86,37 +73,11 @@ export async function createMikroOrmConfig() {
       pathTs: './src/migrations',
       // Explicit list is required for the webpack-bundled app (no FS discovery).
       // Keep override name = historical DB identity when renaming classes/files.
-      migrationsList: [
-        Migration20260801010402_InitialSchema,
-        Migration20260915000000_MessageReplyTo,
-        Migration20260916000000_SettingsKeyPrimaryKey,
-        Migration20260916010000_InvitesAndInviteOnlySignup,
-        Migration20260917123217_MessageSearchTokens,
-        Migration20260922000000_MessageReads,
-        Migration20260923111848_PushSubscriptionNotifications,
-        Migration20260929152327_PasswordRecoveryCodes,
-        Migration20260930120000_NormalizeEmails,
-        Migration20260930092254_UserSoftDelete,
-        Migration20261003224050_MessageAttachments,
-        Migration20261009130000_MessageReactions,
-        Migration20261017170127_RolesAndRoomAccess,
-        Migration20261019120000_MentionableRoles,
-        Migration20261019130000_MessageMentions,
-        Migration20261026090000_SessionVersion,
-        Migration20261026100000_TwoFactor,
-        Migration20261026172220_UserNotificationSettings,
-        Migration20261027192655_UserNotificationSettingsReplies,
-        Migration20261101000000_EmailVerification,
-        Migration20261102004712_MasterKeyMessageContent,
-        Migration20261108005129_InviteEmailSent,
-        Migration20261112041029_PasswordRecoveryAttempts,
-        Migration20261115023712_UserLanguageAndDetectedLocale,
-        Migration20261116083850_RoomOrder,
-      ],
+      migrationsList: [Migration20261116120000_Baseline],
     },
   } satisfies Partial<Options>;
 
-  const engine: DbEngine = (process.env.DB_ENGINE as DbEngine) || 'sqlite';
+  const engine = resolveDbEngine(process.env.DB_ENGINE);
 
   switch (engine) {
     case 'postgres': {
@@ -155,6 +116,9 @@ export async function createMikroOrmConfig() {
           );
           await conn.executeQuery(
             CompiledQuery.raw('pragma synchronous = NORMAL'),
+          );
+          await conn.executeQuery(
+            CompiledQuery.raw('pragma busy_timeout = 5000'),
           );
         },
       });

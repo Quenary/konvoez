@@ -9,7 +9,7 @@ export const PushSubscriptionEntitySchema = defineEntity({
   properties: {
     id: p.integer().primary().autoincrement(),
     user: () => p.manyToOne(UserEntitySchema).index().deleteRule('cascade'),
-    endpoint: p.string().length(2048).index().unique(),
+    endpoint: p.string().length(500).unique().index(),
     auth: p.string().length(512),
     p256dh: p.string().length(2048),
     browser: p.string().length(256).nullable(),

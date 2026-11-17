@@ -9,7 +9,12 @@ import {
   CHAT_SEARCH_PURPOSE,
   TWO_FACTOR_SECRET_PURPOSE,
 } from './master-key.registry';
-import { rotateMasterKey } from './rotate-master-key';
+import {
+  asBuffer,
+  getKnexForOrm,
+  rotateMasterKey,
+  runRotateMasterKeyCommand,
+} from './rotate-master-key';
 import { decryptSecretBox, encryptSecretBox } from './secret-box';
 import { extractTrigrams } from '../utils/trigrams.util';
 import { VAPID_KEY_STORAGE_INFO } from '../utils/master-key.util';
@@ -265,6 +270,162 @@ describe('rotateMasterKey', () => {
     expect(decryptSecretBox(newKey, stored.content, CHAT_MESSAGE_PURPOSE)).toBe(
       plain,
     );
+  });
+
+  it('uses standard transactional isolation (fork().begin / fork().commit / fork().rollback) when client is not SQLite', async () => {
+    const forkedEm = orm.em.fork();
+    const conn = forkedEm.getConnection() as unknown as {
+      getNativeClient: () => Promise<unknown>;
+    };
+    // Mock getNativeClient to return a non-sqlite client (pool without .exec)
+    jest.spyOn(conn, 'getNativeClient').mockResolvedValue({});
+    const forkSpy = jest.spyOn(orm.em, 'fork').mockReturnValue(forkedEm);
+
+    const beginSpy = jest.spyOn(forkedEm, 'begin').mockResolvedValue(undefined);
+    const commitSpy = jest
+      .spyOn(forkedEm, 'commit')
+      .mockResolvedValue(undefined);
+    const rollbackSpy = jest
+      .spyOn(forkedEm, 'rollback')
+      .mockResolvedValue(undefined);
+
+    // Test dryRun: should begin and rollback
+    const counts = await rotateMasterKey({
+      orm,
+      oldKey,
+      newKey,
+      dryRun: true,
+      vapidFilePath: vapidPath,
+    });
+
+    expect(forkSpy).toHaveBeenCalledTimes(1);
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(rollbackSpy).toHaveBeenCalledTimes(1);
+    expect(commitSpy).not.toHaveBeenCalled();
+    expect(counts.messages).toBe(1);
+
+    // Test full rotation: should begin and commit
+    forkSpy.mockClear();
+    beginSpy.mockClear();
+    rollbackSpy.mockClear();
+    commitSpy.mockClear();
+
+    await rotateMasterKey({
+      orm,
+      oldKey,
+      newKey,
+      dryRun: false,
+      vapidFilePath: vapidPath,
+    });
+
+    expect(forkSpy).toHaveBeenCalledTimes(1);
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(commitSpy).toHaveBeenCalledTimes(1);
+    expect(rollbackSpy).not.toHaveBeenCalled();
+  });
+
+  it('rolls back via fork().rollback when client is not SQLite and an error occurs', async () => {
+    const db = await nativeDb(orm);
+    db.prepare('update messages set content = ?').run('v1:broken');
+
+    const forkedEm = orm.em.fork();
+    const conn = forkedEm.getConnection() as unknown as {
+      getNativeClient: () => Promise<unknown>;
+    };
+    jest.spyOn(conn, 'getNativeClient').mockResolvedValue({});
+    const forkSpy = jest.spyOn(orm.em, 'fork').mockReturnValue(forkedEm);
+
+    const beginSpy = jest.spyOn(forkedEm, 'begin').mockResolvedValue(undefined);
+    const rollbackSpy = jest
+      .spyOn(forkedEm, 'rollback')
+      .mockResolvedValue(undefined);
+
+    await expect(
+      rotateMasterKey({
+        orm,
+        oldKey,
+        newKey,
+        dryRun: false,
+        vapidFilePath: vapidPath,
+      }),
+    ).rejects.toThrow();
+
+    expect(forkSpy).toHaveBeenCalledTimes(1);
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(rollbackSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolves correct Knex dialect for PostgreSQL and MySQL', () => {
+    process.env['DB_ENGINE'] = 'postgres';
+    const knexPg = getKnexForOrm(orm);
+    expect(knexPg.client.dialect).toBe('postgresql');
+    const pgSql = knexPg('messages').select('id').toSQL().sql;
+    expect(pgSql).toContain('"messages"');
+
+    process.env['DB_ENGINE'] = 'postgresql';
+    const knexPg2 = getKnexForOrm(orm);
+    expect(knexPg2.client.dialect).toBe('postgresql');
+
+    process.env['DB_ENGINE'] = 'mysql';
+    const knexMySql = getKnexForOrm(orm);
+    expect(knexMySql.client.dialect).toBe('mysql');
+    const mySql = knexMySql('messages').select('id').toSQL().sql;
+    expect(mySql).toContain('`messages`');
+
+    process.env['DB_ENGINE'] = 'mariadb';
+    const knexMaria = getKnexForOrm(orm);
+    expect(knexMaria.client.dialect).toBe('mysql');
+
+    process.env['DB_ENGINE'] = 'sqlite';
+    const knexSqlite = getKnexForOrm(orm);
+    expect(knexSqlite.client.dialect).toBe('sqlite3');
+  });
+
+  it('resolves dialect from ORM platform name when DB_ENGINE is not set', () => {
+    delete process.env['DB_ENGINE'];
+    const pgOrm = {
+      em: {
+        getPlatform: () => ({ constructor: { name: 'PostgreSqlPlatform' } }),
+      },
+      config: { get: () => undefined },
+    } as unknown as MikroORM;
+    expect(getKnexForOrm(pgOrm).client.dialect).toBe('postgresql');
+
+    const myOrm = {
+      em: {
+        getPlatform: () => ({ constructor: { name: 'MySqlPlatform' } }),
+      },
+      config: { get: () => undefined },
+    } as unknown as MikroORM;
+    expect(getKnexForOrm(myOrm).client.dialect).toBe('mysql');
+  });
+
+  it('asBuffer converts various binary representations into a Buffer', () => {
+    const raw = Buffer.from('0123456789abcdef0123456789abcdef', 'hex');
+
+    expect(asBuffer(raw).equals(raw)).toBe(true);
+    expect(asBuffer(new Uint8Array(raw)).equals(raw)).toBe(true);
+    expect(asBuffer('\\x' + raw.toString('hex')).equals(raw)).toBe(true);
+    expect(asBuffer(raw.toString('hex')).equals(raw)).toBe(true);
+    expect(asBuffer(raw.toString('latin1')).equals(raw)).toBe(true);
+
+    expect(() => asBuffer(12345)).toThrow(/Expected a blob column/);
+    expect(() => asBuffer('invalid-length')).toThrow(/Expected a blob column/);
+  });
+
+  it('runRotateMasterKeyCommand loads keys from OLD_MASTER_KEY_FILE and NEW_MASTER_KEY_FILE', async () => {
+    const oldKeyFile = path.join(tmpDir, 'old-key.txt');
+    const newKeyFile = path.join(tmpDir, 'new-key.txt');
+    fs.writeFileSync(oldKeyFile, oldKey + '\n');
+    fs.writeFileSync(newKeyFile, newKey + '\n');
+
+    delete process.env['OLD_MASTER_KEY'];
+    delete process.env['NEW_MASTER_KEY'];
+    process.env['OLD_MASTER_KEY_FILE'] = oldKeyFile;
+    process.env['NEW_MASTER_KEY_FILE'] = newKeyFile;
+
+    const exitCode = await runRotateMasterKeyCommand(['--dry-run']);
+    expect(exitCode).toBe(0);
   });
 });
 
