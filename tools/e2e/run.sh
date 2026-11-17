@@ -97,7 +97,13 @@ run_profile() {
     --profile "$profile"
   )
 
-  "${COMPOSE[@]}" up -d --wait --wait-timeout 300 --build app
+  # CI loads konvoez:e2e with the Actions layer cache. A compose rebuild
+  # uses the docker driver and does not see that cache.
+  local up_args=(up -d --wait --wait-timeout 300)
+  if [ "${E2E_SKIP_APP_BUILD:-}" != "1" ]; then
+    up_args+=(--build)
+  fi
+  "${COMPOSE[@]}" "${up_args[@]}" app
   "${COMPOSE[@]}" run --rm -T --no-deps e2e bash -lc "set -euo pipefail
 npx tsc -p tsconfig.json
 actual=\$(npx playwright --version)
