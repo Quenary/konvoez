@@ -29,6 +29,8 @@ describe('SettingsUserManagementComponent', () => {
     avatarUrl: null,
     createdAt: new Date('2026-01-02T03:04:00.000Z'),
     updatedAt: null,
+    lastSeenAt: new Date('2026-02-03T04:05:00.000Z'),
+    lastLoginAt: new Date('2026-02-03T03:00:00.000Z'),
     twoFactorEnabled: false,
     emailVerified: true,
     pendingEmail: null,
@@ -72,13 +74,18 @@ describe('SettingsUserManagementComponent', () => {
     expect(emptyCell?.textContent).toContain('SETTINGS.USERS.NO_USERS');
   });
 
-  it('should render username, email, and created date', async () => {
+  it('should render username, email, lastSeenAt, and lastLoginAt without created date', async () => {
     await setup([sampleUser]);
     const compiled = fixture.nativeElement as HTMLElement;
-    const expectedCreatedAt = runInInjectionContext(
-      fixture.debugElement.injector,
-      () => new DayjsPipe().transform(sampleUser.createdAt),
-    );
+    const [expectedCreatedAt, expectedLastSeenAt, expectedLastLoginAt] =
+      runInInjectionContext(fixture.debugElement.injector, () => {
+        const pipe = new DayjsPipe();
+        return [
+          pipe.transform(sampleUser.createdAt),
+          pipe.transform(sampleUser.lastSeenAt),
+          pipe.transform(sampleUser.lastLoginAt),
+        ];
+      });
 
     expect(compiled.querySelector('.empty-cell')).toBeNull();
     expect(compiled.textContent).toContain('alice');
@@ -86,7 +93,24 @@ describe('SettingsUserManagementComponent', () => {
     expect(compiled.textContent).toContain(
       'SETTINGS.PROFILE.EMAIL_VERIFICATION.VERIFIED',
     );
-    expect(compiled.textContent).toContain(expectedCreatedAt);
+    expect(compiled.textContent).toContain('SETTINGS.USERS.TABLE.LAST_SEEN');
+    expect(compiled.textContent).toContain('SETTINGS.USERS.TABLE.LAST_LOGIN');
+    expect(compiled.textContent).not.toContain('SETTINGS.USERS.TABLE.CREATED');
+    expect(compiled.textContent).not.toContain(expectedCreatedAt);
+    expect(compiled.textContent).toContain(expectedLastSeenAt);
+    expect(compiled.textContent).toContain(expectedLastLoginAt);
+  });
+
+  it('should render dashes when lastSeenAt and lastLoginAt are null', async () => {
+    await setup([{ ...sampleUser, lastSeenAt: null, lastLoginAt: null }]);
+    const compiled = fixture.nativeElement as HTMLElement;
+    const dateCells = Array.from(
+      compiled.querySelectorAll('td.col-date'),
+    ) as HTMLElement[];
+
+    expect(dateCells).toHaveLength(2);
+    expect(dateCells[0].textContent?.trim()).toBe('—');
+    expect(dateCells[1].textContent?.trim()).toBe('—');
   });
 
   it('should render an unverified badge when the email is not confirmed', async () => {

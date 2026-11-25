@@ -91,6 +91,28 @@ describe('UsersStore', () => {
     expect(store.onlineMap()).toEqual({ 2: true });
   });
 
+  it('updates entity lastSeenAt when setUserPresence receives lastSeenAt', () => {
+    const seenAt = new Date('2026-05-01T10:00:00.000Z');
+    store.upsertOne(userAlice);
+    store.setOnlineUsers([1]);
+
+    store.setUserPresence(1, false, seenAt);
+
+    expect(store.onlineMap()).toEqual({});
+    expect(store.entityMap()[1]?.lastSeenAt).toEqual(seenAt);
+  });
+
+  it('reloads users even after already loaded', () => {
+    store.loadAll();
+    expect(apiService.list).toHaveBeenCalledTimes(1);
+
+    store.loadAll();
+    expect(apiService.list).toHaveBeenCalledTimes(1);
+
+    store.reload();
+    expect(apiService.list).toHaveBeenCalledTimes(2);
+  });
+
   it('clears onlineMap and entities on clear()', () => {
     store.upsertOne(userAlice);
     store.setOnlineUsers([1, 2]);

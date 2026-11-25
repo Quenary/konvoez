@@ -1,8 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { provideTranslateService } from '@ngx-translate/core';
+import { provideTranslateService, TranslatePipe } from '@ngx-translate/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { tuiAutoColor, TuiBadgeNotification } from '@taiga-ui/kit';
+import { LastSeenPipe } from '@shared/pipes/last-seen.pipe';
 import { ChatComponent } from './chat.component';
 import { ChatStore } from './chat.store';
 import type { ChatTarget } from './chat-target';
@@ -41,8 +42,15 @@ describe('ChatComponent', () => {
             @if (isOnline()) {
               <tui-badge-notification class="online-badge" />
             }
+            @if (showPresence()) {
+              @if (isOnline()) {
+                <span class="header-status _online">{{ 'PRESENCE.ONLINE' | translate }}</span>
+              } @else if (lastSeenAt() | lastSeen; as lastSeenText) {
+                <span class="header-status">{{ lastSeenText }}</span>
+              }
+            }
           `,
-          imports: [TuiBadgeNotification],
+          imports: [TuiBadgeNotification, TranslatePipe, LastSeenPipe],
           providers: [{ provide: ChatStore, useValue: chatStoreMock }],
         },
       })
@@ -110,6 +118,42 @@ describe('ChatComponent', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.isOnline()).toBe(false);
     expect(fixture.nativeElement.querySelector('.online-badge')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.header-status')).toBeNull();
+  });
+
+  it('renders online, lastSeenAt, or long-time-ago header status only when showPresence is true', () => {
+    fixture = TestBed.createComponent(ChatComponent);
+    fixture.componentRef.setInput('recipientId', 2);
+    fixture.componentRef.setInput('title', 'bob');
+    fixture.componentRef.setInput('showPresence', false);
+    fixture.componentRef.setInput('isOnline', false);
+    fixture.componentRef.setInput('lastSeenAt', null);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.header-status')).toBeNull();
+
+    fixture.componentRef.setInput('showPresence', true);
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement
+        .querySelector('.header-status')
+        ?.textContent?.trim(),
+    ).toBe('PRESENCE.LAST_SEEN.LONG_TIME_AGO');
+
+    fixture.componentRef.setInput('isOnline', true);
+    fixture.componentRef.setInput('lastSeenAt', new Date(Date.now() - 300_000));
+    fixture.detectChanges();
+
+    const onlineStatus = fixture.nativeElement.querySelector(
+      '.header-status._online',
+    );
+    expect(onlineStatus?.textContent?.trim()).toBe('PRESENCE.ONLINE');
+
+    fixture.componentRef.setInput('isOnline', false);
+    fixture.detectChanges();
+    const offlineStatus = fixture.nativeElement.querySelector('.header-status');
+    expect(offlineStatus).not.toBeNull();
+    expect(offlineStatus.classList.contains('_online')).toBe(false);
+    expect(offlineStatus.textContent?.trim()).toContain('PRESENCE.LAST_SEEN');
   });
 
   it('passes initialMessageId to join when initialMessageId input is provided', () => {

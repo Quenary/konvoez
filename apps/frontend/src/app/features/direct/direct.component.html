@@ -21,6 +21,8 @@
         [avatarUrl]="_avatarUrl"
         [avatarIcon]="avatarIcon()"
         [isOnline]="isOnline()"
+        [showPresence]="!isSelf()"
+        [lastSeenAt]="lastSeenAt()"
         [initialMessageId]="heldMessageId()"
         (initialMessageApplied)="releaseMessageJump()"
         (headerClick)="openDetails()">

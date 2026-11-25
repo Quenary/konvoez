@@ -113,6 +113,15 @@ export const DirectStore = signalStore(
         return Boolean(onlineMap[directUser.id]);
       });
 
+      const lastSeenAt = computed(() => {
+        const self = isSelf();
+        const directUser = user();
+        if (self || !directUser) {
+          return null;
+        }
+        return directUser.lastSeenAt ?? null;
+      });
+
       const view = computed((): 'call' | 'chat' => {
         const active = isCurrentDirectCallActive();
         const preferChat = store.preferChat();
@@ -132,6 +141,7 @@ export const DirectStore = signalStore(
         avatarUrl,
         avatarIcon,
         isOnline,
+        lastSeenAt,
         view,
       };
     },

@@ -42,7 +42,7 @@ describe('Baseline migration (Knex SchemaBuilder)', () => {
   });
 
   it('creates all tables, default roles, and rolls back cleanly with down()', async () => {
-    await orm.migrator.up();
+    await orm.migrator.up({ to: 'Migration20261116120000_Baseline' });
 
     const conn = orm.em.getConnection() as unknown as {
       getNativeClient: () => Promise<{

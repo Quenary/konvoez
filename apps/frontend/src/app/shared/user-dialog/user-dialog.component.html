@@ -15,6 +15,15 @@
     @if (fullname) {
       <span class="identity-fullname">{{ fullname }}</span>
     }
+    @if (isOnline()) {
+      <span class="identity-status _online">
+        {{ 'PRESENCE.ONLINE' | translate }}
+      </span>
+    } @else if (lastSeenAt() | lastSeen; as lastSeenText) {
+      <span class="identity-status">
+        {{ lastSeenText }}
+      </span>
+    }
   </div>
 </div>
 

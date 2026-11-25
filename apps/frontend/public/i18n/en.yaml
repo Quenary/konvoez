@@ -79,6 +79,21 @@ USER_DIALOG:
   SAVED_MESSAGES: Saved messages
   OPEN_PROFILE: Open profile
   OPEN_DEVICES_SETTINGS: Open device settings
+PRESENCE:
+  ONLINE: Online
+  LAST_SEEN:
+    JUST_NOW: Last seen just now
+    LONG_TIME_AGO: Last seen a long time ago
+    MINUTES:
+      ONE: 'Last seen {{count}} minute ago'
+      OTHER: 'Last seen {{count}} minutes ago'
+    HOURS:
+      ONE: 'Last seen {{count}} hour ago'
+      OTHER: 'Last seen {{count}} hours ago'
+    DAYS:
+      ONE: 'Last seen {{count}} day ago'
+      OTHER: 'Last seen {{count}} days ago'
+    AT: 'Last seen {{date}}'
 DIRECT:
   TITLE: Direct messages
   NEW_CHAT: New chat
@@ -415,13 +430,16 @@ SETTINGS:
       USER: User
       ROLE: Role
       EMAIL: Email
-      CREATED: Created
+      LAST_SEEN: Last seen
+      LAST_LOGIN: Last login
     ID: ID
     FULLNAME: Full name
     EMAIL: Email
     CREATED: Created
     UPDATED: Modified
     DELETED: Deleted
+    LAST_SEEN: Last seen
+    LAST_LOGIN: Last login
     ROLE: Role
     ROLE_OWNER: Owner
     ROLE_ADMIN: Admin

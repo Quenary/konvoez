@@ -70,6 +70,7 @@ describe('AuthController', () => {
             clearAuthCookies: jest.fn(),
             startTwoFactorChallenge: jest.fn(),
             completeTwoFactorLogin: jest.fn(),
+            recordLogin: jest.fn((u: GetUserFullDto) => Promise.resolve(u)),
             clearTwoFactorPendingCookie: jest.fn(),
             getMe: jest.fn(),
             isOwnerSetupRequired: jest.fn(),
@@ -103,6 +104,7 @@ describe('AuthController', () => {
         'testuser',
         'password123',
       );
+      expect(authService.recordLogin).toHaveBeenCalledWith(mockUser);
       expect(authService.setAuthCookies).toHaveBeenCalledWith(
         mockUser.id,
         0,
@@ -112,7 +114,7 @@ describe('AuthController', () => {
       expect(result).toEqual(mockUser);
     });
 
-    it('should start 2FA challenge and return twoFactorRequired without setting auth cookies when 2FA enabled', async () => {
+    it('should start 2FA challenge and return twoFactorRequired without setting auth cookies or recording login when 2FA enabled', async () => {
       const dto: AuthLoginDto = {
         login: 'testuser',
         password: 'password123',
@@ -131,6 +133,7 @@ describe('AuthController', () => {
         mockUser.id,
         mockResponse,
       );
+      expect(authService.recordLogin).not.toHaveBeenCalled();
       expect(authService.setAuthCookies).not.toHaveBeenCalled();
       expect(result).toEqual({ twoFactorRequired: true });
     });

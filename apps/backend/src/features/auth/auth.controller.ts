@@ -34,8 +34,9 @@ export class AuthController {
       await this.authService.startTwoFactorChallenge(user.id, res);
       return { twoFactorRequired: true };
     }
-    this.authService.setAuthCookies(user.id, sessionVersion, res);
-    return user;
+    const loggedInUser = await this.authService.recordLogin(user);
+    this.authService.setAuthCookies(loggedInUser.id, sessionVersion, res);
+    return loggedInUser;
   }
 
   @Post('login/2fa')

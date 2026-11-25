@@ -36,6 +36,30 @@
     flex-shrink: 0;
   }
 
+  .header-title-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-width: 0;
+
+    [tuiFade],
+    [tuiSubtitle] {
+      flex: 0 0 auto;
+      min-width: 0;
+      max-width: 100%;
+    }
+  }
+
+  .header-status {
+    font-size: 0.75rem;
+    line-height: 1.2;
+    color: var(--tui-text-secondary);
+
+    &._online {
+      color: var(--tui-status-positive);
+    }
+  }
+
   .search-textfield {
     width: 100%;
   }

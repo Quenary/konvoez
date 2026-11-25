@@ -244,6 +244,7 @@ describe('AuthService', () => {
             ),
             count: jest.fn(),
             setPassword: jest.fn(),
+            updateLastLoginAt: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
@@ -1661,8 +1662,25 @@ describe('AuthService', () => {
         '123456',
       );
       expect(cacheManager.del).toHaveBeenCalled();
+      expect(usersService.updateLastLoginAt).toHaveBeenCalledWith(
+        42,
+        expect.any(Date),
+      );
       expect(result.user.id).toBe(42);
+      expect(result.user.lastLoginAt).toBeInstanceOf(Date);
+      expect(result.user.lastSeenAt).toBeInstanceOf(Date);
       expect(result.sessionVersion).toBe(3);
+    });
+
+    it('recordLogin updates lastLoginAt and lastSeenAt', async () => {
+      const updated = await service.recordLogin(mockUserDto);
+
+      expect(usersService.updateLastLoginAt).toHaveBeenCalledWith(
+        mockUserDto.id,
+        expect.any(Date),
+      );
+      expect(updated.lastLoginAt).toBeInstanceOf(Date);
+      expect(updated.lastSeenAt).toEqual(updated.lastLoginAt);
     });
 
     it('completeTwoFactorLogin throws 401 on missing or expired pending challenge', async () => {

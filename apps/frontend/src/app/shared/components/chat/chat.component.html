@@ -36,11 +36,30 @@
         </div>
       </tui-badged-content>
 
-      <span
-        tuiFade
-        [style.color]="identityColor()">
-        {{ currentTitle }}
-      </span>
+      <div class="header-title-text">
+        <span
+          tuiFade
+          [style.color]="identityColor()">
+          {{ currentTitle }}
+        </span>
+        @if (showPresence()) {
+          @if (isOnline()) {
+            <span
+              tuiSubtitle
+              tuiFade
+              class="header-status _online">
+              {{ 'PRESENCE.ONLINE' | translate }}
+            </span>
+          } @else if (lastSeenAt() | lastSeen; as lastSeenText) {
+            <span
+              tuiSubtitle
+              tuiFade
+              class="header-status">
+              {{ lastSeenText }}
+            </span>
+          }
+        }
+      </div>
     </h2>
   }
 

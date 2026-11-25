@@ -47,6 +47,7 @@ import { ComposerFocusService } from './composer-focus.service';
 import { v4 } from 'uuid';
 
 import { HeaderBackButtonComponent } from '@shared/components/header-back-button/header-back-button.component';
+import { LastSeenPipe } from '@shared/pipes/last-seen.pipe';
 import { icons } from '@constants';
 
 @Component({
@@ -71,6 +72,7 @@ import { icons } from '@constants';
     NgOptimizedImage,
     ReactiveFormsModule,
     TranslatePipe,
+    LastSeenPipe,
     FileDropDirective,
   ],
   providers: [ChatStore, ComposerFocusService],
@@ -93,6 +95,10 @@ export class ChatComponent {
   public readonly avatarUrl = input<string | null>(null);
   public readonly avatarIcon = input<string | null>(null);
   public readonly isOnline = input<boolean>(false);
+  public readonly showPresence = input<boolean>(false);
+  public readonly lastSeenAt = input<Date | string | number | null | undefined>(
+    null,
+  );
   public readonly initialMessageId = input<string | null>(null);
   public readonly headerClick = output<void>();
   /** Fired after a non-empty `initialMessageId` is joined or jumped to. */

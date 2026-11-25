@@ -101,6 +101,14 @@ export class EntitySyncService {
   }
 
   private bindUserEvents(): void {
+    socketReconnected$(this.socket)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.usersStore.loaded()) {
+          this.usersStore.reload();
+        }
+      });
+
     fromEvent<IUserSafe>(this.emitter, EEntitySyncEvent.USER_CREATED)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((user) => {
@@ -152,8 +160,8 @@ export class EntitySyncService {
       EEntitySyncEvent.USER_PRESENCE_CHANGED,
     )
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(({ userId, isOnline }) => {
-        this.usersStore.setUserPresence(userId, isOnline);
+      .subscribe(({ userId, isOnline, lastSeenAt }) => {
+        this.usersStore.setUserPresence(userId, isOnline, lastSeenAt);
       });
 
     fromEvent(this.emitter, 'disconnect')

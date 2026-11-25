@@ -12,6 +12,13 @@ const { createMikroOrmConfig } = require('../mikro-orm.config') as {
   createMikroOrmConfig: () => Promise<Options>;
 };
 
+const ADD_USER_TIMESTAMPS_MIGRATION_NAME =
+  'Migration20261125001229_AddUserLastSeenAndLastLogin';
+const EXPECTED_EXECUTED_MIGRATIONS = [
+  BASELINE_MIGRATION_NAME,
+  ADD_USER_TIMESTAMPS_MIGRATION_NAME,
+];
+
 describe('Migration runner (legacy stamping and version safety)', () => {
   let tmpDir: string;
   let dbPath: string;
@@ -45,7 +52,7 @@ describe('Migration runner (legacy stamping and version safety)', () => {
     await runMigrations(orm);
 
     const executedAfter = await storage.executed();
-    expect(executedAfter).toEqual([BASELINE_MIGRATION_NAME]);
+    expect(executedAfter).toEqual(EXPECTED_EXECUTED_MIGRATIONS);
 
     const conn = orm.em.getConnection() as unknown as {
       getNativeClient: () => Promise<{
@@ -99,8 +106,8 @@ describe('Migration runner (legacy stamping and version safety)', () => {
     await runMigrations(orm);
 
     const executedAfter = await storage.executed();
-    // Legacy migrations are cleared and baseline is stamped
-    expect(executedAfter).toEqual([BASELINE_MIGRATION_NAME]);
+    // Legacy migrations are cleared, baseline is stamped, and subsequent migrations run
+    expect(executedAfter).toEqual(EXPECTED_EXECUTED_MIGRATIONS);
     expect(executedAfter).not.toContain(LEGACY_MIGRATION_MARKER);
 
     // Existing user data is intact and tables were not wiped
@@ -118,11 +125,20 @@ describe('Migration runner (legacy stamping and version safety)', () => {
     await storage.ensureTable?.();
 
     await storage.logMigration({ name: 'Migration20261116083850' });
+    const conn = orm.em.getConnection() as unknown as {
+      getNativeClient: () => Promise<{
+        prepare: (sql: string) => { run: () => void };
+      }>;
+    };
+    const db = await conn.getNativeClient();
+    db.prepare(
+      "create table users (id integer primary key autoincrement, username text not null, email text not null, created_at datetime not null default CURRENT_TIMESTAMP, password text not null, fullname text not null, last_detected_locale text not null default 'en')",
+    ).run();
 
     await runMigrations(orm);
 
     const executedAfter = await storage.executed();
-    expect(executedAfter).toEqual([BASELINE_MIGRATION_NAME]);
+    expect(executedAfter).toEqual(EXPECTED_EXECUTED_MIGRATIONS);
   });
 
   it('State 2c: stamps baseline when legacy marker has arbitrary suffix variant', async () => {
@@ -132,11 +148,20 @@ describe('Migration runner (legacy stamping and version safety)', () => {
     await storage.logMigration({
       name: 'Migration20261116083850_RoomOrderMigration',
     });
+    const conn = orm.em.getConnection() as unknown as {
+      getNativeClient: () => Promise<{
+        prepare: (sql: string) => { run: () => void };
+      }>;
+    };
+    const db = await conn.getNativeClient();
+    db.prepare(
+      "create table users (id integer primary key autoincrement, username text not null, email text not null, created_at datetime not null default CURRENT_TIMESTAMP, password text not null, fullname text not null, last_detected_locale text not null default 'en')",
+    ).run();
 
     await runMigrations(orm);
 
     const executedAfter = await storage.executed();
-    expect(executedAfter).toEqual([BASELINE_MIGRATION_NAME]);
+    expect(executedAfter).toEqual(EXPECTED_EXECUTED_MIGRATIONS);
   });
 
   it('State 3: throws error on outdated legacy database missing the legacy marker', async () => {
@@ -159,12 +184,12 @@ describe('Migration runner (legacy stamping and version safety)', () => {
 
     const storage = orm.migrator.getStorage();
     const executedFirst = await storage.executed();
-    expect(executedFirst).toEqual([BASELINE_MIGRATION_NAME]);
+    expect(executedFirst).toEqual(EXPECTED_EXECUTED_MIGRATIONS);
 
     // Running migrations again should be a no-op
     await runMigrations(orm);
 
     const executedSecond = await storage.executed();
-    expect(executedSecond).toEqual([BASELINE_MIGRATION_NAME]);
+    expect(executedSecond).toEqual(EXPECTED_EXECUTED_MIGRATIONS);
   });
 });

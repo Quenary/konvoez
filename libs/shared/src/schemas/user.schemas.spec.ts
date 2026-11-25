@@ -23,7 +23,8 @@ describe('userSafeSchema', () => {
     expect(parsed.username).toBe('alice');
   });
 
-  it('strips email, twoFactorEnabled, emailVerified, pendingEmail, language, and lastDetectedLocale from public user payloads', () => {
+  it('strips email, twoFactorEnabled, emailVerified, pendingEmail, language, lastDetectedLocale, and lastLoginAt from public user payloads while preserving lastSeenAt', () => {
+    const lastSeenAt = new Date('2026-01-02T03:04:05.000Z');
     const parsed = userSafeSchema.parse({
       ...baseUser,
       email: 'alice@example.com',
@@ -32,6 +33,8 @@ describe('userSafeSchema', () => {
       pendingEmail: 'pending@example.com',
       language: 'ru',
       lastDetectedLocale: 'ru-RU',
+      lastSeenAt,
+      lastLoginAt: new Date('2026-01-02T03:00:00.000Z'),
     });
     expect(parsed).not.toHaveProperty('email');
     expect(parsed).not.toHaveProperty('twoFactorEnabled');
@@ -39,6 +42,8 @@ describe('userSafeSchema', () => {
     expect(parsed).not.toHaveProperty('pendingEmail');
     expect(parsed).not.toHaveProperty('language');
     expect(parsed).not.toHaveProperty('lastDetectedLocale');
+    expect(parsed).not.toHaveProperty('lastLoginAt');
+    expect(parsed.lastSeenAt).toEqual(lastSeenAt);
   });
 });
 
@@ -55,7 +60,9 @@ describe('userFullSchema', () => {
     expect(parsed.pendingEmail).toBeUndefined();
   });
 
-  it('preserves twoFactorEnabled, emailVerified, pendingEmail, language, and lastDetectedLocale', () => {
+  it('preserves twoFactorEnabled, emailVerified, pendingEmail, language, lastDetectedLocale, lastSeenAt, and lastLoginAt', () => {
+    const lastSeenAt = new Date('2026-01-02T03:04:05.000Z');
+    const lastLoginAt = new Date('2026-01-02T03:00:00.000Z');
     const parsed = userFullSchema.parse({
       ...baseUser,
       email: 'alice@example.com',
@@ -64,12 +71,16 @@ describe('userFullSchema', () => {
       pendingEmail: 'new@example.com',
       language: 'ru',
       lastDetectedLocale: 'ru-RU',
+      lastSeenAt,
+      lastLoginAt,
     });
     expect(parsed.twoFactorEnabled).toBe(true);
     expect(parsed.emailVerified).toBe(true);
     expect(parsed.pendingEmail).toBe('new@example.com');
     expect(parsed.language).toBe('ru');
     expect(parsed.lastDetectedLocale).toBe('ru-RU');
+    expect(parsed.lastSeenAt).toEqual(lastSeenAt);
+    expect(parsed.lastLoginAt).toEqual(lastLoginAt);
   });
 
   it('defaults lastDetectedLocale to en and language to undefined', () => {

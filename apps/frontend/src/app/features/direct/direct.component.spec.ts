@@ -26,6 +26,10 @@ class MockChatComponent {
   public readonly avatarUrl = input<string | null>(null);
   public readonly avatarIcon = input<string | null>(null);
   public readonly isOnline = input<boolean>(false);
+  public readonly showPresence = input<boolean>(false);
+  public readonly lastSeenAt = input<Date | string | number | null | undefined>(
+    null,
+  );
   public readonly initialMessageId = input<string | null>(null);
   public readonly headerClick = output<void>();
   public readonly initialMessageApplied = output<void>();
@@ -64,6 +68,7 @@ describe('DirectComponent', () => {
   const avatarUrl = signal<string | null>(null);
   const avatarIcon = signal<string | null>(null);
   const isOnline = signal(false);
+  const lastSeenAt = signal<Date | null>(null);
   const view = signal<'call' | 'chat'>('chat');
 
   const mockDirectStore = {
@@ -78,6 +83,7 @@ describe('DirectComponent', () => {
     avatarUrl,
     avatarIcon,
     isOnline,
+    lastSeenAt,
     view,
     showChat: vi.fn(),
     showCall: vi.fn(),
@@ -107,6 +113,7 @@ describe('DirectComponent', () => {
     avatarUrl.set(null);
     avatarIcon.set(null);
     isOnline.set(false);
+    lastSeenAt.set(null);
     view.set('chat');
 
     await TestBed.configureTestingModule({
@@ -258,6 +265,22 @@ describe('DirectComponent', () => {
     isOnline.set(false);
     fixture.detectChanges();
     expect(chatDebugEl.componentInstance.isOnline()).toBe(false);
+  });
+
+  it('binds showPresence and lastSeenAt to app-chat', () => {
+    const seenAt = new Date('2026-05-01T10:00:00.000Z');
+    lastSeenAt.set(seenAt);
+    fixture.detectChanges();
+
+    const chatDebugEl = fixture.debugElement.query(
+      (de) => de.componentInstance instanceof MockChatComponent,
+    );
+    expect(chatDebugEl.componentInstance.showPresence()).toBe(true);
+    expect(chatDebugEl.componentInstance.lastSeenAt()).toEqual(seenAt);
+
+    isSelf.set(true);
+    fixture.detectChanges();
+    expect(chatDebugEl.componentInstance.showPresence()).toBe(false);
   });
 
   it('binds initialsSource to app-chat', () => {

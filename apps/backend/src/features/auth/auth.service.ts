@@ -470,8 +470,19 @@ export class AuthService implements OnApplicationBootstrap {
     const { user, sessionVersion } = await this.requireActiveUser(userId);
     await this.twoFactorService.verifyLoginCode(userId, code);
     await this.cacheManager.del(cacheKey);
+    const loggedInUser = await this.recordLogin(user);
 
-    return { user, sessionVersion };
+    return { user: loggedInUser, sessionVersion };
+  }
+
+  async recordLogin(user: GetUserFullDto): Promise<GetUserFullDto> {
+    const now = new Date();
+    await this.usersService.updateLastLoginAt(user.id, now);
+    return {
+      ...user,
+      lastLoginAt: now,
+      lastSeenAt: now,
+    };
   }
 
   clearTwoFactorPendingCookie(res: Response): void {

@@ -18,6 +18,21 @@ describe('EntitySync Schemas', () => {
       }
     });
 
+    it('accepts valid presence change payload with optional lastSeenAt', () => {
+      const lastSeenAt = new Date('2026-01-02T03:04:05.000Z');
+      const parsed = userPresenceChangedSchema.safeParse({
+        userId: 42,
+        isOnline: false,
+        lastSeenAt: lastSeenAt.toISOString(),
+      });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.userId).toBe(42);
+        expect(parsed.data.isOnline).toBe(false);
+        expect(parsed.data.lastSeenAt).toEqual(lastSeenAt);
+      }
+    });
+
     it('rejects invalid presence change payload', () => {
       expect(
         userPresenceChangedSchema.safeParse({
