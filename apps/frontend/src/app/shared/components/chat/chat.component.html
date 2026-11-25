@@ -16,24 +16,23 @@
             tuiSlot="bottom"
             class="online-badge" />
         }
-        <div
-          tuiAvatar
-          size="s"
-          class="header-avatar">
-          @if (avatarIcon(); as icon) {
+        @if (avatarIcon(); as icon) {
+          <div
+            tuiAvatar
+            size="s"
+            class="header-avatar">
             <tui-icon [icon]="icon" />
-          } @else if (avatarUrl()) {
-            <img
-              [alt]="currentTitle"
-              [ngSrc]="avatarUrl()!"
-              fill
-              priority />
-          } @else {
-            <span [style.color]="identityColor()">
-              {{ initialsSource() || currentTitle | tuiInitials }}
-            </span>
-          }
-        </div>
+          </div>
+        } @else {
+          <app-room-avatar
+            size="s"
+            class="header-avatar"
+            [name]="currentTitle"
+            [initialsSource]="initialsSource()"
+            [avatarUrl]="avatarUrl()"
+            [color]="identityColor()"
+            [priority]="true" />
+        }
       </tui-badged-content>
 
       <div class="header-title-text">

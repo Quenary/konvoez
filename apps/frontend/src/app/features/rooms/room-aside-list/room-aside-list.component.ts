@@ -7,7 +7,7 @@ import {
   input,
   signal,
 } from '@angular/core';
-import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -27,11 +27,9 @@ import {
 } from '@taiga-ui/core';
 import {
   TuiAutoColorPipe,
-  TuiAvatar,
   TuiBadgedContent,
   TuiBadgeNotification,
   TuiFade,
-  TuiInitialsPipe,
 } from '@taiga-ui/kit';
 import { TuiNavigation } from '@taiga-ui/layout';
 import { WA_IS_TOUCH } from '@ng-web-apis/platform';
@@ -47,6 +45,7 @@ import { DirectCallService } from '@core/services/direct-call.service';
 import { VoiceSessionService } from '@core/services/voice-session.service';
 import { UsersStore } from '@core/stores/users.store';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
+import { RoomAvatarComponent } from '@shared/components/room-avatar/room-avatar.component';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { UserContextMenuComponent } from '@shared/components/user-context-menu/user-context-menu.component';
 import { createLongtapClickGuard } from '@shared/functions/longtap-click-guard.function';
@@ -71,7 +70,6 @@ export interface IRoomWithPeers extends IVoiceRoomRow {
     '[class.collapsed]': 'collapsed()',
   },
   imports: [
-    NgOptimizedImage,
     NgTemplateOutlet,
     RouterLink,
     RouterLinkActive,
@@ -81,17 +79,16 @@ export interface IRoomWithPeers extends IVoiceRoomRow {
     CdkDropList,
     CdkDropListGroup,
     TuiAutoColorPipe,
-    TuiAvatar,
     TuiBadgedContent,
     TuiBadgeNotification,
     TuiButton,
     TuiFade,
     TuiHint,
     TuiIcon,
-    TuiInitialsPipe,
     TuiNavigation,
     TuiDropdown,
     PulseIndicatorComponent,
+    RoomAvatarComponent,
     UserAvatarComponent,
     RoomPeerComponent,
     RoomContextMenuComponent,

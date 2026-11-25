@@ -7,16 +7,11 @@ import {
   output,
   TemplateRef,
 } from '@angular/core';
-import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiHint, TuiTitle } from '@taiga-ui/core';
 import { TuiHeader } from '@taiga-ui/layout';
-import {
-  tuiAutoColor,
-  TuiAvatar,
-  TuiFade,
-  TuiInitialsPipe,
-} from '@taiga-ui/kit';
+import { tuiAutoColor, TuiFade } from '@taiga-ui/kit';
 import { Store } from '@ngrx/store';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { VoiceLeaveService } from '@core/services/voice-leave.service';
@@ -32,6 +27,7 @@ import {
 import { VoiceRoomLocalScreenPreviewPauseButtonComponent } from '../voice-room-local-screen-preview-pause-button/voice-room-local-screen-preview-pause-button.component';
 
 import { HeaderBackButtonComponent } from '@shared/components/header-back-button/header-back-button.component';
+import { RoomAvatarComponent } from '@shared/components/room-avatar/room-avatar.component';
 import { icons } from '@constants';
 
 @Component({
@@ -43,15 +39,13 @@ import { icons } from '@constants';
   },
   imports: [
     HeaderBackButtonComponent,
-    NgOptimizedImage,
+    RoomAvatarComponent,
     NgTemplateOutlet,
     TranslatePipe,
-    TuiAvatar,
     TuiFade,
     TuiButton,
     TuiHeader,
     TuiHint,
-    TuiInitialsPipe,
     TuiTitle,
     VoiceRoomControlsBarComponent,
     VoiceRoomTheatreWatchControlsComponent,

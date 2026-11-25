@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
@@ -37,9 +38,14 @@ describe('DirectChatsComponent', () => {
     addOrUpdateChat: vi.fn(),
   };
 
+  const usersEntityMap = signal<Record<number, IUserSafe>>({
+    [mockUser.id]: mockUser,
+  });
+
   const mockUsersStore = {
     loadAll: vi.fn(),
     entities: vi.fn().mockReturnValue([mockUser]),
+    entityMap: usersEntityMap,
     onlineMap: vi.fn().mockReturnValue({}),
   };
 
@@ -49,6 +55,7 @@ describe('DirectChatsComponent', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    usersEntityMap.set({ [mockUser.id]: mockUser });
 
     await TestBed.configureTestingModule({
       imports: [DirectChatsComponent],
@@ -103,5 +110,27 @@ describe('DirectChatsComponent', () => {
     expect(mockDialogService.open).toHaveBeenCalled();
     expect(mockDirectChatsStore.addOrUpdateChat).toHaveBeenCalledWith(mockUser);
     expect(router.navigate).toHaveBeenCalledWith(['/direct', 10]);
+  });
+
+  it('reactively updates rendered user info when UsersStore entityMap changes on USER_UPDATED', () => {
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.textContent).toContain('john_doe');
+    expect(el.textContent).toContain('John Doe');
+    expect(el.querySelector('app-user-avatar img')).toBeNull();
+
+    usersEntityMap.set({
+      [mockUser.id]: {
+        ...mockUser,
+        username: 'john_updated',
+        fullname: 'John Updated',
+        avatarUrl: 'https://example.com/john-new.webp',
+      },
+    });
+    fixture.detectChanges();
+
+    expect(el.textContent).toContain('john_updated');
+    expect(el.textContent).toContain('John Updated');
+    const img = el.querySelector('app-user-avatar img');
+    expect(img?.getAttribute('src')).toBe('https://example.com/john-new.webp');
   });
 });

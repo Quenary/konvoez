@@ -28,6 +28,7 @@ import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import {
   AuthRefreshFallback,
+  AuthSessionOnly,
   RequireOwner,
   RequirePermissions,
 } from './auth.decorator';
@@ -82,6 +83,7 @@ describe('AuthGuard', () => {
           provide: AuthService,
           useValue: {
             getMe: jest.fn(),
+            verifyAccessSession: jest.fn(),
             resolveRefreshToken: jest.fn(),
             setAuthCookies: jest.fn(),
           },
@@ -286,6 +288,85 @@ describe('AuthGuard', () => {
       expect(authService.getMe).toHaveBeenCalledWith(request);
       expect(authService.resolveRefreshToken).not.toHaveBeenCalled();
       expect(authService.setAuthCookies).not.toHaveBeenCalled();
+    });
+
+    it('should use verifyAccessSession and skip getMe when AuthSessionOnly is set without role checks', async () => {
+      const request: Record<string, unknown> = {
+        method: 'GET',
+        cookies: { [ACCESS_TOKEN_KEY]: 'valid_access_token' },
+      };
+      const context = createMockContext(request);
+
+      reflector.getAllAndOverride.mockImplementation((key: unknown) => {
+        if (key === AuthSessionOnly) return true;
+        return undefined;
+      });
+      authService.verifyAccessSession.mockResolvedValueOnce(undefined);
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(authService.verifyAccessSession).toHaveBeenCalledWith(request);
+      expect(authService.getMe).not.toHaveBeenCalled();
+      expect(permissionsFacade.hasAllPermissions).not.toHaveBeenCalled();
+      expect(request['author']).toBeUndefined();
+    });
+
+    it('should support AuthRefreshFallback on AuthSessionOnly GET routes when access cookie is missing', async () => {
+      const response = { cookie: jest.fn() };
+      const request: Record<string, unknown> = {
+        method: 'GET',
+        cookies: { [REFRESH_TOKEN_KEY]: 'valid_refresh_token' },
+      };
+      const context = createMockContext(request, response);
+
+      reflector.getAllAndOverride.mockImplementation((key: unknown) => {
+        if (key === AuthSessionOnly || key === AuthRefreshFallback) return true;
+        return undefined;
+      });
+      authService.resolveRefreshToken.mockResolvedValueOnce({
+        user: mockUser,
+        sessionVersion: 1,
+      });
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(authService.resolveRefreshToken).toHaveBeenCalledWith(
+        'valid_refresh_token',
+      );
+      expect(authService.setAuthCookies).toHaveBeenCalledWith(
+        mockUser.id,
+        1,
+        response,
+      );
+      expect(authService.verifyAccessSession).not.toHaveBeenCalled();
+      expect(authService.getMe).not.toHaveBeenCalled();
+    });
+
+    it('should fall back to full resolution when AuthSessionOnly is combined with RequirePermissions', async () => {
+      const request: Record<string, unknown> = {
+        method: 'GET',
+        cookies: { [ACCESS_TOKEN_KEY]: 'valid_access_token' },
+      };
+      const context = createMockContext(request);
+
+      reflector.getAllAndOverride.mockImplementation((key: unknown) => {
+        if (key === AuthSessionOnly) return true;
+        if (key === RequirePermissions) return [EPermission.MANAGE_ROOMS];
+        return undefined;
+      });
+      authService.getMe.mockResolvedValueOnce(mockUser);
+
+      const result = await guard.canActivate(context);
+
+      expect(result).toBe(true);
+      expect(authService.verifyAccessSession).not.toHaveBeenCalled();
+      expect(authService.getMe).toHaveBeenCalledWith(request);
+      expect(permissionsFacade.hasAllPermissions).toHaveBeenCalledWith(
+        mockUser,
+        [EPermission.MANAGE_ROOMS],
+      );
     });
   });
 });

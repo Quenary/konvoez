@@ -40,10 +40,10 @@ import {
   attachmentEtag,
   contentDisposition,
   contentSecurityHeaders,
-  etagMatches,
   inlinePolicy,
   resolveByteRange,
 } from './attachments.http';
+import { etagMatches } from '@shared/utils/http-etag.util';
 import {
   type FileService,
   FileServiceInjectionToken,

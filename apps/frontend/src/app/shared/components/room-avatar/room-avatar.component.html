@@ -1,0 +1,20 @@
+@let url = avatarUrl();
+
+@if (!url || !isLoaded() || hasError()) {
+  <span [style.color]="color()">
+    {{ initialsText() | tuiInitials }}
+  </span>
+}
+
+@if (url && !hasError()) {
+  <img
+    #avatarImg
+    [alt]="name()"
+    [ngSrc]="url"
+    fill
+    [priority]="priority()"
+    [loading]="priority() ? undefined : 'lazy'"
+    [class.loaded]="isLoaded()"
+    (load)="onImageLoad()"
+    (error)="onImageError()" />
+}

@@ -50,5 +50,16 @@
         "files": ["/assets/deepfilternet/**/*"]
       }
     }
+  ],
+  "dataGroups": [
+    {
+      "name": "avatars",
+      "urls": ["/api/v1/users/avatar/stream", "/api/v1/rooms/avatar/stream"],
+      "cacheConfig": {
+        "strategy": "performance",
+        "maxSize": 500,
+        "maxAge": "30d"
+      }
+    }
   ]
 }

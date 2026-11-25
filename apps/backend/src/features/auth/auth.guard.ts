@@ -5,6 +5,7 @@ import { AppException } from '@shared/errors/app.exception';
 import { AuthService } from './auth.service';
 import {
   AuthRefreshFallback,
+  AuthSessionOnly,
   RequireOwner,
   RequirePermissions,
 } from './auth.decorator';
@@ -28,16 +29,39 @@ export class AuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const http = context.switchToHttp();
     const request = http.getRequest<AuthenticatedRequest>();
-    const user = await this.resolveUser(
-      context,
-      request,
-      http.getResponse<Response>(),
-    );
+    const response = http.getResponse<Response>();
 
     const requireOwner = this.reflector.getAllAndOverride<true>(RequireOwner, [
       context.getHandler(),
       context.getClass(),
     ]);
+    const requiredPermissions = this.reflector.getAllAndOverride<EPermission[]>(
+      RequirePermissions,
+      [context.getHandler(), context.getClass()],
+    );
+    const sessionOnly = this.reflector.getAllAndOverride<true>(
+      AuthSessionOnly,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (
+      sessionOnly &&
+      !requireOwner &&
+      (!requiredPermissions || requiredPermissions.length === 0)
+    ) {
+      const refreshed = await this.tryRefreshFallback(
+        context,
+        request,
+        response,
+      );
+      if (!refreshed) {
+        await this.authService.verifyAccessSession(request);
+      }
+      return true;
+    }
+
+    const user = await this.resolveUser(context, request, response);
+
     if (requireOwner && !user.isOwner) {
       throw AppException.forbidden(
         ApiErrorCode.AUTH_METHOD_FORBIDDEN,
@@ -45,10 +69,6 @@ export class AuthGuard implements CanActivate {
       );
     }
 
-    const requiredPermissions = this.reflector.getAllAndOverride<EPermission[]>(
-      RequirePermissions,
-      [context.getHandler(), context.getClass()],
-    );
     if (requiredPermissions && requiredPermissions.length > 0) {
       const allowed = await this.permissionsFacade.hasAllPermissions(
         user,
@@ -71,6 +91,18 @@ export class AuthGuard implements CanActivate {
     request: AuthenticatedRequest,
     response: Response,
   ): Promise<GetUserFullDto> {
+    const refreshed = await this.tryRefreshFallback(context, request, response);
+    if (refreshed) {
+      return refreshed;
+    }
+    return await this.authService.getMe(request);
+  }
+
+  private async tryRefreshFallback(
+    context: ExecutionContext,
+    request: AuthenticatedRequest,
+    response: Response,
+  ): Promise<GetUserFullDto | null> {
     const accessToken = request.cookies?.[ACCESS_TOKEN_KEY];
     const refreshFallback = this.reflector.getAllAndOverride<true>(
       AuthRefreshFallback,
@@ -89,6 +121,6 @@ export class AuthGuard implements CanActivate {
       this.authService.setAuthCookies(user.id, sessionVersion, response);
       return user;
     }
-    return await this.authService.getMe(request);
+    return null;
   }
 }

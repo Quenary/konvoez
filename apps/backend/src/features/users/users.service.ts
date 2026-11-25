@@ -73,6 +73,27 @@ export class UsersService {
     return user;
   }
 
+  async findSessionState(id: number): Promise<{
+    id: number;
+    deletedAt: Date | null;
+    sessionVersion: number;
+  } | null> {
+    const em = this.em.fork();
+    const user = await em.findOne(
+      UserEntity,
+      { id },
+      { fields: ['id', 'deletedAt', 'sessionVersion'] },
+    );
+    if (!user) {
+      return null;
+    }
+    return {
+      id: user.id,
+      deletedAt: user.deletedAt ?? null,
+      sessionVersion: user.sessionVersion,
+    };
+  }
+
   async findOneByUsernameOrEmail(login: string): Promise<UserEntity> {
     const em = this.em.fork();
     const user = await em.findOne(

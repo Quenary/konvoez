@@ -5,7 +5,7 @@ import {
   inject,
   input,
 } from '@angular/core';
-import { NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
 import { TuiDropdown } from '@taiga-ui/core';
@@ -15,12 +15,12 @@ import {
   TuiBadgedContent,
   TuiBadgeNotification,
   TuiFade,
-  TuiInitialsPipe,
 } from '@taiga-ui/kit';
 import { ERoomType, TVoiceRoomPeerUser } from '@konvoez/shared';
 import { UnreadCountsStore } from '@core/chat/unread-counts.store';
 import { ListItemComponent } from '@shared/components/list-item/list-item.component';
 import { PulseIndicatorComponent } from '@shared/components/pulse-indicator/pulse-indicator.component';
+import { RoomAvatarComponent } from '@shared/components/room-avatar/room-avatar.component';
 import { UserAvatarComponent } from '@shared/components/user-avatar/user-avatar.component';
 import { RoomContextMenuComponent } from '../room-context-menu/room-context-menu.component';
 import { RoomManageService } from '../room-manage.service';
@@ -35,7 +35,6 @@ interface IVoiceListRoom extends IVoiceRoomRow {
 @Component({
   selector: 'app-room-list',
   imports: [
-    NgOptimizedImage,
     NgTemplateOutlet,
     TranslatePipe,
     CdkDrag,
@@ -45,9 +44,9 @@ interface IVoiceListRoom extends IVoiceRoomRow {
     TuiBadgedContent,
     TuiBadgeNotification,
     TuiFade,
-    TuiInitialsPipe,
     TuiDropdown,
     PulseIndicatorComponent,
+    RoomAvatarComponent,
     UserAvatarComponent,
     RoomContextMenuComponent,
     ListItemComponent,

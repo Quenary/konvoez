@@ -1,10 +1,20 @@
-@if (avatarUrl(); as url) {
-  <img
-    [alt]="username()"
-    [ngSrc]="url"
-    fill />
-} @else {
+@let url = avatarUrl();
+
+@if (!url || !isLoaded() || hasError()) {
   <span [style.color]="username() | tuiAutoColor">
     {{ fullname() | tuiInitials }}
   </span>
+}
+
+@if (url && !hasError()) {
+  <img
+    #avatarImg
+    [alt]="username()"
+    [ngSrc]="url"
+    fill
+    [priority]="priority()"
+    [loading]="priority() ? undefined : 'lazy'"
+    [class.loaded]="isLoaded()"
+    (load)="onImageLoad()"
+    (error)="onImageError()" />
 }

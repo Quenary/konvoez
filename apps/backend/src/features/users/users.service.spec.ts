@@ -505,4 +505,33 @@ describe('UsersService', () => {
       );
     });
   });
+
+  describe('findSessionState', () => {
+    it('queries only id, deletedAt, and sessionVersion without populating roles', async () => {
+      mockForkedEm.findOne.mockResolvedValueOnce({
+        id: 5,
+        deletedAt: null,
+        sessionVersion: 3,
+      });
+
+      const result = await service.findSessionState(5);
+
+      expect(mockForkedEm.findOne).toHaveBeenCalledWith(
+        UserEntity,
+        { id: 5 },
+        { fields: ['id', 'deletedAt', 'sessionVersion'] },
+      );
+      expect(result).toEqual({
+        id: 5,
+        deletedAt: null,
+        sessionVersion: 3,
+      });
+    });
+
+    it('returns null when user is not found', async () => {
+      mockForkedEm.findOne.mockResolvedValueOnce(null);
+
+      await expect(service.findSessionState(999)).resolves.toBeNull();
+    });
+  });
 });

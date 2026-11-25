@@ -11,7 +11,6 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { NgOptimizedImage } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
 import {
@@ -30,9 +29,9 @@ import {
   TuiBadgedContent,
   TuiBadgeNotification,
   TuiFade,
-  TuiInitialsPipe,
 } from '@taiga-ui/kit';
 import { FileDropDirective } from '@shared/directives/file-drop.directive';
+import { RoomAvatarComponent } from '@shared/components/room-avatar/room-avatar.component';
 import { ChatEditorComponent } from './chat-editor/chat-editor.component';
 import { ChatMessagesListComponent } from './chat-messages-list/chat-messages-list.component';
 import { ChatStore } from './chat.store';
@@ -68,8 +67,7 @@ import { icons } from '@constants';
     TuiBadgedContent,
     TuiBadgeNotification,
     TuiFade,
-    TuiInitialsPipe,
-    NgOptimizedImage,
+    RoomAvatarComponent,
     ReactiveFormsModule,
     TranslatePipe,
     LastSeenPipe,

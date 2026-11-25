@@ -72,6 +72,15 @@ export class DirectChatsComponent implements OnInit {
   protected readonly icons = icons;
   protected readonly isNarrow = this.layoutService.isNarrow;
 
+  // DirectChatsStore keeps the chat list snapshot from GET /text-rooms/direct,
+  // while EntitySyncService applies live USER_UPDATED socket events to UsersStore.
+  // Overlaying UsersStore.entityMap() keeps usernames, fullnames and avatars in /direct reactive.
+  protected readonly chats = computed(() => {
+    const directChats = this.directChatsStore.entities();
+    const usersById = this.usersStore.entityMap();
+    return directChats.map((chat) => usersById[chat.id] ?? chat);
+  });
+
   ngOnInit(): void {
     this.directChatsStore.loadDirectChats();
     this.usersStore.loadAll();

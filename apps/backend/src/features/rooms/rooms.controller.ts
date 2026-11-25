@@ -11,10 +11,11 @@ import {
   UseInterceptors,
   UploadedFile,
   Query,
+  Req,
   Res,
   StreamableFile,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { RoomsService } from './rooms.service';
 import { VoiceRoomGrantsService } from '../voice-rooms/voice-room-grants.service';
 import {
@@ -27,6 +28,7 @@ import {
 import { AuthGuard } from '../auth/auth.guard';
 import {
   AuthRefreshFallback,
+  AuthSessionOnly,
   Author,
   RequirePermissions,
 } from '../auth/auth.decorator';
@@ -37,6 +39,7 @@ import { UploadFileResultDto } from '@shared/types/upload-file.dto';
 import { ApiOkResponse } from '@nestjs/swagger';
 import { GetUserSafeDto } from '../users/users.dto';
 import { EPermission } from '@konvoez/shared';
+import { etagMatches } from '@shared/utils/http-etag.util';
 
 @Controller('rooms')
 @UseGuards(AuthGuard)
@@ -86,21 +89,36 @@ export class RoomsController {
 
   @Get('avatar/stream')
   @AuthRefreshFallback(true)
+  @AuthSessionOnly(true)
   @ApiOkResponse({
     type: StreamableFile,
     description: 'Returns avatar binary stream directly',
   })
   async getAvatar(
     @Query() query: RoomAvatarQueryDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<StreamableFile> {
+  ): Promise<StreamableFile | undefined> {
+    const etag = `"${query.key}"`;
+    res.set({
+      'Cache-Control': 'private, max-age=31536000, immutable',
+      ETag: etag,
+      'X-Content-Type-Options': 'nosniff',
+    });
+    if (etagMatches(req.header('if-none-match'), etag)) {
+      res.status(304);
+      return undefined;
+    }
+
     const { stream, contentType, contentLength } =
       await this.roomsAvatarsService.getStream(query.key);
     res.set({
       'Content-Type': contentType,
-      ...(contentLength && { 'Content-Length': contentLength.toString() }),
-      'Cache-Control': 'private, max-age=86400',
+      ...(contentLength !== undefined && {
+        'Content-Length': contentLength.toString(),
+      }),
     });
+    res.on('close', () => stream.destroy());
 
     return new StreamableFile(stream);
   }

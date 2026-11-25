@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   FileServiceInjectionToken,
@@ -21,7 +22,10 @@ export class RoomsAvatarsService {
   public async upload(file: Express.Multer.File): Promise<string> {
     assertAvatarFileSize(file);
     const processedFile = await this.imageProcessingService.convertToWebp(file);
-    return this.fileService.upload(processedFile, this.bucketName);
+    return this.fileService.upload(
+      { ...processedFile, originalname: `${randomUUID()}.webp` },
+      this.bucketName,
+    );
   }
 
   public async getStream(key: string): Promise<FileStreamResult> {

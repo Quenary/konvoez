@@ -9,22 +9,14 @@
     tabindex="0"
     (click)="headerClick.emit()"
     (keydown.enter)="headerClick.emit()">
-    <div
-      tuiAvatar
+    <app-room-avatar
       size="s"
-      class="header-avatar">
-      @if (avatarUrl(); as url) {
-        <img
-          [alt]="title()"
-          [ngSrc]="url"
-          fill
-          priority />
-      } @else {
-        <span [style.color]="identityColor()">
-          {{ initialsSource() || title() | tuiInitials }}
-        </span>
-      }
-    </div>
+      class="header-avatar"
+      [name]="title()"
+      [initialsSource]="initialsSource()"
+      [avatarUrl]="avatarUrl()"
+      [color]="identityColor()"
+      [priority]="true" />
 
     <span
       tuiFade
