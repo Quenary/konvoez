@@ -45,17 +45,39 @@ export const pushNotificationDataSchema = z.object({
 export const pushNotificationPayloadSchema = z.object({
   title: z.string().min(1).max(200),
   body: z.string().min(1).max(pushNotificationBodyMaxLength),
-  icon: z.union([z.url(), z.literal('')]).optional(),
+  icon: z
+    .union([z.url(), z.string().regex(/^\/(?!\/)/), z.literal('')])
+    .optional(),
   tag: z.string().optional(),
   topic: z.string().max(32).optional(),
   data: pushNotificationDataSchema.optional(),
 });
 
-export const notificationDismissPayloadSchema = z.object({
-  tag: z.string(),
-  topic: z.string().max(32).optional(),
-  messageId: z.string().optional(),
-});
+export const notificationUpdatePayloadSchema =
+  pushNotificationPayloadSchema.extend({
+    tag: z.string().min(1),
+  });
+
+export const notificationDismissPayloadSchema = z
+  .object({
+    tag: z.string().optional(),
+    tags: z.array(z.string().min(1)).min(1).optional(),
+    topic: z.string().max(32).optional(),
+    messageId: z.string().optional(),
+    roomId: z.number().int().positive().optional(),
+    recipientId: z.number().int().positive().optional(),
+    maxMessageId: z.uuid().optional(),
+  })
+  .refine(
+    (data) =>
+      Boolean(
+        data.tag ||
+        data.tags?.length ||
+        data.messageId ||
+        (data.maxMessageId && (data.roomId || data.recipientId)),
+      ),
+    { message: 'A notification target must be provided' },
+  );
 
 export const userNotificationMentionsSettingsSchema = z.object({
   username: z.boolean(),
@@ -93,6 +115,9 @@ export type TPushNotificationActionClick = z.infer<
 export type TPushNotificationData = z.infer<typeof pushNotificationDataSchema>;
 export type TPushNotificationPayload = z.infer<
   typeof pushNotificationPayloadSchema
+>;
+export type TNotificationUpdatePayload = z.infer<
+  typeof notificationUpdatePayloadSchema
 >;
 export type TNotificationsDismissPayload = z.infer<
   typeof notificationDismissPayloadSchema
@@ -133,6 +158,7 @@ export type TMentionRecipient = {
 export type TNotificationsEventPayloadMap = {
   [ENotificationsEvent.NOTIFICATION]: TPushNotificationPayload;
   [ENotificationsEvent.NOTIFICATION_DISMISS]: TNotificationsDismissPayload;
+  [ENotificationsEvent.NOTIFICATION_UPDATE]: TNotificationUpdatePayload;
 };
 
 export type TNotificationsEventMap = {

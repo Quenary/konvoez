@@ -3,6 +3,7 @@ import {
   desktopHotkeysSchema,
   desktopNotificationDismissSchema,
   desktopNotificationSchema,
+  desktopNotificationUpdateSchema,
   desktopVoiceStateSchema,
   type TDesktopHotkeys,
   type TDesktopVoiceState,
@@ -17,7 +18,11 @@ import {
 } from 'electron';
 import type { ConfigStore, TDesktopConfig } from './config-store';
 import { normalizeServerOrigin, probeServer } from '@konvoez/client-shell';
-import { dismissNotification, showNotification } from './notifications';
+import {
+  dismissNotification,
+  showNotification,
+  updateNotification,
+} from './notifications';
 import { refreshMenus, setVoiceState } from './tray';
 import { isScreenShareAudioAvailable } from './display-media';
 import { getNativeModule } from './native';
@@ -138,6 +143,24 @@ export function registerIpc(
         return;
       }
       dismissNotification(parsed.data);
+    },
+  );
+
+  ipcMain.on(
+    EDesktopIpc.UPDATE_NOTIFICATION,
+    (event: IpcMainEvent, rawPayload: unknown) => {
+      if (!validateAppSender(event, configStore)) {
+        return;
+      }
+      const parsed = desktopNotificationUpdateSchema.safeParse(rawPayload);
+      if (!parsed.success) {
+        console.warn(
+          '[IPC] Invalid update notification payload:',
+          parsed.error,
+        );
+        return;
+      }
+      updateNotification(parsed.data);
     },
   );
 

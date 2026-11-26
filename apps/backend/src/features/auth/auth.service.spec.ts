@@ -217,6 +217,7 @@ describe('AuthService', () => {
           provide: UsersService,
           useValue: {
             findOneBy: jest.fn(),
+            findSessionState: jest.fn(),
             findOneByUsernameOrEmail: jest.fn(),
             findOneByAsFullDto: jest.fn(),
             toSafeDto: jest.fn(),
@@ -244,6 +245,7 @@ describe('AuthService', () => {
             ),
             count: jest.fn(),
             setPassword: jest.fn(),
+            updateLastLoginAt: jest.fn().mockResolvedValue(undefined),
           },
         },
         {
@@ -1661,8 +1663,25 @@ describe('AuthService', () => {
         '123456',
       );
       expect(cacheManager.del).toHaveBeenCalled();
+      expect(usersService.updateLastLoginAt).toHaveBeenCalledWith(
+        42,
+        expect.any(Date),
+      );
       expect(result.user.id).toBe(42);
+      expect(result.user.lastLoginAt).toBeInstanceOf(Date);
+      expect(result.user.lastSeenAt).toBeInstanceOf(Date);
       expect(result.sessionVersion).toBe(3);
+    });
+
+    it('recordLogin updates lastLoginAt and lastSeenAt', async () => {
+      const updated = await service.recordLogin(mockUserDto);
+
+      expect(usersService.updateLastLoginAt).toHaveBeenCalledWith(
+        mockUserDto.id,
+        expect.any(Date),
+      );
+      expect(updated.lastLoginAt).toBeInstanceOf(Date);
+      expect(updated.lastSeenAt).toEqual(updated.lastLoginAt);
     });
 
     it('completeTwoFactorLogin throws 401 on missing or expired pending challenge', async () => {
@@ -1673,6 +1692,185 @@ describe('AuthService', () => {
       ).rejects.toMatchObject({
         code: ApiErrorCode.UNAUTHORIZED,
       });
+    });
+  });
+
+  describe('verifyAccessSession', () => {
+    const reqWithToken = (token?: string) =>
+      ({
+        cookies: token ? { [ACCESS_TOKEN_KEY]: token } : {},
+      }) as unknown as Request;
+
+    it('throws UnauthorizedException when access cookie is missing', async () => {
+      await expect(
+        service.verifyAccessSession(reqWithToken()),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
+    });
+
+    it('queries session state on cache miss, caches it with short TTL, and succeeds', async () => {
+      jwtService.verify.mockReturnValueOnce({
+        type: 'access',
+        userId: 7,
+        sv: 2,
+        exp: 1234567,
+      });
+      cacheManager.get.mockResolvedValueOnce(undefined);
+      usersService.findSessionState.mockResolvedValueOnce({
+        id: 7,
+        deletedAt: null,
+        sessionVersion: 2,
+      });
+
+      await expect(
+        service.verifyAccessSession(reqWithToken('valid_access')),
+      ).resolves.toBeUndefined();
+
+      expect(usersService.findSessionState).toHaveBeenCalledWith(7);
+      expect(cacheManager.set).toHaveBeenCalledWith(
+        'auth:session_state:7',
+        { sessionVersion: 2 },
+        15_000,
+      );
+      expect(usersService.findOneBy).not.toHaveBeenCalled();
+    });
+
+    it('uses cached sessionVersion without hitting the database on cache hit', async () => {
+      jwtService.verify.mockReturnValueOnce({
+        type: 'access',
+        userId: 7,
+        sv: 0,
+        exp: 1234567,
+      });
+      cacheManager.get.mockResolvedValueOnce({ sessionVersion: 0 });
+
+      await expect(
+        service.verifyAccessSession(reqWithToken('valid_access')),
+      ).resolves.toBeUndefined();
+
+      expect(usersService.findSessionState).not.toHaveBeenCalled();
+      expect(cacheManager.set).not.toHaveBeenCalled();
+    });
+
+    it('throws UnauthorizedException and does not cache when user is deleted or missing', async () => {
+      jwtService.verify.mockReturnValueOnce({
+        type: 'access',
+        userId: 7,
+        sv: 0,
+        exp: 1234567,
+      });
+      cacheManager.get.mockResolvedValueOnce(undefined);
+      usersService.findSessionState.mockResolvedValueOnce({
+        id: 7,
+        deletedAt: new Date(),
+        sessionVersion: 0,
+      });
+
+      await expect(
+        service.verifyAccessSession(reqWithToken('valid_access')),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
+      expect(cacheManager.set).not.toHaveBeenCalled();
+
+      jwtService.verify.mockReturnValueOnce({
+        type: 'access',
+        userId: 99,
+        sv: 0,
+        exp: 1234567,
+      });
+      cacheManager.get.mockResolvedValueOnce(undefined);
+      usersService.findSessionState.mockResolvedValueOnce(null);
+
+      await expect(
+        service.verifyAccessSession(reqWithToken('valid_access')),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
+      expect(cacheManager.set).not.toHaveBeenCalled();
+    });
+
+    it('throws UnauthorizedException when cached sessionVersion mismatches token sv', async () => {
+      jwtService.verify.mockReturnValueOnce({
+        type: 'access',
+        userId: 7,
+        sv: 1,
+        exp: 1234567,
+      });
+      cacheManager.get.mockResolvedValueOnce({ sessionVersion: 2 });
+
+      await expect(
+        service.verifyAccessSession(reqWithToken('stale_access')),
+      ).rejects.toMatchObject({
+        code: ApiErrorCode.UNAUTHORIZED,
+      });
+    });
+
+    it('invalidates session state cache on revocation, deletion, and soft-delete update', async () => {
+      await service.handleUserSessionInvalidated({ id: 7 });
+      expect(cacheManager.del).toHaveBeenCalledWith('auth:session_state:7');
+
+      cacheManager.del.mockClear();
+      await service.handleUserUpdated({
+        ...mockUserDto,
+        id: 7,
+        deletedAt: null,
+      });
+      expect(cacheManager.del).not.toHaveBeenCalled();
+
+      await service.handleUserUpdated({
+        ...mockUserDto,
+        id: 7,
+        deletedAt: new Date(),
+      });
+      expect(cacheManager.del).toHaveBeenCalledWith('auth:session_state:7');
+    });
+
+    it('does not let a stale cache miss repopulate state after revocation invalidates it', async () => {
+      jwtService.verify.mockReturnValueOnce({
+        type: 'access',
+        userId: 7,
+        sv: 2,
+        exp: 1234567,
+      });
+      cacheManager.get.mockResolvedValueOnce(undefined);
+
+      let resolveSessionState!: (
+        state: {
+          id: number;
+          deletedAt: Date | null;
+          sessionVersion: number;
+        } | null,
+      ) => void;
+      let notifySessionStateLookup!: () => void;
+      const lookupStarted = new Promise<void>((resolve) => {
+        notifySessionStateLookup = resolve;
+      });
+      usersService.findSessionState.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSessionState = resolve;
+            notifySessionStateLookup();
+          }),
+      );
+
+      const verification = service.verifyAccessSession(
+        reqWithToken('valid_access'),
+      );
+      await lookupStarted;
+      const invalidation = service.handleUserSessionInvalidated({ id: 7 });
+
+      resolveSessionState({
+        id: 7,
+        deletedAt: null,
+        sessionVersion: 2,
+      });
+      await Promise.all([verification, invalidation]);
+
+      const setOrder = cacheManager.set.mock.invocationCallOrder[0];
+      const deleteOrder = cacheManager.del.mock.invocationCallOrder[0];
+      expect(setOrder).toBeLessThan(deleteOrder);
     });
   });
 });

@@ -70,6 +70,26 @@
       </dd>
     </div>
     <div class="field">
+      <dt>{{ 'SETTINGS.USERS.LAST_SEEN' | translate }}</dt>
+      <dd>
+        @if (user.lastSeenAt) {
+          {{ user.lastSeenAt | dayjs }}
+        } @else {
+          —
+        }
+      </dd>
+    </div>
+    <div class="field">
+      <dt>{{ 'SETTINGS.USERS.LAST_LOGIN' | translate }}</dt>
+      <dd>
+        @if (user.lastLoginAt) {
+          {{ user.lastLoginAt | dayjs }}
+        } @else {
+          —
+        }
+      </dd>
+    </div>
+    <div class="field">
       <dt>{{ 'SETTINGS.USERS.TWO_FACTOR' | translate }}</dt>
       <dd class="field-two-factor">
         @if (user.twoFactorEnabled) {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_USER_NOTIFICATION_SETTINGS,
   notificationDismissPayloadSchema,
+  notificationUpdatePayloadSchema,
   pushNotificationActionClickSchema,
   pushNotificationDataSchema,
   pushNotificationPayloadSchema,
@@ -200,7 +201,7 @@ describe('Notification Schemas', () => {
   });
 
   describe('notificationDismissPayloadSchema', () => {
-    it('validates dismissal payload with required tag and optional fields', () => {
+    it('validates individual and batched dismissals', () => {
       const valid = {
         tag: 'msg_abc123',
         topic: 'msg_abc123',
@@ -215,9 +216,55 @@ describe('Notification Schemas', () => {
         true,
       );
 
-      const invalidNoTag = { messageId: '01a16622' };
       expect(
-        notificationDismissPayloadSchema.safeParse(invalidNoTag).success,
+        notificationDismissPayloadSchema.safeParse({
+          tags: ['msg_one', 'msg_two'],
+        }).success,
+      ).toBe(true);
+      expect(
+        notificationDismissPayloadSchema.safeParse({
+          roomId: 10,
+          maxMessageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+        }).success,
+      ).toBe(true);
+
+      expect(notificationDismissPayloadSchema.safeParse({}).success).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('notificationUpdatePayloadSchema', () => {
+    it('requires a message tag and accepts app-relative or absolute icons', () => {
+      expect(
+        notificationUpdatePayloadSchema.safeParse({
+          title: 'Alice',
+          body: 'Edited message',
+          tag: 'msg_abc',
+          icon: '/icons/icon-192x192.png',
+        }).success,
+      ).toBe(true);
+      expect(
+        notificationUpdatePayloadSchema.safeParse({
+          title: 'Alice',
+          body: 'Edited message',
+          tag: 'msg_abc',
+          icon: 'https://example.com/icon.png',
+        }).success,
+      ).toBe(true);
+      expect(
+        notificationUpdatePayloadSchema.safeParse({
+          title: 'Alice',
+          body: 'Edited message',
+          tag: 'msg_abc',
+          icon: '//evil.example/icon.png',
+        }).success,
+      ).toBe(false);
+      expect(
+        notificationUpdatePayloadSchema.safeParse({
+          title: 'Alice',
+          body: 'Edited message',
+        }).success,
       ).toBe(false);
     });
   });

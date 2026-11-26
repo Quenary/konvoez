@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { runInInjectionContext } from '@angular/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
 import { provideTranslateService } from '@ngx-translate/core';
@@ -7,6 +8,7 @@ import { TuiDialogContext, TuiNotificationService } from '@taiga-ui/core';
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 import { IUserFull, IRole } from '@konvoez/shared';
+import { DayjsPipe } from '@shared/pipes/dayjs.pipe';
 import { selectCurrentUser } from '@core/auth/auth.selectors';
 import { UserManagementApiService } from '@core/api/user-management-api.service';
 import { RolesApiService } from '@core/api/roles-api.service';
@@ -222,5 +224,47 @@ describe('SettingsUserManagementDialogComponent', () => {
 
     expect(component['roleChanged']()).toBe(true);
     expect(component['selectedRoleIds']().has(20)).toBe(true);
+  });
+
+  it('displays all dates including createdAt, updatedAt, deletedAt, lastSeenAt, and lastLoginAt', async () => {
+    const datedUser: IUserFull = {
+      ...targetUser,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+      deletedAt: new Date('2026-01-03T00:00:00.000Z'),
+      lastSeenAt: new Date('2026-01-04T00:00:00.000Z'),
+      lastLoginAt: new Date('2026-01-05T00:00:00.000Z'),
+    };
+    mockUserManagementApiService.get.mockReturnValue(of(datedUser));
+    component['userResource'].reload();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const formatted = runInInjectionContext(
+      fixture.debugElement.injector,
+      () => {
+        const pipe = new DayjsPipe();
+        return {
+          createdAt: pipe.transform(datedUser.createdAt),
+          updatedAt: pipe.transform(datedUser.updatedAt),
+          deletedAt: pipe.transform(datedUser.deletedAt),
+          lastSeenAt: pipe.transform(datedUser.lastSeenAt),
+          lastLoginAt: pipe.transform(datedUser.lastLoginAt),
+        };
+      },
+    );
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('SETTINGS.USERS.CREATED');
+    expect(text).toContain('SETTINGS.USERS.UPDATED');
+    expect(text).toContain('SETTINGS.USERS.DELETED');
+    expect(text).toContain('SETTINGS.USERS.LAST_SEEN');
+    expect(text).toContain('SETTINGS.USERS.LAST_LOGIN');
+    expect(text).toContain(formatted.createdAt);
+    expect(text).toContain(formatted.updatedAt);
+    expect(text).toContain(formatted.deletedAt);
+    expect(text).toContain(formatted.lastSeenAt);
+    expect(text).toContain(formatted.lastLoginAt);
   });
 });

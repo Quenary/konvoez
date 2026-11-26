@@ -1,0 +1,17 @@
+:host {
+  &:not(.loaded) {
+    background: var(--tui-background-neutral-1);
+  }
+
+  &._fallback img {
+    display: block;
+  }
+
+  img {
+    opacity: 0;
+
+    &.loaded {
+      opacity: 1;
+    }
+  }
+}

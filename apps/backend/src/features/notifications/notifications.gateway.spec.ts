@@ -147,6 +147,40 @@ describe('NotificationsGateway', () => {
         },
       );
     });
+
+    it('should emit NOTIFICATION_UPDATE to user room on update', () => {
+      const roomEmit = jest.fn();
+      toMock.mockReturnValue({ emit: roomEmit });
+      const payload = {
+        title: 'Alice',
+        body: 'Edited message',
+        tag: 'msg_abc',
+      };
+
+      gateway.onNotificationUpdate({ userId: 1, payload });
+
+      expect(serverMock.to).toHaveBeenCalledWith('user:1');
+      expect(roomEmit).toHaveBeenCalledWith(
+        ENotificationsEvent.NOTIFICATION_UPDATE,
+        payload,
+      );
+    });
+
+    it('forwards batched read dismissals without per-message topics', () => {
+      const roomEmit = jest.fn();
+      toMock.mockReturnValue({ emit: roomEmit });
+      const dismissal = {
+        userId: 1,
+        tags: ['msg_one', 'msg_two'],
+      };
+
+      gateway.onNotificationDismiss(dismissal);
+
+      expect(roomEmit).toHaveBeenCalledWith(
+        ENotificationsEvent.NOTIFICATION_DISMISS,
+        { tags: dismissal.tags },
+      );
+    });
   });
 
   describe('onUserSessionsRevoked', () => {

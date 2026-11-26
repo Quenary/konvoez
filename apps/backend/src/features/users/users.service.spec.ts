@@ -182,17 +182,23 @@ describe('UsersService', () => {
   });
 
   describe('toSafeDto', () => {
-    it('should map deletedAt and omit email and twoFactorEnabled', () => {
+    it('should map deletedAt and lastSeenAt and omit email, twoFactorEnabled, and lastLoginAt', () => {
       const deletedAt = new Date('2026-09-30T12:00:00.000Z');
+      const lastSeenAt = new Date('2026-09-29T10:00:00.000Z');
+      const lastLoginAt = new Date('2026-09-29T09:00:00.000Z');
       const dto = service.toSafeDto({
         ...mockUser,
         deletedAt,
+        lastSeenAt,
+        lastLoginAt,
         twoFactorSecret: 'enc_secret',
         twoFactorEnabledAt: new Date(),
         twoFactorLastStep: 100,
       } as UserEntity);
 
       expect(dto.deletedAt).toEqual(deletedAt);
+      expect(dto.lastSeenAt).toEqual(lastSeenAt);
+      expect(dto).not.toHaveProperty('lastLoginAt');
       expect(dto).not.toHaveProperty('password');
       expect(dto).not.toHaveProperty('email');
       expect(dto).not.toHaveProperty('sessionVersion');
@@ -204,26 +210,34 @@ describe('UsersService', () => {
   });
 
   describe('toFullDto', () => {
-    it('should include email and twoFactorEnabled for self and admin responses', () => {
+    it('should include email, twoFactorEnabled, lastSeenAt, and lastLoginAt for self and admin responses', () => {
       const dto = service.toFullDto(mockUser);
 
       expect(dto.email).toBe('test@example.com');
       expect(dto.twoFactorEnabled).toBe(false);
       expect(dto.language).toBeNull();
       expect(dto.lastDetectedLocale).toBe('en');
+      expect(dto.lastSeenAt).toBeNull();
+      expect(dto.lastLoginAt).toBeNull();
       expect(dto).not.toHaveProperty('password');
       expect(dto).not.toHaveProperty('sessionVersion');
       expect(dto).not.toHaveProperty('twoFactorSecret');
 
+      const lastSeenAt = new Date('2026-09-29T10:00:00.000Z');
+      const lastLoginAt = new Date('2026-09-29T09:00:00.000Z');
       const enabledDto = service.toFullDto({
         ...mockUser,
         twoFactorEnabledAt: new Date(),
         language: 'ru',
         lastDetectedLocale: 'ru-RU',
+        lastSeenAt,
+        lastLoginAt,
       } as UserEntity);
       expect(enabledDto.twoFactorEnabled).toBe(true);
       expect(enabledDto.language).toBe('ru');
       expect(enabledDto.lastDetectedLocale).toBe('ru-RU');
+      expect(enabledDto.lastSeenAt).toEqual(lastSeenAt);
+      expect(enabledDto.lastLoginAt).toEqual(lastLoginAt);
     });
   });
 
@@ -236,6 +250,34 @@ describe('UsersService', () => {
         UserEntity,
         { id: 10 },
         { lastDetectedLocale: 'ru-RU' },
+      );
+    });
+  });
+
+  describe('updateLastSeenAt', () => {
+    it('should natively update lastSeenAt for given user', async () => {
+      const date = new Date('2026-10-01T12:00:00.000Z');
+      await service.updateLastSeenAt(10, date);
+
+      expect(mockEm.fork).toHaveBeenCalled();
+      expect(mockForkedEm.nativeUpdate).toHaveBeenCalledWith(
+        UserEntity,
+        { id: 10 },
+        { lastSeenAt: date },
+      );
+    });
+  });
+
+  describe('updateLastLoginAt', () => {
+    it('should natively update lastLoginAt and lastSeenAt for given user', async () => {
+      const date = new Date('2026-10-01T12:00:00.000Z');
+      await service.updateLastLoginAt(10, date);
+
+      expect(mockEm.fork).toHaveBeenCalled();
+      expect(mockForkedEm.nativeUpdate).toHaveBeenCalledWith(
+        UserEntity,
+        { id: 10 },
+        { lastLoginAt: date, lastSeenAt: date },
       );
     });
   });
@@ -461,6 +503,35 @@ describe('UsersService', () => {
         UsersDomainEvents.USER_SESSIONS_REVOKED,
         { id: 5 },
       );
+    });
+  });
+
+  describe('findSessionState', () => {
+    it('queries only id, deletedAt, and sessionVersion without populating roles', async () => {
+      mockForkedEm.findOne.mockResolvedValueOnce({
+        id: 5,
+        deletedAt: null,
+        sessionVersion: 3,
+      });
+
+      const result = await service.findSessionState(5);
+
+      expect(mockForkedEm.findOne).toHaveBeenCalledWith(
+        UserEntity,
+        { id: 5 },
+        { fields: ['id', 'deletedAt', 'sessionVersion'] },
+      );
+      expect(result).toEqual({
+        id: 5,
+        deletedAt: null,
+        sessionVersion: 3,
+      });
+    });
+
+    it('returns null when user is not found', async () => {
+      mockForkedEm.findOne.mockResolvedValueOnce(null);
+
+      await expect(service.findSessionState(999)).resolves.toBeNull();
     });
   });
 });

@@ -79,6 +79,27 @@ USER_DIALOG:
   SAVED_MESSAGES: Сохраненные сообщения
   OPEN_PROFILE: Открыть профиль
   OPEN_DEVICES_SETTINGS: Открыть настройки устройств
+PRESENCE:
+  ONLINE: В сети
+  LAST_SEEN:
+    JUST_NOW: Был(а) в сети только что
+    LONG_TIME_AGO: Был(а) в сети давно
+    MINUTES:
+      ONE: 'Был(а) в сети {{count}} минуту назад'
+      FEW: 'Был(а) в сети {{count}} минуты назад'
+      MANY: 'Был(а) в сети {{count}} минут назад'
+      OTHER: 'Был(а) в сети {{count}} минут назад'
+    HOURS:
+      ONE: 'Был(а) в сети {{count}} час назад'
+      FEW: 'Был(а) в сети {{count}} часа назад'
+      MANY: 'Был(а) в сети {{count}} часов назад'
+      OTHER: 'Был(а) в сети {{count}} часов назад'
+    DAYS:
+      ONE: 'Был(а) в сети {{count}} день назад'
+      FEW: 'Был(а) в сети {{count}} дня назад'
+      MANY: 'Был(а) в сети {{count}} дней назад'
+      OTHER: 'Был(а) в сети {{count}} дней назад'
+    AT: 'Был(а) в сети {{date}}'
 DIRECT:
   TITLE: Личные сообщения
   NEW_CHAT: Новый чат
@@ -423,13 +444,16 @@ SETTINGS:
       USER: Пользователь
       ROLE: Роль
       EMAIL: Email
-      CREATED: Создан
+      LAST_SEEN: Последняя активность
+      LAST_LOGIN: Последний вход
     ID: ID
     FULLNAME: Полное имя
     EMAIL: Email
     CREATED: Дата создания
     UPDATED: Дата изменения
     DELETED: Дата удаления
+    LAST_SEEN: Последняя активность
+    LAST_LOGIN: Последний вход
     ROLE: Роль
     ROLE_OWNER: Владелец
     ROLE_ADMIN: Администратор

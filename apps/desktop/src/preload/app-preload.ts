@@ -5,6 +5,8 @@ import {
   EDesktopIpc,
   type IKonvoezDesktopBridge,
   type TScreenAudioMode,
+  type TDesktopNotificationDismiss,
+  type TDesktopNotificationUpdate,
   type TDesktopVoiceState,
   type TPushNotificationPayload,
 } from '@konvoez/shared';
@@ -28,8 +30,11 @@ const bridge: IKonvoezDesktopBridge = {
   notify: (payload: TPushNotificationPayload) => {
     ipcRenderer.send(EDesktopIpc.NOTIFY, payload);
   },
-  dismissNotification: (payload: { tag?: string; messageId?: string }) => {
+  dismissNotification: (payload: TDesktopNotificationDismiss) => {
     ipcRenderer.send(EDesktopIpc.DISMISS_NOTIFICATION, payload);
+  },
+  updateNotification: (payload: TDesktopNotificationUpdate) => {
+    ipcRenderer.send(EDesktopIpc.UPDATE_NOTIFICATION, payload);
   },
   setVoiceState: (state: TDesktopVoiceState) => {
     ipcRenderer.send(EDesktopIpc.SET_VOICE_STATE, state);

@@ -1,5 +1,9 @@
 import * as z from 'zod';
-import { pushNotificationPayloadSchema } from './schemas/notification.schemas';
+import {
+  notificationDismissPayloadSchema,
+  notificationUpdatePayloadSchema,
+  pushNotificationPayloadSchema,
+} from './schemas/notification.schemas';
 
 export const DESKTOP_BRIDGE_API_VERSION = 2 as const;
 
@@ -12,6 +16,7 @@ export enum EDesktopCommand {
 export enum EDesktopIpc {
   NOTIFY = 'konvoez:notify',
   DISMISS_NOTIFICATION = 'konvoez:dismiss-notification',
+  UPDATE_NOTIFICATION = 'konvoez:update-notification',
   SET_VOICE_STATE = 'konvoez:set-voice-state',
   QUIT_READY = 'konvoez:quit-ready',
   COMMAND = 'konvoez:command', // main -> renderer
@@ -46,19 +51,17 @@ export const desktopHotkeysSchema = z.object({
 
 export const desktopNotificationSchema = pushNotificationPayloadSchema;
 
-export const desktopNotificationDismissSchema = z
-  .object({
-    tag: z.string().optional(),
-    messageId: z.string().optional(),
-  })
-  .refine((data) => Boolean(data.tag || data.messageId), {
-    message: 'Either tag or messageId must be provided',
-  });
+export const desktopNotificationDismissSchema =
+  notificationDismissPayloadSchema;
+export const desktopNotificationUpdateSchema = notificationUpdatePayloadSchema;
 
 export type TDesktopVoiceState = z.infer<typeof desktopVoiceStateSchema>;
 export type TDesktopHotkeys = z.infer<typeof desktopHotkeysSchema>;
 export type TDesktopNotificationDismiss = z.infer<
   typeof desktopNotificationDismissSchema
+>;
+export type TDesktopNotificationUpdate = z.infer<
+  typeof desktopNotificationUpdateSchema
 >;
 
 export type TScreenAudioMode = 'include' | 'exclude' | 'loopback' | 'none';
@@ -76,6 +79,7 @@ export interface IKonvoezDesktopBridge {
   readonly nativeAudio: boolean;
   notify(payload: z.infer<typeof desktopNotificationSchema>): void;
   dismissNotification?(payload: TDesktopNotificationDismiss): void;
+  updateNotification?(payload: TDesktopNotificationUpdate): void;
   setVoiceState(state: TDesktopVoiceState): void;
   onCommand(listener: (command: EDesktopCommand) => void): () => void;
   onNotificationClick?(

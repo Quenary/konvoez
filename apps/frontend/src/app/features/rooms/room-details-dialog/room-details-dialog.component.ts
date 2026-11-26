@@ -7,10 +7,10 @@ import {
 import { Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TuiButton, TuiDialogContext, TuiHint } from '@taiga-ui/core';
-import { TuiAvatar, TuiInitialsPipe } from '@taiga-ui/kit';
 import { injectContext } from '@taiga-ui/polymorpheus';
 import { ERoomType, IRoom } from '@konvoez/shared';
 import { MediaGalleryComponent } from '@shared/components/media-gallery/media-gallery.component';
+import { RoomAvatarComponent } from '@shared/components/room-avatar/room-avatar.component';
 import { RoomManageService } from '../room-manage.service';
 import { icons } from '@constants';
 
@@ -18,11 +18,10 @@ import { icons } from '@constants';
   selector: 'app-room-details-dialog',
   imports: [
     TranslatePipe,
-    TuiAvatar,
     TuiButton,
     TuiHint,
-    TuiInitialsPipe,
     MediaGalleryComponent,
+    RoomAvatarComponent,
   ],
   templateUrl: './room-details-dialog.component.html',
   styleUrl: './room-details-dialog.component.scss',

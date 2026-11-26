@@ -31,6 +31,8 @@ export const userFullSchema = baseEntitySchema.extend({
   pendingEmail: emailSchema.nullish(),
   language: languageSchema.nullish(),
   lastDetectedLocale: z.string().max(64).default(FALLBACK_LANGUAGE).optional(),
+  lastSeenAt: z.coerce.date().nullish(),
+  lastLoginAt: z.coerce.date().nullish(),
 });
 
 export type IUserFull = z.infer<typeof userFullSchema>;
@@ -43,6 +45,7 @@ export const userSafeSchema = userFullSchema.omit({
   pendingEmail: true,
   language: true,
   lastDetectedLocale: true,
+  lastLoginAt: true,
 });
 
 export type IUserSafe = z.infer<typeof userSafeSchema>;

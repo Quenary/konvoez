@@ -1,18 +1,10 @@
 <div class="room-details-dialog">
   <div class="room-details-header">
-    <div
-      tuiAvatar
+    <app-room-avatar
       size="l"
-      class="room-details-avatar">
-      @if (room.avatarUrl; as url) {
-        <img
-          [alt]="room.name"
-          [src]="url"
-          class="room-details-avatar-img" />
-      } @else {
-        {{ room.name | tuiInitials }}
-      }
-    </div>
+      class="room-details-avatar"
+      [name]="room.name"
+      [avatarUrl]="room.avatarUrl" />
 
     <div class="room-details-info">
       <h3 class="room-details-title">{{ room.name }}</h3>

@@ -20,19 +20,6 @@ export function attachmentEtag(id: string, thumbnail: boolean): string {
   return thumbnail ? `"${id}-thumb"` : `"${id}"`;
 }
 
-export function etagMatches(
-  ifNoneMatch: string | undefined,
-  etag: string,
-): boolean {
-  if (!ifNoneMatch) {
-    return false;
-  }
-  return ifNoneMatch
-    .split(',')
-    .map((part) => part.trim())
-    .some((part) => part === etag || part === '*');
-}
-
 export function sanitizeAttachmentName(originalName: string): string {
   const base = path
     .basename(originalName)

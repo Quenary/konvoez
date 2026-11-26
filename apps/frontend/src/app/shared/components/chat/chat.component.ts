@@ -11,7 +11,6 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { NgOptimizedImage } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
 import {
@@ -30,9 +29,9 @@ import {
   TuiBadgedContent,
   TuiBadgeNotification,
   TuiFade,
-  TuiInitialsPipe,
 } from '@taiga-ui/kit';
 import { FileDropDirective } from '@shared/directives/file-drop.directive';
+import { RoomAvatarComponent } from '@shared/components/room-avatar/room-avatar.component';
 import { ChatEditorComponent } from './chat-editor/chat-editor.component';
 import { ChatMessagesListComponent } from './chat-messages-list/chat-messages-list.component';
 import { ChatStore } from './chat.store';
@@ -47,6 +46,7 @@ import { ComposerFocusService } from './composer-focus.service';
 import { v4 } from 'uuid';
 
 import { HeaderBackButtonComponent } from '@shared/components/header-back-button/header-back-button.component';
+import { LastSeenPipe } from '@shared/pipes/last-seen.pipe';
 import { icons } from '@constants';
 
 @Component({
@@ -67,10 +67,10 @@ import { icons } from '@constants';
     TuiBadgedContent,
     TuiBadgeNotification,
     TuiFade,
-    TuiInitialsPipe,
-    NgOptimizedImage,
+    RoomAvatarComponent,
     ReactiveFormsModule,
     TranslatePipe,
+    LastSeenPipe,
     FileDropDirective,
   ],
   providers: [ChatStore, ComposerFocusService],
@@ -93,6 +93,10 @@ export class ChatComponent {
   public readonly avatarUrl = input<string | null>(null);
   public readonly avatarIcon = input<string | null>(null);
   public readonly isOnline = input<boolean>(false);
+  public readonly showPresence = input<boolean>(false);
+  public readonly lastSeenAt = input<Date | string | number | null | undefined>(
+    null,
+  );
   public readonly initialMessageId = input<string | null>(null);
   public readonly headerClick = output<void>();
   /** Fired after a non-empty `initialMessageId` is joined or jumped to. */

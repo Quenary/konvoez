@@ -6,6 +6,7 @@ import {
   removeEntity,
   setAllEntities,
   setEntity,
+  updateEntity,
   withEntities,
 } from '@ngrx/signals/entities';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
@@ -36,79 +37,106 @@ export const UsersStore = signalStore(
       translateService = inject(TranslateService),
       tuiNotificationsService = inject(TuiNotificationService),
       apiErrorService = inject(ApiErrorService),
-    ) => ({
-      clear(): void {
-        patchState(store, removeAllEntities(), {
-          loading: false,
-          loaded: false,
-          onlineMap: {},
-        });
-      },
+    ) => {
+      const fetchAll = () =>
+        usersApiService.list().pipe(
+          tap((users) => {
+            patchState(store, setAllEntities(users), {
+              loading: false,
+              loaded: true,
+            });
+          }),
+          catchError((error) => {
+            patchState(store, { loading: false });
+            tuiNotificationsService
+              .open(apiErrorService.translate(error, 'GENERAL.REQ_ERR'), {
+                appearance: 'negative',
+                autoClose: 5000,
+                closable: true,
+                label: translateService.instant('GENERAL.REQ_ERR'),
+              })
+              .subscribe();
+            return EMPTY;
+          }),
+        );
 
-      setOnlineUsers(userIds: number[]): void {
-        if (
-          userIds.length === 0 &&
-          Object.keys(store.onlineMap()).length === 0
-        ) {
-          return;
-        }
-        const onlineMap: Record<number, boolean> = {};
-        for (const id of userIds) {
-          onlineMap[id] = true;
-        }
-        patchState(store, { onlineMap });
-      },
+      return {
+        clear(): void {
+          patchState(store, removeAllEntities(), {
+            loading: false,
+            loaded: false,
+            onlineMap: {},
+          });
+        },
 
-      setUserPresence(userId: number, isOnline: boolean): void {
-        const currentOnline = Boolean(store.onlineMap()[userId]);
-        if (currentOnline === isOnline) {
-          return;
-        }
-        const onlineMap = { ...store.onlineMap() };
-        if (isOnline) {
-          onlineMap[userId] = true;
-        } else {
-          delete onlineMap[userId];
-        }
-        patchState(store, { onlineMap });
-      },
+        setOnlineUsers(userIds: number[]): void {
+          if (
+            userIds.length === 0 &&
+            Object.keys(store.onlineMap()).length === 0
+          ) {
+            return;
+          }
+          const onlineMap: Record<number, boolean> = {};
+          for (const id of userIds) {
+            onlineMap[id] = true;
+          }
+          patchState(store, { onlineMap });
+        },
 
-      upsertOne(user: IUserSafe): void {
-        patchState(store, setEntity(user));
-      },
+        setUserPresence(
+          userId: number,
+          isOnline: boolean,
+          lastSeenAt?: Date | null,
+        ): void {
+          const currentOnline = Boolean(store.onlineMap()[userId]);
+          const hasEntity = Boolean(store.entityMap()[userId]);
+          const shouldUpdateLastSeen = lastSeenAt !== undefined && hasEntity;
 
-      removeOne(id: number): void {
-        patchState(store, removeEntity(id));
-      },
+          if (currentOnline === isOnline && !shouldUpdateLastSeen) {
+            return;
+          }
 
-      loadAll: rxMethod<void>(
-        pipe(
-          filter(() => !store.loaded()),
-          tap(() => patchState(store, { loading: true })),
-          exhaustMap(() =>
-            usersApiService.list().pipe(
-              tap((users) => {
-                patchState(store, setAllEntities(users), {
-                  loading: false,
-                  loaded: true,
-                });
-              }),
-              catchError((error) => {
-                patchState(store, { loading: false });
-                tuiNotificationsService
-                  .open(apiErrorService.translate(error, 'GENERAL.REQ_ERR'), {
-                    appearance: 'negative',
-                    autoClose: 5000,
-                    closable: true,
-                    label: translateService.instant('GENERAL.REQ_ERR'),
-                  })
-                  .subscribe();
-                return EMPTY;
-              }),
-            ),
+          const onlineMap = { ...store.onlineMap() };
+          if (isOnline) {
+            onlineMap[userId] = true;
+          } else {
+            delete onlineMap[userId];
+          }
+
+          if (shouldUpdateLastSeen) {
+            patchState(
+              store,
+              updateEntity({ id: userId, changes: { lastSeenAt } }),
+              { onlineMap },
+            );
+          } else {
+            patchState(store, { onlineMap });
+          }
+        },
+
+        upsertOne(user: IUserSafe): void {
+          patchState(store, setEntity(user));
+        },
+
+        removeOne(id: number): void {
+          patchState(store, removeEntity(id));
+        },
+
+        loadAll: rxMethod<void>(
+          pipe(
+            filter(() => !store.loaded()),
+            tap(() => patchState(store, { loading: true })),
+            exhaustMap(fetchAll),
           ),
         ),
-      ),
-    }),
+
+        reload: rxMethod<void>(
+          pipe(
+            tap(() => patchState(store, { loading: true })),
+            exhaustMap(fetchAll),
+          ),
+        ),
+      };
+    },
   ),
 );

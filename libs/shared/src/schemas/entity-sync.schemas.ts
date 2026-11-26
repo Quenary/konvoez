@@ -11,6 +11,7 @@ import {
 export const userPresenceChangedSchema = z.object({
   userId: z.number().int(),
   isOnline: z.boolean(),
+  lastSeenAt: z.coerce.date().nullish(),
 });
 export type IUserPresenceChanged = z.infer<typeof userPresenceChangedSchema>;
 

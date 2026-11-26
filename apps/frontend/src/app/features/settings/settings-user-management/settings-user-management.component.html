@@ -34,7 +34,12 @@
           <th
             tuiTh
             class="col-date">
-            {{ 'SETTINGS.USERS.TABLE.CREATED' | translate }}
+            {{ 'SETTINGS.USERS.TABLE.LAST_SEEN' | translate }}
+          </th>
+          <th
+            tuiTh
+            class="col-date">
+            {{ 'SETTINGS.USERS.TABLE.LAST_LOGIN' | translate }}
           </th>
         </tr>
       </thead>
@@ -124,14 +129,27 @@
             <td
               tuiTd
               class="col-date">
-              {{ user.createdAt | dayjs }}
+              @if (user.lastSeenAt) {
+                {{ user.lastSeenAt | dayjs }}
+              } @else {
+                —
+              }
+            </td>
+            <td
+              tuiTd
+              class="col-date">
+              @if (user.lastLoginAt) {
+                {{ user.lastLoginAt | dayjs }}
+              } @else {
+                —
+              }
             </td>
           </tr>
         } @empty {
           <tr>
             <td
               tuiTd
-              colspan="4"
+              colspan="5"
               class="empty-cell">
               {{ 'SETTINGS.USERS.NO_USERS' | translate }}
             </td>

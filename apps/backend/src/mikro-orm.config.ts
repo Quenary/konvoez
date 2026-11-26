@@ -27,6 +27,7 @@ import { MessageAttachmentEntitySchema } from './features/attachments/attachment
 import { KonvoezBaseEntitySchema } from '@shared/types/base.entity';
 import { getDefaultSqliteDbPath } from './shared/storage.utils';
 import { Migration20261116120000_Baseline } from './migrations/Migration20261116120000_Baseline';
+import { Migration20261125001229_AddUserLastSeenAndLastLogin } from './migrations/Migration20261125001229_AddUserLastSeenAndLastLogin';
 
 import { RoleEntitySchema } from './features/roles/roles.entity';
 
@@ -73,7 +74,10 @@ export async function createMikroOrmConfig() {
       pathTs: './src/migrations',
       // Explicit list is required for the webpack-bundled app (no FS discovery).
       // Keep override name = historical DB identity when renaming classes/files.
-      migrationsList: [Migration20261116120000_Baseline],
+      migrationsList: [
+        Migration20261116120000_Baseline,
+        Migration20261125001229_AddUserLastSeenAndLastLogin,
+      ],
     },
   } satisfies Partial<Options>;
 

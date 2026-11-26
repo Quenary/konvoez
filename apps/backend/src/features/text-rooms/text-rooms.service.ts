@@ -1019,6 +1019,7 @@ export class TextRoomsService {
       {
         populate: [
           'sender',
+          'recipient',
           'room',
           'room.allowedRoles',
           'room.allowedUsers',
@@ -1058,8 +1059,19 @@ export class TextRoomsService {
       Awaited<ReturnType<typeof this.mentionsService.resolve>> | undefined;
     let effectiveMentions: IMentionSet | undefined;
     let recipientIds: number[] | undefined;
+    let existingMentionUsers: UserEntity[] = [];
 
     if (message.room) {
+      const existingMentions = await this.messageMentionRepository.find(
+        { message: message.id },
+        { populate: ['user'] },
+      );
+      existingMentionUsers = existingMentions
+        .map((mention) => mention.user)
+        .filter((mentionUser): mentionUser is UserEntity =>
+          Boolean(mentionUser?.id),
+        );
+
       resolved = await this.mentionsService.resolve(
         user,
         message.room,
@@ -1109,30 +1121,82 @@ export class TextRoomsService {
       messageDto,
     );
 
-    if (message.room && addedRecipientIds.length > 0 && resolved) {
-      const addedIds = new Set(addedRecipientIds);
-      const recipients = resolved.recipients.filter((r) =>
-        addedIds.has(r.userId),
-      );
+    const notificationRecipientIds = new Set<number>();
+    if (message.room) {
+      for (const mentionUser of existingMentionUsers) {
+        if (mentionUser.id !== messageDto.senderId && !mentionUser.deletedAt) {
+          notificationRecipientIds.add(mentionUser.id);
+        }
+      }
+      const replyRecipient = message.replyTo?.sender;
+      if (
+        replyRecipient?.id &&
+        replyRecipient.id !== messageDto.senderId &&
+        !replyRecipient.deletedAt
+      ) {
+        notificationRecipientIds.add(replyRecipient.id);
+      }
+    } else if (
+      message.recipient?.id &&
+      message.recipient.id !== messageDto.senderId &&
+      !message.recipient.deletedAt
+    ) {
+      notificationRecipientIds.add(message.recipient.id);
+    }
 
+    if (notificationRecipientIds.size > 0) {
+      const messagePreview =
+        message.room && resolved
+          ? this.mentionMessagePreview(
+              dto.content,
+              messageDto.attachments,
+              resolved.usersById,
+              resolved.rolesById,
+            )
+          : this.messagePreview(dto.content, messageDto.attachments);
       emitTextRoomsDomainEvent(
         this.eventEmitter,
-        TextRoomsDomainEvents.MENTION_CREATED,
+        TextRoomsDomainEvents.MESSAGE_NOTIFICATION_UPDATED,
         {
-          recipients,
+          recipientIds: [...notificationRecipientIds],
           senderId: messageDto.senderId,
           senderUsername: messageDto.senderUsername,
-          roomId: message.room.id,
-          roomName: message.room.name,
+          roomId: message.room?.id ?? null,
+          roomName: message.room?.name ?? null,
           messageId: messageDto.id,
-          messagePreview: this.mentionMessagePreview(
-            dto.content,
-            messageDto.attachments,
-            resolved.usersById,
-            resolved.rolesById,
-          ),
+          messagePreview,
         },
       );
+    }
+
+    if (message.room && addedRecipientIds.length > 0 && resolved) {
+      const addedIds = new Set(addedRecipientIds);
+      const recipients = resolved.recipients.filter(
+        (recipient) =>
+          addedIds.has(recipient.userId) &&
+          !notificationRecipientIds.has(recipient.userId),
+      );
+
+      if (recipients.length > 0) {
+        emitTextRoomsDomainEvent(
+          this.eventEmitter,
+          TextRoomsDomainEvents.MENTION_CREATED,
+          {
+            recipients,
+            senderId: messageDto.senderId,
+            senderUsername: messageDto.senderUsername,
+            roomId: message.room.id,
+            roomName: message.room.name,
+            messageId: messageDto.id,
+            messagePreview: this.mentionMessagePreview(
+              dto.content,
+              messageDto.attachments,
+              resolved.usersById,
+              resolved.rolesById,
+            ),
+          },
+        );
+      }
     }
 
     return messageDto;

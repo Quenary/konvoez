@@ -1,5 +1,21 @@
 :host {
+  &:not(.loaded) {
+    background: var(--tui-background-neutral-1);
+  }
+
+  &._fallback img {
+    display: block;
+  }
+
   &.talking {
     border: 0.125rem solid var(--tui-text-positive);
+  }
+
+  img {
+    opacity: 0;
+
+    &.loaded {
+      opacity: 1;
+    }
   }
 }

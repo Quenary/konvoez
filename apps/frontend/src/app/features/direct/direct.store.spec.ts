@@ -318,5 +318,19 @@ describe('DirectStore', () => {
       expect(store.isSelf()).toBe(true);
       expect(store.isOnline()).toBe(false);
     });
+
+    it('computes lastSeenAt for regular user chat and hides it for self chat', () => {
+      const seenAt = new Date('2026-05-01T10:00:00.000Z');
+      usersEntityMap.set({
+        1: { ...mockUser, id: 1, username: 'alice', lastSeenAt: seenAt },
+        99: { ...mockUser, lastSeenAt: seenAt },
+      });
+
+      expect(store.lastSeenAt()).toEqual(seenAt);
+
+      paramMap$.next(convertToParamMap({ id: '1' }));
+      expect(store.isSelf()).toBe(true);
+      expect(store.lastSeenAt()).toBeNull();
+    });
   });
 });

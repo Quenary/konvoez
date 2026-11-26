@@ -13,6 +13,7 @@ import { provideStore } from '@ngrx/store';
 import { provideRouter, Router } from '@angular/router';
 import { TuiNotificationService } from '@taiga-ui/core';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
+import { UsersStore } from '@core/stores/users.store';
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -44,6 +45,9 @@ describe('UserDialogComponent', () => {
   let notifications: { open: ReturnType<typeof vi.fn> };
   let peerGainLevels: ReturnType<typeof signal<Record<number, number>>>;
   let setPeerGain: ReturnType<typeof vi.fn>;
+  let usersOnlineMap: ReturnType<typeof signal<Record<number, boolean>>>;
+  let usersEntityMap: ReturnType<typeof signal<Record<number, IUserSafe>>>;
+  let loadAllUsers: ReturnType<typeof vi.fn>;
 
   const user: IUserSafe = {
     id: 42,
@@ -73,6 +77,9 @@ describe('UserDialogComponent', () => {
     };
     peerGainLevels = signal<Record<number, number>>({});
     setPeerGain = vi.fn();
+    usersOnlineMap = signal<Record<number, boolean>>({});
+    usersEntityMap = signal<Record<number, IUserSafe>>({});
+    loadAllUsers = vi.fn();
 
     await TestBed.configureTestingModule({
       imports: [UserDialogComponent],
@@ -103,6 +110,14 @@ describe('UserDialogComponent', () => {
         {
           provide: VoiceAudioPreferencesStore,
           useValue: { peerGainLevels, setPeerGain },
+        },
+        {
+          provide: UsersStore,
+          useValue: {
+            onlineMap: usersOnlineMap,
+            entityMap: usersEntityMap,
+            loadAll: loadAllUsers,
+          },
         },
       ],
     })
@@ -139,6 +154,31 @@ describe('UserDialogComponent', () => {
     expect(
       sameNameFixture.nativeElement.querySelector('.identity-fullname'),
     ).toBeNull();
+  });
+
+  it('shows Online when user is online, Last seen when offline, and long-time-ago when lastSeenAt is missing', () => {
+    expect(loadAllUsers).toHaveBeenCalled();
+    const missingEl = fixture.nativeElement.querySelector('.identity-status');
+    expect(missingEl?.textContent?.trim()).toBe(
+      'PRESENCE.LAST_SEEN.LONG_TIME_AGO',
+    );
+
+    usersOnlineMap.set({ [user.id]: true });
+    fixture.detectChanges();
+    const onlineEl = fixture.nativeElement.querySelector(
+      '.identity-status._online',
+    );
+    expect(onlineEl?.textContent?.trim()).toBe('PRESENCE.ONLINE');
+
+    usersOnlineMap.set({});
+    usersEntityMap.set({
+      [user.id]: { ...user, lastSeenAt: new Date(Date.now() - 300_000) },
+    });
+    fixture.detectChanges();
+    const offlineEl = fixture.nativeElement.querySelector('.identity-status');
+    expect(offlineEl).not.toBeNull();
+    expect(offlineEl.classList.contains('_online')).toBe(false);
+    expect(offlineEl.textContent?.trim()).toContain('PRESENCE.LAST_SEEN');
   });
 
   it('places the files gallery after the message field', () => {

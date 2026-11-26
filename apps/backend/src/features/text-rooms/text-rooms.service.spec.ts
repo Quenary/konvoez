@@ -1485,6 +1485,155 @@ describe('TextRoomsService', () => {
       );
     });
 
+    it('updates old mention recipients when an edit removes or changes mentions', async () => {
+      const msgId = v7();
+      const existing = {
+        id: parse(msgId),
+        sender: { id: mockUser.id, username: mockUser.username },
+        room: { id: 10, name: 'general', isPrivate: false },
+        content: 'v1:boxed',
+        mentions: { userIds: [3], roleIds: [], everyone: false },
+        searchTokens: { add: jest.fn() },
+      } as unknown as MessageEntity;
+      messageRepository.findOne.mockResolvedValue(existing);
+      messageRepository.assign.mockImplementation(
+        (target, patch) => Object.assign(target, patch) as MessageEntity,
+      );
+      messageMentionRepository.find.mockResolvedValueOnce([
+        { user: { id: 3 } } as unknown as MessageMentionEntity,
+      ]);
+      mentionsService.resolve.mockResolvedValueOnce({
+        effective: { userIds: [4], roleIds: [], everyone: false },
+        recipientIds: [4],
+        recipients: [{ userId: 4, types: ['username'] }],
+        usersById: { 4: { username: 'user4' } },
+        rolesById: {},
+      });
+      mentionsService.replace.mockResolvedValueOnce([4]);
+
+      await service.updateMessage(mockUser, msgId, {
+        content: 'Edited <@4>',
+      });
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGE_NOTIFICATION_UPDATED,
+        expect.objectContaining({
+          recipientIds: [3],
+          messageId: msgId,
+        }),
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MENTION_CREATED,
+        expect.objectContaining({
+          recipients: [{ userId: 4, types: ['username'] }],
+        }),
+      );
+    });
+
+    it('updates a reply recipient in place when the edit also mentions them', async () => {
+      const msgId = v7();
+      const existing = {
+        id: parse(msgId),
+        sender: { id: mockUser.id, username: mockUser.username },
+        room: { id: 10, name: 'general', isPrivate: false },
+        replyTo: {
+          id: parse(v7()),
+          sender: { id: 5, username: 'reply_user', deletedAt: null },
+        },
+        content: 'v1:boxed',
+        mentions: { userIds: [], roleIds: [], everyone: false },
+        searchTokens: { add: jest.fn() },
+      } as unknown as MessageEntity;
+      messageRepository.findOne.mockResolvedValue(existing);
+      messageRepository.assign.mockImplementation(
+        (target, patch) => Object.assign(target, patch) as MessageEntity,
+      );
+      messageMentionRepository.find.mockResolvedValueOnce([]);
+      mentionsService.resolve.mockResolvedValueOnce({
+        effective: { userIds: [4, 5], roleIds: [], everyone: false },
+        recipientIds: [4, 5],
+        recipients: [
+          { userId: 4, types: ['username'] },
+          { userId: 5, types: ['username'] },
+        ],
+        usersById: {
+          4: { username: 'user4' },
+          5: { username: 'reply_user' },
+        },
+        rolesById: {},
+      });
+      mentionsService.replace.mockResolvedValueOnce([4, 5]);
+
+      await service.updateMessage(mockUser, msgId, {
+        content: 'Edited <@4> <@5>',
+      });
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGE_NOTIFICATION_UPDATED,
+        expect.objectContaining({
+          recipientIds: [5],
+          messageId: msgId,
+        }),
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MENTION_CREATED,
+        expect.objectContaining({
+          recipients: [{ userId: 4, types: ['username'] }],
+        }),
+      );
+    });
+
+    it('updates previous recipients who lost room access and skips deleted users', async () => {
+      const msgId = v7();
+      const existing = {
+        id: parse(msgId),
+        sender: { id: mockUser.id, username: mockUser.username },
+        room: { id: 10, name: 'private', isPrivate: true },
+        replyTo: {
+          id: parse(v7()),
+          content: 'v1:reply',
+          sender: { id: 5, username: 'removed_reply', deletedAt: null },
+        },
+        content: 'v1:boxed',
+        mentions: { userIds: [3, 4], roleIds: [], everyone: false },
+        searchTokens: { add: jest.fn() },
+      } as unknown as MessageEntity;
+      messageRepository.findOne.mockResolvedValue(existing);
+      messageRepository.assign.mockImplementation(
+        (target, patch) => Object.assign(target, patch) as MessageEntity,
+      );
+      messageMentionRepository.find.mockResolvedValueOnce([
+        {
+          user: { id: 3, username: 'deleted_user', deletedAt: new Date() },
+        } as unknown as MessageMentionEntity,
+        {
+          user: { id: 4, username: 'allowed_user', deletedAt: null },
+        } as unknown as MessageMentionEntity,
+      ]);
+      mentionsService.resolve.mockResolvedValueOnce({
+        effective: { userIds: [4], roleIds: [], everyone: false },
+        recipientIds: [4],
+        recipients: [{ userId: 4, types: ['username'] }],
+        usersById: { 4: { username: 'allowed_user' } },
+        rolesById: {},
+      });
+      mentionsService.replace.mockResolvedValueOnce([]);
+
+      await service.updateMessage(mockUser, msgId, {
+        content: 'Edited <@4>',
+      });
+
+      expect(usersService.toSafeDtoWithPermissions).not.toHaveBeenCalled();
+      expect(roomsFacade.canAccessRoom).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGE_NOTIFICATION_UPDATED,
+        expect.objectContaining({
+          recipientIds: [4, 5],
+          messageId: msgId,
+        }),
+      );
+    });
+
     it('should delete existing search tokens and index new tokens on update', async () => {
       const msgId = v7();
       const searchTokensAdd = jest.fn();
@@ -1662,6 +1811,10 @@ describe('TextRoomsService', () => {
       expect(eventEmitter.emit).not.toHaveBeenCalledWith(
         TextRoomsDomainEvents.MENTION_CREATED,
         expect.anything(),
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        TextRoomsDomainEvents.MESSAGE_NOTIFICATION_UPDATED,
+        expect.objectContaining({ recipientIds: [2] }),
       );
       expect(result.mentions).toEqual({
         userIds: [],

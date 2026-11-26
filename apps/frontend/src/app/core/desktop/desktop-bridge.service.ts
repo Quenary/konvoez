@@ -8,6 +8,8 @@ import {
 import {
   EDesktopCommand,
   ENotificationsEvent,
+  type TDesktopNotificationDismiss,
+  type TNotificationUpdatePayload,
   type TPushNotificationPayload,
 } from '@konvoez/shared';
 import { NotificationsSocketToken } from '@core/tokens/notifications-socket.token';
@@ -18,11 +20,13 @@ import { getDesktopBridge } from './desktop-bridge';
 
 @Injectable({ providedIn: 'root' })
 export class DesktopBridgeService {
-  private readonly bridge = getDesktopBridge();
-  public readonly isDesktop = this.bridge !== null;
-
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly bridge = getDesktopBridge();
+
+  public get isDesktop(): boolean {
+    return this.bridge !== null;
+  }
 
   /** Called from an app initializer only. Resolves voice and socket deps lazily to stay a DI leaf. */
   public init(): void {
@@ -51,10 +55,14 @@ export class DesktopBridgeService {
     };
     socket.on(ENotificationsEvent.NOTIFICATION, onNotification);
 
-    const onDismiss = (payload: { tag?: string; messageId?: string }) => {
+    const onDismiss = (payload: TDesktopNotificationDismiss) => {
       bridge.dismissNotification?.(payload);
     };
     socket.on(ENotificationsEvent.NOTIFICATION_DISMISS, onDismiss);
+    const onUpdate = (payload: TNotificationUpdatePayload) => {
+      bridge.updateNotification?.(payload);
+    };
+    socket.on(ENotificationsEvent.NOTIFICATION_UPDATE, onUpdate);
 
     const off = bridge.onCommand(async (command) => {
       switch (command) {
@@ -82,6 +90,7 @@ export class DesktopBridgeService {
       off();
       socket.off(ENotificationsEvent.NOTIFICATION, onNotification);
       socket.off(ENotificationsEvent.NOTIFICATION_DISMISS, onDismiss);
+      socket.off(ENotificationsEvent.NOTIFICATION_UPDATE, onUpdate);
     });
   }
 

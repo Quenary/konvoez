@@ -165,4 +165,5 @@ export enum EEntitySyncEvent {
 export enum ENotificationsEvent {
   NOTIFICATION = 'notification',
   NOTIFICATION_DISMISS = 'notification.dismiss',
+  NOTIFICATION_UPDATE = 'notification.update',
 }

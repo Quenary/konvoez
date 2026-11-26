@@ -73,6 +73,27 @@ export class UsersService {
     return user;
   }
 
+  async findSessionState(id: number): Promise<{
+    id: number;
+    deletedAt: Date | null;
+    sessionVersion: number;
+  } | null> {
+    const em = this.em.fork();
+    const user = await em.findOne(
+      UserEntity,
+      { id },
+      { fields: ['id', 'deletedAt', 'sessionVersion'] },
+    );
+    if (!user) {
+      return null;
+    }
+    return {
+      id: user.id,
+      deletedAt: user.deletedAt ?? null,
+      sessionVersion: user.sessionVersion,
+    };
+  }
+
   async findOneByUsernameOrEmail(login: string): Promise<UserEntity> {
     const em = this.em.fork();
     const user = await em.findOne(
@@ -344,6 +365,7 @@ export class UsersService {
       avatar: user.avatar,
       avatarUrl: this.getAvatarUrl(user.avatar),
       deletedAt: user.deletedAt ?? null,
+      lastSeenAt: user.lastSeenAt ?? null,
     };
   }
 
@@ -356,6 +378,7 @@ export class UsersService {
       pendingEmail: user.pendingEmail ?? null,
       language: (user.language as TLanguage) ?? null,
       lastDetectedLocale: user.lastDetectedLocale ?? FALLBACK_LANGUAGE,
+      lastLoginAt: user.lastLoginAt ?? null,
     };
   }
 
@@ -368,6 +391,26 @@ export class UsersService {
       UserEntity,
       { id: userId },
       { lastDetectedLocale: locale },
+    );
+  }
+
+  async updateLastSeenAt(
+    userId: number,
+    date: Date = new Date(),
+  ): Promise<void> {
+    const em = this.em.fork();
+    await em.nativeUpdate(UserEntity, { id: userId }, { lastSeenAt: date });
+  }
+
+  async updateLastLoginAt(
+    userId: number,
+    date: Date = new Date(),
+  ): Promise<void> {
+    const em = this.em.fork();
+    await em.nativeUpdate(
+      UserEntity,
+      { id: userId },
+      { lastLoginAt: date, lastSeenAt: date },
     );
   }
 

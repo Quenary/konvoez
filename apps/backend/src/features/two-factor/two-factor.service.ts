@@ -29,7 +29,7 @@ import {
 import { buildOtpAuthUri, generateSecret, verifyTotp } from './totp.util';
 import { TwoFactorRecoveryCodeEntity } from './two-factor-recovery-code.entity';
 import { TwoFactorRecoveryKeyEntity } from './two-factor-recovery-key.entity';
-import { PerUserMutex } from './per-user-mutex';
+import { PerUserMutex } from '@shared/utils/per-user-mutex';
 import { VerifiedMailerService } from '@shared/services/verified-mailer.service';
 
 @Injectable()

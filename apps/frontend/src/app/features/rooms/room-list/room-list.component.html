@@ -93,19 +93,10 @@
         {{ count > 99 ? '99+' : count }}
       </tui-badge-notification>
     }
-    <div
-      tuiAvatar
-      size="xs">
-      @if (room.avatarUrl) {
-        <img
-          [alt]="room.name"
-          [ngSrc]="room.avatarUrl"
-          fill
-          priority />
-      } @else {
-        {{ room.name | tuiInitials }}
-      }
-    </div>
+    <app-room-avatar
+      size="xs"
+      [name]="room.name"
+      [avatarUrl]="room.avatarUrl" />
   </tui-badged-content>
 </ng-template>
 
@@ -113,19 +104,10 @@
   #voiceLeading
   let-room>
   <app-pulse-indicator [isActive]="room.isUserInRoom">
-    <div
-      tuiAvatar
-      size="xs">
-      @if (room.avatarUrl) {
-        <img
-          [alt]="room.name"
-          [ngSrc]="room.avatarUrl"
-          fill
-          priority />
-      } @else {
-        {{ room.name | tuiInitials }}
-      }
-    </div>
+    <app-room-avatar
+      size="xs"
+      [name]="room.name"
+      [avatarUrl]="room.avatarUrl" />
   </app-pulse-indicator>
 </ng-template>
 

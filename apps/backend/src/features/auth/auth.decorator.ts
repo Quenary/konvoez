@@ -21,6 +21,12 @@ export const RequireOwner = Reflector.createDecorator<true>();
 export const AuthRefreshFallback = Reflector.createDecorator<true>();
 
 /**
+ * Skip loading full user DTO, roles and permissions on routes that only
+ * require an authenticated active session (for example avatar streaming).
+ */
+export const AuthSessionOnly = Reflector.createDecorator<true>();
+
+/**
  * Decorator to get current user info as param of the controller method.
  * Controller or method must use AuthGuard
  */

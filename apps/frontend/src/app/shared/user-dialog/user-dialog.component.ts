@@ -30,6 +30,8 @@ import { TuiAutoColorPipe } from '@taiga-ui/kit';
 import { ChatEditorComponent } from '../components/chat/chat-editor/chat-editor.component';
 import { v4 } from 'uuid';
 import { VoiceAudioPreferencesStore } from '@core/voice/voice-audio-preferences.store';
+import { UsersStore } from '@core/stores/users.store';
+import { LastSeenPipe } from '../pipes/last-seen.pipe';
 import { VolumeControlComponent } from '../components/volume-control/volume-control.component';
 import { MediaGalleryComponent } from '../components/media-gallery/media-gallery.component';
 import { icons } from '@constants';
@@ -53,6 +55,7 @@ export interface IUserDialogData {
   imports: [
     UserAvatarComponent,
     TranslatePipe,
+    LastSeenPipe,
     TuiAutoColorPipe,
     TuiButton,
     TuiDropdown,
@@ -74,6 +77,7 @@ export class UserDialogComponent {
   private readonly voiceAudioPreferencesStore = inject(
     VoiceAudioPreferencesStore,
   );
+  private readonly usersStore = inject(UsersStore);
   private readonly ngrxStore = inject(Store);
 
   protected readonly icons = icons;
@@ -81,6 +85,15 @@ export class UserDialogComponent {
   protected readonly user = this.context.data.user;
   protected readonly withFiles = this.context.data.withFiles;
   protected readonly withInput = this.context.data.withInput;
+  protected readonly isOnline = computed(() =>
+    Boolean(this.usersStore.onlineMap()[this.user.id]),
+  );
+  protected readonly lastSeenAt = computed(
+    () =>
+      this.usersStore.entityMap()[this.user.id]?.lastSeenAt ??
+      this.user.lastSeenAt ??
+      null,
+  );
   protected readonly isSelf = computed(
     () => this.currentUser()?.id === this.user.id,
   );
@@ -124,6 +137,10 @@ export class UserDialogComponent {
       this.context.completeWith();
     },
   };
+
+  constructor() {
+    this.usersStore.loadAll();
+  }
 
   protected onCallClick(): void {
     void this.directCallService.initiateCall(this.context.data.user);

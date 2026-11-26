@@ -23,9 +23,10 @@
       </aside>
     </header>
 
-    @if (directChatsStore.entities().length > 0) {
+    @let directChats = chats();
+    @if (directChats.length > 0) {
       <div class="chats-list">
-        @for (user of directChatsStore.entities(); track user.id) {
+        @for (user of directChats; track user.id) {
           <app-direct-chat-item
             [user]="user"
             (selected)="openChat($event)" />

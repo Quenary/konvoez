@@ -40,6 +40,8 @@ describe('EntitySyncService', () => {
     removeOne: ReturnType<typeof vi.fn>;
     setOnlineUsers: ReturnType<typeof vi.fn>;
     setUserPresence: ReturnType<typeof vi.fn>;
+    loaded: ReturnType<typeof vi.fn>;
+    reload: ReturnType<typeof vi.fn>;
   };
   let roomsStore: {
     upsertOne: ReturnType<typeof vi.fn>;
@@ -129,6 +131,8 @@ describe('EntitySyncService', () => {
       removeOne: vi.fn(),
       setOnlineUsers: vi.fn(),
       setUserPresence: vi.fn(),
+      loaded: vi.fn().mockReturnValue(false),
+      reload: vi.fn(),
     };
 
     roomsStore = {
@@ -313,21 +317,44 @@ describe('EntitySyncService', () => {
     expect(usersStore.setOnlineUsers).toHaveBeenCalledWith([1, 2, 3]);
   });
 
-  it('updates individual user presence on USER_PRESENCE_CHANGED', () => {
+  it('updates individual user presence and lastSeenAt on USER_PRESENCE_CHANGED', () => {
+    const lastSeenAt = new Date('2026-06-01T12:00:00.000Z');
     createService();
     emitter.emit(EEntitySyncEvent.USER_PRESENCE_CHANGED, {
       userId: 42,
       isOnline: true,
+      lastSeenAt,
     });
 
-    expect(usersStore.setUserPresence).toHaveBeenCalledWith(42, true);
+    expect(usersStore.setUserPresence).toHaveBeenCalledWith(
+      42,
+      true,
+      lastSeenAt,
+    );
 
     emitter.emit(EEntitySyncEvent.USER_PRESENCE_CHANGED, {
       userId: 42,
       isOnline: false,
+      lastSeenAt,
     });
 
-    expect(usersStore.setUserPresence).toHaveBeenCalledWith(42, false);
+    expect(usersStore.setUserPresence).toHaveBeenCalledWith(
+      42,
+      false,
+      lastSeenAt,
+    );
+  });
+
+  it('reloads loaded users after the entity sync socket reconnects', () => {
+    usersStore.loaded.mockReturnValue(true);
+    createService();
+
+    emitter.emit('connect');
+    expect(usersStore.reload).not.toHaveBeenCalled();
+
+    emitter.emit('disconnect');
+    emitter.emit('connect');
+    expect(usersStore.reload).toHaveBeenCalledTimes(1);
   });
 
   it('clears online users on entity sync socket disconnect', () => {

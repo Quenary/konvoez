@@ -1,12 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UsersDomainEvents, emitUsersDomainEvent } from './users.events';
+import { UsersService } from './users.service';
 
 @Injectable()
 export class UserPresenceService {
+  private readonly logger = new Logger(UserPresenceService.name);
   private readonly userSockets = new Map<number, Set<string>>();
 
-  constructor(private readonly eventEmitter: EventEmitter2) {}
+  constructor(
+    private readonly eventEmitter: EventEmitter2,
+    private readonly usersService: UsersService,
+  ) {}
 
   public addSocket(userId: number, socketId: string): void {
     let sockets = this.userSockets.get(userId);
@@ -18,10 +23,18 @@ export class UserPresenceService {
     sockets.add(socketId);
 
     if (!wasOnline) {
+      const lastSeenAt = new Date();
+      void this.usersService
+        .updateLastSeenAt(userId, lastSeenAt)
+        .catch((err) => {
+          this.logger.warn(
+            `Failed to update lastSeenAt on connect for user ${userId}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        });
       emitUsersDomainEvent(
         this.eventEmitter,
         UsersDomainEvents.USER_PRESENCE_CHANGED,
-        { userId, isOnline: true },
+        { userId, isOnline: true, lastSeenAt },
       );
     }
   }
@@ -36,10 +49,18 @@ export class UserPresenceService {
     }
     if (sockets.size === 0) {
       this.userSockets.delete(userId);
+      const lastSeenAt = new Date();
+      void this.usersService
+        .updateLastSeenAt(userId, lastSeenAt)
+        .catch((err) => {
+          this.logger.warn(
+            `Failed to update lastSeenAt on disconnect for user ${userId}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        });
       emitUsersDomainEvent(
         this.eventEmitter,
         UsersDomainEvents.USER_PRESENCE_CHANGED,
-        { userId, isOnline: false },
+        { userId, isOnline: false, lastSeenAt },
       );
     }
   }

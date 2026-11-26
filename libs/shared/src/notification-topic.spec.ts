@@ -3,11 +3,23 @@ import {
   buildMessageNotificationTopic,
   buildReactionNotificationTopic,
   encodeUuidToBase64Url,
+  isUuidAtOrBefore,
 } from './notification-topic';
 
 describe('notification-topic', () => {
   const sampleUuid = '01a16622-fe1e-74f9-b1a1-9d4158058f0c';
   const rfc8030Regex = /^[A-Za-z0-9_-]{1,32}$/;
+
+  it('compares valid UUIDs by their binary-compatible lexical order', () => {
+    expect(isUuidAtOrBefore(sampleUuid, sampleUuid)).toBe(true);
+    expect(
+      isUuidAtOrBefore('01a16622-fe1e-74f9-b1a1-9d4158058f0b', sampleUuid),
+    ).toBe(true);
+    expect(
+      isUuidAtOrBefore('01a16622-fe1e-74f9-b1a1-9d4158058f0d', sampleUuid),
+    ).toBe(false);
+    expect(isUuidAtOrBefore('not-a-uuid', sampleUuid)).toBe(false);
+  });
 
   describe('encodeUuidToBase64Url', () => {
     it('encodes a 36-character UUID string into exactly 22 URL-safe base64 characters', () => {

@@ -19,6 +19,7 @@ export const TextRoomsDomainEvents = {
   REPLY_CREATED: 'text-room.reply.created',
   REACTION_ADDED: 'text-room.reaction.added',
   REACTION_REMOVED: 'text-room.reaction.removed',
+  MESSAGE_NOTIFICATION_UPDATED: 'text-room.message.notification-updated',
 } as const;
 
 export type TTextRoomsDomainEvent =
@@ -70,6 +71,16 @@ export type TTextRoomReactionRemovedPayload = {
   roomId?: number | null;
 };
 
+export type TTextRoomMessageNotificationUpdatedPayload = {
+  recipientIds: number[];
+  senderId: number;
+  senderUsername: string;
+  roomId: number | null;
+  roomName: string | null;
+  messageId: string;
+  messagePreview: string;
+};
+
 export type TTextRoomsDomainPayloadMap = {
   [TextRoomsDomainEvents.MESSAGE_CREATED]: ITextRoomMessage;
   [TextRoomsDomainEvents.MESSAGE_UPDATED]: ITextRoomMessage;
@@ -90,6 +101,7 @@ export type TTextRoomsDomainPayloadMap = {
   [TextRoomsDomainEvents.REPLY_CREATED]: TTextRoomReplyCreatedPayload;
   [TextRoomsDomainEvents.REACTION_ADDED]: TTextRoomReactionAddedPayload;
   [TextRoomsDomainEvents.REACTION_REMOVED]: TTextRoomReactionRemovedPayload;
+  [TextRoomsDomainEvents.MESSAGE_NOTIFICATION_UPDATED]: TTextRoomMessageNotificationUpdatedPayload;
 };
 
 export const emitTextRoomsDomainEvent =

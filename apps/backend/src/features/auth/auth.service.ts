@@ -8,7 +8,7 @@ import { ApiErrorCode } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
 import { JwtService } from '@nestjs/jwt';
 import { JsonWebTokenError } from '@nestjs/jwt';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { HashService } from '@shared/services/hash.service';
 import { AppService } from '@shared/services/app.service';
 import { MailService } from '@shared/services/mail.service';
@@ -34,6 +34,7 @@ import {
   ESettingKey,
   IPasswordRecoveryConfirm,
   IPasswordRecoveryRequest,
+  type IUserSafe,
   emailVerificationCodeDefaultTtl,
   emailVerificationCodeLength,
   emailVerificationMaxAttempts,
@@ -51,6 +52,7 @@ import { EntityManager, EntityRepository, raw } from '@mikro-orm/core';
 import { PasswordRecoveryCodeEntity } from './password-recovery-code.entity';
 import { EmailVerificationCodeEntity } from './email-verification-code.entity';
 import { VerifiedMailerService } from '@shared/services/verified-mailer.service';
+import { PerUserMutex } from '@shared/utils/per-user-mutex';
 
 @Injectable()
 export class AuthService implements OnApplicationBootstrap {
@@ -61,6 +63,9 @@ export class AuthService implements OnApplicationBootstrap {
     'auth:password_recovery_cooldown:';
   private readonly emailVerificationCooldownKeyPrefix =
     'auth:email_verification_cooldown:';
+  private readonly sessionStateCacheKeyPrefix = 'auth:session_state:';
+  private readonly sessionStateCacheTtlMs = 15_000;
+  private readonly sessionStateMutex = new PerUserMutex();
   private readonly em: EntityManager;
 
   constructor(
@@ -470,8 +475,19 @@ export class AuthService implements OnApplicationBootstrap {
     const { user, sessionVersion } = await this.requireActiveUser(userId);
     await this.twoFactorService.verifyLoginCode(userId, code);
     await this.cacheManager.del(cacheKey);
+    const loggedInUser = await this.recordLogin(user);
 
-    return { user, sessionVersion };
+    return { user: loggedInUser, sessionVersion };
+  }
+
+  async recordLogin(user: GetUserFullDto): Promise<GetUserFullDto> {
+    const now = new Date();
+    await this.usersService.updateLastLoginAt(user.id, now);
+    return {
+      ...user,
+      lastLoginAt: now,
+      lastSeenAt: now,
+    };
   }
 
   clearTwoFactorPendingCookie(res: Response): void {
@@ -529,6 +545,36 @@ export class AuthService implements OnApplicationBootstrap {
     }
 
     return await this.getUserFromAccessToken(accessToken);
+  }
+
+  async verifyAccessSession(req: Request): Promise<void> {
+    const accessToken = req.cookies?.[ACCESS_TOKEN_KEY];
+    if (!accessToken) {
+      throw AppException.unauthorized(
+        ApiErrorCode.UNAUTHORIZED,
+        'Unauthorized',
+      );
+    }
+
+    const res = this.verifyToken(accessToken, 'access');
+    await this.requireActiveSession(res.userId, res.sv);
+  }
+
+  @OnEvent(UsersDomainEvents.USER_SESSIONS_REVOKED)
+  @OnEvent(UsersDomainEvents.USER_DELETED)
+  async handleUserSessionInvalidated(payload: { id: number }): Promise<void> {
+    await this.sessionStateMutex.runExclusive(payload.id, () =>
+      this.cacheManager.del(this.getSessionStateCacheKey(payload.id)),
+    );
+  }
+
+  @OnEvent(UsersDomainEvents.USER_UPDATED)
+  async handleUserUpdated(payload: IUserSafe): Promise<void> {
+    if (payload.deletedAt) {
+      await this.sessionStateMutex.runExclusive(payload.id, () =>
+        this.cacheManager.del(this.getSessionStateCacheKey(payload.id)),
+      );
+    }
   }
 
   async getUserFromAccessToken(accessToken: string): Promise<GetUserFullDto> {
@@ -722,6 +768,43 @@ ${token}
       this.em.persist(code);
     }
     await this.em.flush();
+  }
+
+  private async requireActiveSession(
+    userId: number,
+    sessionVersion: number,
+  ): Promise<void> {
+    await this.sessionStateMutex.runExclusive(userId, async () => {
+      const cacheKey = this.getSessionStateCacheKey(userId);
+      let cached = await this.cacheManager.get<{ sessionVersion: number }>(
+        cacheKey,
+      );
+      if (!cached) {
+        const state = await this.usersService.findSessionState(userId);
+        if (!state || state.deletedAt) {
+          throw AppException.unauthorized(
+            ApiErrorCode.UNAUTHORIZED,
+            'Unauthorized',
+          );
+        }
+        cached = { sessionVersion: state.sessionVersion };
+        await this.cacheManager.set(
+          cacheKey,
+          cached,
+          this.sessionStateCacheTtlMs,
+        );
+      }
+      if (cached.sessionVersion !== sessionVersion) {
+        throw AppException.unauthorized(
+          ApiErrorCode.UNAUTHORIZED,
+          'Unauthorized',
+        );
+      }
+    });
+  }
+
+  private getSessionStateCacheKey(userId: number): string {
+    return `${this.sessionStateCacheKeyPrefix}${userId}`;
   }
 
   private async requireActiveUser(
