@@ -1,3 +1,18 @@
+## 2.1.0 (2026-11-26)
+
+### Features
+
+- **server:** last seen and last login ([881205a9](https://github.com/Quenary/konvoez/commit/881205a9))
+
+### Bug Fixes
+
+- **server:** pin production image dependencies to the build lockfile ([16c89601](https://github.com/Quenary/konvoez/commit/16c89601))
+- **server:** sync notifications with message state ([8e156488](https://github.com/Quenary/konvoez/commit/8e156488))
+
+### Performance Improvements
+
+- **server:** optimize avatar caching and loading ([d0017996](https://github.com/Quenary/konvoez/commit/d0017996))
+
 # 2.0.0 (2026-11-17)
 
 ### Features
