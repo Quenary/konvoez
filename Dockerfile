@@ -32,10 +32,11 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     python3 python3-pip build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/dist/apps/backend/package.json ./
+# Webpack generatePackageJson emits this lockfile with the resolved tree.
+COPY --from=builder /app/dist/apps/backend/package.json /app/dist/apps/backend/package-lock.json ./
 
 RUN --mount=type=cache,target=/root/.npm \
-    npm install --omit=dev
+    npm ci --omit=dev
 
 # Stage 3: Runtime container
 FROM node:22-bookworm-slim AS runtime
