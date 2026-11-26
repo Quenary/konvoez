@@ -1442,6 +1442,99 @@ describe('NotificationsService', () => {
     });
   });
 
+  describe('onMessagesRead', () => {
+    it('sends one batched dismissal for the read IDs in a conversation', async () => {
+      const dismissSpy = jest
+        .spyOn(service, 'dismiss')
+        .mockResolvedValue(undefined);
+      const firstMessageId = '01a16622-fe1e-74f9-b1a1-9d4158058f0c';
+      const secondMessageId = '01a16622-fe1e-74f9-b1a1-9d4158058f0d';
+
+      await service.onMessagesRead({
+        readerId: 2,
+        roomId: 10,
+        recipientId: null,
+        messageIds: [firstMessageId, secondMessageId],
+        maxMessageId: null,
+      });
+
+      expect(dismissSpy).toHaveBeenCalledTimes(1);
+      expect(dismissSpy).toHaveBeenCalledWith(2, {
+        tags: [
+          buildMessageNotificationTopic(firstMessageId),
+          buildMessageNotificationTopic(secondMessageId),
+        ],
+      });
+    });
+
+    it('uses the read-through cursor for read-all', async () => {
+      const dismissSpy = jest
+        .spyOn(service, 'dismiss')
+        .mockResolvedValue(undefined);
+      const maxMessageId = '01a16622-fe1e-74f9-b1a1-9d4158058f0c';
+
+      await service.onMessagesRead({
+        readerId: 2,
+        roomId: null,
+        recipientId: 10,
+        messageIds: [],
+        maxMessageId,
+      });
+
+      expect(dismissSpy).toHaveBeenCalledTimes(1);
+      expect(dismissSpy).toHaveBeenCalledWith(2, {
+        recipientId: 10,
+        roomId: undefined,
+        maxMessageId,
+      });
+    });
+  });
+
+  describe('onMessageNotificationUpdated', () => {
+    it('replaces pending push content for the same per-message topic', async () => {
+      subscriptionRepository.find.mockResolvedValue([
+        {
+          endpoint: 'https://push.example/1',
+          auth: 'auth',
+          p256dh: 'p256dh',
+          isActive: true,
+        } as unknown as PushSubscriptionEntity,
+      ]);
+      const messageId = '01a16622-fe1e-74f9-b1a1-9d4158058f0c';
+      const expectedTag = buildMessageNotificationTopic(messageId);
+
+      await service.onMessageNotificationUpdated({
+        recipientIds: [2],
+        senderId: 1,
+        senderUsername: 'alice',
+        roomId: 10,
+        roomName: 'general',
+        messageId,
+        messagePreview: 'Edited message',
+      });
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        NotificationsDomainEvents.UPDATE,
+        expect.objectContaining({
+          userId: 2,
+          payload: expect.objectContaining({
+            body: 'Edited message',
+            tag: expectedTag,
+          }),
+        }),
+      );
+      expect(webPush.sendNotification).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.stringContaining('"notification"'),
+        expect.objectContaining({
+          TTL: 2419200,
+          topic: expectedTag,
+          urgency: 'high',
+        }),
+      );
+    });
+  });
+
   describe('notification dismissal', () => {
     it('should emit DISMISS domain event and send push with TTL: 0 and action: dismiss', async () => {
       subscriptionRepository.find.mockResolvedValue([
@@ -1482,6 +1575,34 @@ describe('NotificationsService', () => {
           TTL: 0,
         }),
       );
+    });
+
+    it('splits large read batches into bounded push payloads', async () => {
+      subscriptionRepository.find.mockResolvedValue([
+        {
+          endpoint: 'https://push.example/1',
+          auth: 'a1',
+          p256dh: 'p1',
+          isActive: true,
+        } as unknown as PushSubscriptionEntity,
+      ]);
+      const tags = Array.from({ length: 201 }, (_, index) => `msg_${index}`);
+
+      await service.dismiss(2, { tags });
+
+      const calls = jest.mocked(webPush.sendNotification).mock.calls;
+      expect(calls).toHaveLength(3);
+      expect(calls[0][1]).toBe(
+        JSON.stringify({ action: 'dismiss', tags: tags.slice(0, 100) }),
+      );
+      expect(calls[1][1]).toBe(
+        JSON.stringify({ action: 'dismiss', tags: tags.slice(100, 200) }),
+      );
+      expect(calls[2][1]).toBe(
+        JSON.stringify({ action: 'dismiss', tags: tags.slice(200) }),
+      );
+      expect(calls[0][2]).not.toHaveProperty('topic');
+      expect(calls[2][2]).toHaveProperty('topic', 'msg_200');
     });
 
     it('handles MESSAGE_DELETED domain event and calls dismiss for each recipient and sender', async () => {

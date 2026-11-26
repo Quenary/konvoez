@@ -34,6 +34,19 @@ export function encodeUuidToBase64Url(uuid: string): string {
   return (sanitized || 'id').slice(0, 22);
 }
 
+// Normalized UUID hex has the same ordering as the binary IDs used by read-all.
+export function isUuidAtOrBefore(uuid: string, boundary: string): boolean {
+  const normalized = uuid.replace(/-/g, '').toLowerCase();
+  const normalizedBoundary = boundary.replace(/-/g, '').toLowerCase();
+  if (
+    !/^[0-9a-f]{32}$/.test(normalized) ||
+    !/^[0-9a-f]{32}$/.test(normalizedBoundary)
+  ) {
+    return false;
+  }
+  return normalized <= normalizedBoundary;
+}
+
 /**
  * Unified notification topic/tag for all alerts caused by a message
  * (direct message, reply, mention). Length: 4 ('msg_') + 22 = 26 chars (<= 32).

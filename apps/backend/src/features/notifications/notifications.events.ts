@@ -1,9 +1,14 @@
-import type { TPushNotificationPayload } from '@konvoez/shared';
+import type {
+  TNotificationUpdatePayload,
+  TNotificationsDismissPayload,
+  TPushNotificationPayload,
+} from '@konvoez/shared';
 import { createDomainEventEmitter } from '@shared/events';
 
 export const NotificationsDomainEvents = {
   DELIVER: 'notifications.deliver',
   DISMISS: 'notifications.dismiss',
+  UPDATE: 'notifications.update',
 } as const;
 
 export type TNotificationsDomainEvent =
@@ -14,16 +19,19 @@ export type INotificationDeliverPayload = {
   payload: TPushNotificationPayload;
 };
 
-export type INotificationDismissPayload = {
+export type INotificationDismissPayload = TNotificationsDismissPayload & {
   userId: number;
-  tag: string;
-  topic?: string;
-  messageId?: string;
+};
+
+export type INotificationUpdatePayload = {
+  userId: number;
+  payload: TNotificationUpdatePayload;
 };
 
 export type TNotificationsDomainPayloadMap = {
   [NotificationsDomainEvents.DELIVER]: INotificationDeliverPayload;
   [NotificationsDomainEvents.DISMISS]: INotificationDismissPayload;
+  [NotificationsDomainEvents.UPDATE]: INotificationUpdatePayload;
 };
 
 export const emitNotificationsDomainEvent =

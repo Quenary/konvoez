@@ -45,6 +45,8 @@ When one message triggers several notification topics for a recipient (for examp
 Notifications are automatically dismissed or replaced when the underlying trigger is removed:
 
 - **Message deleted**: Open notifications for the deleted message are dismissed across all recipients.
+- **Message read**: Matching message, mention and reply notifications are dismissed on the reader's devices. Read batches are handled together; read-all covers messages up to its read boundary. Reaction notifications are unaffected.
+- **Message edited**: Previous mention, reply and direct-message recipients receive the new text, including recipients who lost room access or who are no longer mentioned. Deleted accounts are skipped. The server does not check room access or topic settings again. A displayed notification is replaced silently. A queued notification is replaced with the new text and shown when it is delivered.
 - **Reaction removed**: The reaction notification is dismissed for the message author.
 - **Direct call ended**: Incoming call notifications are dismissed once answered, rejected, or timed out.
 
@@ -52,17 +54,18 @@ Notifications are automatically dismissed or replaced when the underlying trigge
 
 ```mermaid
 flowchart TD
-  Event[Message deleted or reaction removed] --> Server[Server generates dismiss event]
-  Server --> WebPush[Web Push: TTL 0 with topic]
-  Server --> Socket[WebSocket: notification.dismiss]
-  WebPush --> SW[Service Worker closes matching notification]
-  Socket --> Desktop[Desktop bridge closes native notification]
-  Socket --> Client[Active web client closes local notification]
+  Event[Message deleted, edited or read, reaction removed, or call ended] --> Server[Server generates notification action]
+  Server --> WebPush[Web Push]
+  Server --> Socket[WebSocket: notification.dismiss or notification.update]
+  WebPush --> SW[Service Worker dismisses, silently replaces, or shows the notification]
+  Socket --> Desktop[Desktop bridge dismisses or updates native notification]
+  Socket --> Client[Active clients dismiss or silently update local notifications]
 ```
 
-- **Web Push**: Outbound push notifications use deterministic RFC 8030 topic identifiers (`msg_*`, `rx_*`, `call_*`). When dismissing, a push message with `TTL: 0` and the same topic instructs push services to discard pending deliveries, while service workers close any matching displayed notifications.
-- **Desktop**: The desktop client tracks native notifications and closes them upon receiving a dismissal event over IPC.
-- **Web App**: An open tab closes the displayed notification with the same tag. Deleting a message closes every displayed notification for that message.
+- **Web Push**: Outbound notifications use deterministic RFC 8030 topics (`msg_*`, `rx_*`, `call_*`). Deleting a message or ending a call uses the matching topic and `TTL: 0` to replace a pending delivery with a dismiss action. Editing a message reuses its message topic and sends the updated notification with the normal TTL, so a queued delivery keeps the new text. The service worker replaces a displayed notification silently and shows the updated notification when none is displayed. Read batches carry message tags, while read-all carries a chat and message boundary, so each read action closes matching displayed notifications without sending one request per message.
+- **Delivery limits**: RFC 8030 topics are exact replacement keys for pending messages on one subscription, not wildcard selectors or commands to close notifications already displayed by the operating system. Read cleanup is best effort when a user agent is reachable; a batched read action cannot cancel every pending message that has a different topic. A `TTL: 0` dismiss expires if the user agent is unavailable.
+- **Desktop**: The desktop client tracks native notifications and closes or silently updates them after receiving the matching event over IPC.
+- **Web App**: An open tab closes notifications by tag or read boundary. A socket update replaces only a displayed notification with the same tag and does not alert again.
 
 ## Scope of the settings
 

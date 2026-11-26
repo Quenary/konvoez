@@ -1,7 +1,24 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import {
+  computed,
+  DestroyRef,
+  inject,
+  Injectable,
+  signal,
+  type Signal,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SwPush } from '@angular/service-worker';
-import { TPushSubscription } from '@konvoez/shared';
+import {
+  ENotificationsEvent,
+  isUuidAtOrBefore,
+  notificationDismissPayloadSchema,
+  notificationUpdatePayloadSchema,
+  pushNotificationDataSchema,
+  TPushSubscription,
+  type TNotificationUpdatePayload,
+  type TNotificationsDismissPayload,
+  type TPushNotificationData,
+} from '@konvoez/shared';
 import { TranslateService } from '@ngx-translate/core';
 import { TuiNotificationService } from '@taiga-ui/core';
 import {
@@ -17,6 +34,7 @@ import {
 } from 'rxjs';
 import { NotificationsApiService } from './notifications-api.service';
 import { DesktopBridgeService } from '@core/desktop/desktop-bridge.service';
+import { NotificationsSocketToken } from '@core/tokens/notifications-socket.token';
 
 export type PushToggleResult =
   | 'enabled'
@@ -33,15 +51,10 @@ export class PushNotificationService {
   private readonly tuiNotificationsService = inject(TuiNotificationService);
   private readonly translateService = inject(TranslateService);
   private readonly desktopBridgeService = inject(DesktopBridgeService);
-  private readonly subscriptionState = signal<PushSubscription | null>(null);
-  private readonly permissionState = signal<NotificationPermission>(
-    this.readPermission(),
-  );
-  private readonly serverPublicKey = signal<string | null | undefined>(
-    undefined,
-  );
+  private readonly notificationsSocket = inject(NotificationsSocketToken);
+  private readonly destroyRef = inject(DestroyRef);
 
-  public readonly subscription = this.subscriptionState.asReadonly();
+  public readonly subscription: Signal<PushSubscription | null>;
   public readonly serverKeyLoaded = computed(
     () => this.serverPublicKey() !== undefined,
   );
@@ -56,7 +69,42 @@ export class PushNotificationService {
       this.subscription() !== null,
   );
 
+  private readonly subscriptionState = signal<PushSubscription | null>(null);
+  private readonly permissionState = signal<NotificationPermission>(
+    this.readPermission(),
+  );
+  private readonly serverPublicKey = signal<string | null | undefined>(
+    undefined,
+  );
+
   constructor() {
+    this.subscription = this.subscriptionState.asReadonly();
+
+    const onDismiss = (payload: TNotificationsDismissPayload) => {
+      void closeLocalNotifications(payload);
+    };
+    const onUpdate = (payload: TNotificationUpdatePayload) => {
+      void updateLocalNotification(payload);
+    };
+    this.notificationsSocket.on(
+      ENotificationsEvent.NOTIFICATION_DISMISS,
+      onDismiss,
+    );
+    this.notificationsSocket.on(
+      ENotificationsEvent.NOTIFICATION_UPDATE,
+      onUpdate,
+    );
+    this.destroyRef.onDestroy(() => {
+      this.notificationsSocket.off(
+        ENotificationsEvent.NOTIFICATION_DISMISS,
+        onDismiss,
+      );
+      this.notificationsSocket.off(
+        ENotificationsEvent.NOTIFICATION_UPDATE,
+        onUpdate,
+      );
+    });
+
     if (!this.swPush.isEnabled) {
       return;
     }
@@ -70,17 +118,21 @@ export class PushNotificationService {
     this.swPush.messages
       ?.pipe(takeUntilDestroyed())
       .subscribe((msg: unknown) => {
-        if (typeof msg === 'object' && msg !== null) {
-          const data = msg as {
-            action?: string;
-            tag?: string;
-            messageId?: string;
-          };
-          if (data.action === 'dismiss') {
-            void closeLocalNotifications({
-              tag: data.tag,
-              messageId: data.messageId,
-            });
+        if (typeof msg !== 'object' || msg === null) {
+          return;
+        }
+        const action = Reflect.get(msg, 'action');
+        if (action === 'dismiss') {
+          const dismissal = notificationDismissPayloadSchema.safeParse(msg);
+          if (dismissal.success) {
+            void closeLocalNotifications(dismissal.data);
+          }
+        } else if (action === 'update') {
+          const notification = notificationUpdatePayloadSchema.safeParse(
+            Reflect.get(msg, 'notification'),
+          );
+          if (notification.success) {
+            void updateLocalNotification(notification.data);
           }
         }
       });
@@ -301,10 +353,9 @@ function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
     .replace(/=+$/g, '');
 }
 
-export async function closeLocalNotifications(filter: {
-  tag?: string;
-  messageId?: string;
-}): Promise<void> {
+export async function closeLocalNotifications(
+  filter: TNotificationsDismissPayload,
+): Promise<void> {
   if (
     typeof window !== 'undefined' &&
     'serviceWorker' in navigator &&
@@ -314,18 +365,76 @@ export async function closeLocalNotifications(filter: {
       const reg = await navigator.serviceWorker.ready;
       const notifications = await reg.getNotifications();
       for (const notification of notifications) {
-        const messageId = (
-          notification.data as { messageId?: string } | undefined
-        )?.messageId;
-        const matches = filter.tag
+        const data = asNotificationData(notification.data);
+        const directMatch = filter.tag
           ? notification.tag === filter.tag
-          : Boolean(filter.messageId && messageId === filter.messageId);
+          : (filter.tags?.includes(notification.tag) ??
+            (filter.messageId ? data?.messageId === filter.messageId : false));
+        const matches =
+          directMatch ||
+          Boolean(
+            filter.maxMessageId &&
+            data &&
+            isReadThroughNotification(data, filter),
+          );
         if (matches) {
           notification.close();
         }
       }
-    } catch {
-      // ignore
+    } catch (error) {
+      console.warn('Failed to close local notifications', error);
     }
   }
+}
+
+export async function updateLocalNotification(
+  payload: TNotificationUpdatePayload,
+): Promise<void> {
+  if (
+    typeof window === 'undefined' ||
+    !('serviceWorker' in navigator) ||
+    !navigator.serviceWorker.ready
+  ) {
+    return;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const existing = (await registration.getNotifications()).find(
+      (notification) => notification.tag === payload.tag,
+    );
+    if (!existing) {
+      return;
+    }
+
+    await registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: payload.icon,
+      tag: payload.tag,
+      data: payload.data,
+      silent: true,
+    });
+  } catch (error) {
+    console.warn('Failed to update local notification', error);
+  }
+}
+
+function asNotificationData(value: unknown): TPushNotificationData | null {
+  const parsed = pushNotificationDataSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+function isReadThroughNotification(
+  data: TPushNotificationData,
+  filter: TNotificationsDismissPayload,
+): boolean {
+  if (data.type === 'reaction' || !data.messageId || !filter.maxMessageId) {
+    return false;
+  }
+
+  const belongsToChat = filter.roomId
+    ? data.roomId === filter.roomId
+    : data.type === 'direct-message' && data.senderId === filter.recipientId;
+
+  return belongsToChat && isUuidAtOrBefore(data.messageId, filter.maxMessageId);
 }

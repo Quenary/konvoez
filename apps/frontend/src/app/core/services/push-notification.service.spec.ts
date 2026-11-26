@@ -5,9 +5,11 @@ import { TuiNotificationService } from '@taiga-ui/core';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { BehaviorSubject, firstValueFrom, of, Subject, throwError } from 'rxjs';
 import { NotificationsApiService } from './notifications-api.service';
+import { NotificationsSocketToken } from '@core/tokens/notifications-socket.token';
 import {
   closeLocalNotifications,
   PushNotificationService,
+  updateLocalNotification,
 } from './push-notification.service';
 
 describe('PushNotificationService', () => {
@@ -59,6 +61,10 @@ describe('PushNotificationService', () => {
   const tuiNotificationsService = {
     open: vi.fn(() => of(undefined)),
   };
+  const notificationsSocket = {
+    on: vi.fn(),
+    off: vi.fn(),
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -103,6 +109,7 @@ describe('PushNotificationService', () => {
           provide: TuiNotificationService,
           useValue: tuiNotificationsService,
         },
+        { provide: NotificationsSocketToken, useValue: notificationsSocket },
       ],
     });
   });
@@ -268,6 +275,130 @@ describe('PushNotificationService', () => {
     expect(close3).not.toHaveBeenCalled();
   });
 
+  it('should close batched tags and read-through messages but preserve reactions', async () => {
+    const firstClose = vi.fn();
+    const secondClose = vi.fn();
+    const reactionClose = vi.fn();
+    const laterClose = vi.fn();
+    const batchClose = vi.fn();
+    const mockNotifications = [
+      {
+        tag: 'msg_1',
+        data: {
+          type: 'message',
+          roomId: 10,
+          messageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0b',
+        },
+        close: firstClose,
+      },
+      {
+        tag: 'msg_2',
+        data: {
+          type: 'mention',
+          roomId: 10,
+          messageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+        },
+        close: secondClose,
+      },
+      {
+        tag: 'rx_1',
+        data: {
+          type: 'reaction',
+          roomId: 10,
+          messageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0b',
+        },
+        close: reactionClose,
+      },
+      {
+        tag: 'msg_3',
+        data: {
+          type: 'message',
+          roomId: 10,
+          messageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0d',
+        },
+        close: laterClose,
+      },
+      {
+        tag: 'msg_batch',
+        data: {
+          type: 'direct-message',
+          senderId: 20,
+          messageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0b',
+        },
+        close: batchClose,
+      },
+    ];
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({
+          getNotifications: vi.fn().mockResolvedValue(mockNotifications),
+        }),
+      },
+    });
+
+    await closeLocalNotifications({
+      roomId: 10,
+      maxMessageId: '01a16622-fe1e-74f9-b1a1-9d4158058f0c',
+      tags: ['msg_batch'],
+    });
+
+    expect(firstClose).toHaveBeenCalled();
+    expect(secondClose).toHaveBeenCalled();
+    expect(reactionClose).not.toHaveBeenCalled();
+    expect(laterClose).not.toHaveBeenCalled();
+    expect(batchClose).toHaveBeenCalled();
+  });
+
+  it('updates only an existing local notification without renotifying', async () => {
+    const close = vi.fn();
+    const showNotification = vi.fn();
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({
+          getNotifications: vi
+            .fn()
+            .mockResolvedValue([{ tag: 'msg_existing', close }]),
+          showNotification,
+        }),
+      },
+    });
+
+    await updateLocalNotification({
+      title: 'Alice',
+      body: 'Edited message',
+      tag: 'msg_existing',
+    });
+
+    expect(close).not.toHaveBeenCalled();
+    expect(showNotification).toHaveBeenCalledWith(
+      'Alice',
+      expect.objectContaining({
+        body: 'Edited message',
+        tag: 'msg_existing',
+        silent: true,
+      }),
+    );
+
+    showNotification.mockClear();
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({
+          getNotifications: vi.fn().mockResolvedValue([]),
+          showNotification,
+        }),
+      },
+    });
+    await updateLocalNotification({
+      title: 'Alice',
+      body: 'No longer shown',
+      tag: 'msg_missing',
+    });
+    expect(showNotification).not.toHaveBeenCalled();
+  });
+
   it('should handle dismiss action from swPush.messages', async () => {
     const closeMock = vi.fn();
     const mockNotifications = [
@@ -287,5 +418,41 @@ describe('PushNotificationService', () => {
     messagesSubject.next({ action: 'dismiss', tag: 'msg_dismiss' });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(closeMock).toHaveBeenCalled();
+  });
+
+  it('should handle update action from swPush.messages with relative app icon', async () => {
+    const showNotification = vi.fn();
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({
+          getNotifications: vi.fn().mockResolvedValue([{ tag: 'msg_update' }]),
+          showNotification,
+        }),
+      },
+    });
+
+    TestBed.inject(PushNotificationService);
+
+    messagesSubject.next({
+      action: 'update',
+      notification: {
+        title: 'Alice',
+        body: 'Edited message',
+        icon: '/icons/icon-192x192.png',
+        tag: 'msg_update',
+        data: { type: 'message', roomId: 10, messageId: 'm-100' },
+      },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(showNotification).toHaveBeenCalledWith(
+      'Alice',
+      expect.objectContaining({
+        body: 'Edited message',
+        icon: '/icons/icon-192x192.png',
+        tag: 'msg_update',
+        silent: true,
+      }),
+    );
   });
 });

@@ -21,6 +21,7 @@ import {
   NotificationsDomainEvents,
   type INotificationDeliverPayload,
   type INotificationDismissPayload,
+  type INotificationUpdatePayload,
 } from './notifications.events';
 
 type TSocket = Socket<
@@ -73,13 +74,17 @@ export class NotificationsGateway implements OnGatewayConnection {
 
   @OnEvent(NotificationsDomainEvents.DISMISS)
   onNotificationDismiss(payload: INotificationDismissPayload) {
+    const { userId, ...dismissal } = payload;
     this.server
-      .to(`user:${payload.userId}`)
-      .emit(ENotificationsEvent.NOTIFICATION_DISMISS, {
-        tag: payload.tag,
-        topic: payload.topic,
-        messageId: payload.messageId,
-      });
+      .to(`user:${userId}`)
+      .emit(ENotificationsEvent.NOTIFICATION_DISMISS, dismissal);
+  }
+
+  @OnEvent(NotificationsDomainEvents.UPDATE)
+  onNotificationUpdate({ userId, payload }: INotificationUpdatePayload) {
+    this.server
+      .to(`user:${userId}`)
+      .emit(ENotificationsEvent.NOTIFICATION_UPDATE, payload);
   }
 
   @OnEvent(UsersDomainEvents.USER_SESSIONS_REVOKED)

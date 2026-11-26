@@ -7,6 +7,7 @@ import {
   ENotificationsEvent,
   EVoiceSessionType,
   type IKonvoezDesktopBridge,
+  type TNotificationUpdatePayload,
   type TPushNotificationPayload,
 } from '@konvoez/shared';
 import { selectIsAuthorized } from '@core/auth/auth.selectors';
@@ -58,6 +59,7 @@ describe('DesktopBridgeService', () => {
       nativeAudio: false,
       notify: vi.fn(),
       dismissNotification: vi.fn(),
+      updateNotification: vi.fn(),
       setVoiceState: vi.fn(),
       onCommand: vi.fn((listener) => {
         commandHandler = listener;
@@ -256,6 +258,23 @@ describe('DesktopBridgeService', () => {
         tag: 'msg_123',
         messageId: 'm-123',
       });
+    });
+
+    it('listens for NOTIFICATION_UPDATE and forwards to bridge', () => {
+      service.init();
+
+      const updateHandler = socketMock.on.mock.calls.find(
+        (call) => call[0] === ENotificationsEvent.NOTIFICATION_UPDATE,
+      )?.[1];
+      const payload: TNotificationUpdatePayload = {
+        title: 'Alice',
+        body: 'Edited message',
+        tag: 'msg_123',
+      };
+
+      expect(updateHandler).toBeDefined();
+      updateHandler?.(payload);
+      expect(fakeBridge.updateNotification).toHaveBeenCalledWith(payload);
     });
 
     it('delegates onNotificationClick to bridge and returns unregister callback', () => {

@@ -13,6 +13,8 @@ import {
   pushNotificationBodyMaxLength,
   shouldDeliverMentionNotification,
   toVapidSubject,
+  type TNotificationUpdatePayload,
+  type TNotificationsDismissPayload,
   type TUserNotificationSettings,
 } from '@konvoez/shared';
 import { AppException } from '@shared/errors/app.exception';
@@ -51,6 +53,11 @@ import {
   getBrowserName,
   isUnsubscribablePushError,
 } from './notifications.utils';
+
+// Keep batched control payloads below common Web Push payload limits.
+const maxDismissTagsPerPush = 100;
+// Maximum retention a push service keeps. Edits use it so a replaced message stays queued.
+const webPushTtlSeconds = 2_419_200;
 
 @Injectable()
 export class NotificationsService implements OnModuleDestroy {
@@ -314,6 +321,10 @@ export class NotificationsService implements OnModuleDestroy {
     userId: number,
     payload: PushNotificationPayloadDto,
   ): Promise<void> {
+    const recipientPayload = {
+      ...payload,
+      data: payload.data ? { ...payload.data, recipientId: userId } : undefined,
+    };
     const messageId = payload.data?.messageId;
     if (messageId) {
       const isReaction = payload.data?.type === 'reaction';
@@ -335,9 +346,9 @@ export class NotificationsService implements OnModuleDestroy {
     emitNotificationsDomainEvent(
       this.eventEmitter,
       NotificationsDomainEvents.DELIVER,
-      { userId, payload },
+      { userId, payload: recipientPayload },
     );
-    await this.sendWebPush(userId, payload);
+    await this.sendWebPush(userId, recipientPayload);
   }
 
   private async sendWebPush(
@@ -384,7 +395,7 @@ export class NotificationsService implements OnModuleDestroy {
         publicKey: keys.publicKey,
         privateKey: keys.privateKey,
       },
-      TTL: 2419200,
+      TTL: webPushTtlSeconds,
       urgency: 'high',
     };
     if (topic) {
@@ -426,11 +437,7 @@ export class NotificationsService implements OnModuleDestroy {
 
   public async dismiss(
     userId: number,
-    dismissal: {
-      tag: string;
-      topic?: string;
-      messageId?: string;
-    },
+    dismissal: TNotificationsDismissPayload,
   ): Promise<void> {
     emitNotificationsDomainEvent(
       this.eventEmitter,
@@ -442,11 +449,7 @@ export class NotificationsService implements OnModuleDestroy {
 
   private async sendWebPushDismiss(
     userId: number,
-    dismissal: {
-      tag: string;
-      topic?: string;
-      messageId?: string;
-    },
+    dismissal: TNotificationsDismissPayload,
   ): Promise<void> {
     const subject = await this.resolveVapidSubject();
     if (!subject) {
@@ -460,24 +463,110 @@ export class NotificationsService implements OnModuleDestroy {
     }
 
     const keys = this.ensureVapidKeys();
-    const topic = dismissal.topic ?? dismissal.tag;
+    const dismissals: TNotificationsDismissPayload[] = [];
+    if (dismissal.tags) {
+      for (
+        let offset = 0;
+        offset < dismissal.tags.length;
+        offset += maxDismissTagsPerPush
+      ) {
+        dismissals.push({
+          ...dismissal,
+          tags: dismissal.tags.slice(offset, offset + maxDismissTagsPerPush),
+        });
+      }
+    } else {
+      dismissals.push(dismissal);
+    }
 
-    const payload = JSON.stringify({
-      action: 'dismiss',
-      tag: dismissal.tag,
-      messageId: dismissal.messageId,
-    });
+    await Promise.all(
+      subscriptions.map(async (subscription) => {
+        for (const batch of dismissals) {
+          const topic =
+            batch.topic ??
+            batch.tag ??
+            (batch.tags?.length === 1 ? batch.tags[0] : undefined);
+          const { topic: _topic, ...dismissalPayload } = batch;
+          const payload = JSON.stringify({
+            action: 'dismiss',
+            ...dismissalPayload,
+          });
+          const requestOptions: webPush.RequestOptions = {
+            vapidDetails: {
+              subject,
+              publicKey: keys.publicKey,
+              privateKey: keys.privateKey,
+            },
+            TTL: 0,
+            urgency: 'normal',
+          };
+          if (topic) {
+            requestOptions.topic = topic;
+          }
 
-    const requestOptions: webPush.RequestOptions = {
-      vapidDetails: {
-        subject,
-        publicKey: keys.publicKey,
-        privateKey: keys.privateKey,
+          try {
+            await webPush.sendNotification(
+              {
+                endpoint: subscription.endpoint,
+                keys: {
+                  auth: subscription.auth,
+                  p256dh: subscription.p256dh,
+                },
+              },
+              payload,
+              requestOptions,
+            );
+            subscription.lastUsedAt = new Date();
+          } catch (error) {
+            if (isUnsubscribablePushError(error)) {
+              subscription.isActive = false;
+              return;
+            }
+
+            this.logger.error(
+              'Push notification dismissal delivery failed',
+              error instanceof Error ? error.stack : String(error),
+            );
+          }
+        }
+      }),
+    );
+
+    await em.flush();
+  }
+
+  private async updateExisting(
+    userId: number,
+    payload: TNotificationUpdatePayload,
+  ): Promise<void> {
+    emitNotificationsDomainEvent(
+      this.eventEmitter,
+      NotificationsDomainEvents.UPDATE,
+      { userId, payload },
+    );
+
+    const subject = await this.resolveVapidSubject();
+    if (!subject) {
+      return;
+    }
+
+    const em = this.em.fork();
+    const subscriptions = await this.getSubscriptionsForUser(userId, em);
+    if (subscriptions.length === 0) {
+      return;
+    }
+
+    const keys = this.ensureVapidKeys();
+    const notificationPayload = JSON.stringify({
+      action: 'update',
+      notification: {
+        title: payload.title,
+        body: payload.body,
+        icon: payload.icon ?? '/icons/icon-192x192.png',
+        tag: payload.tag,
+        data: payload.data ?? {},
       },
-      topic,
-      TTL: 0,
-      urgency: 'normal',
-    };
+    });
 
     await Promise.all(
       subscriptions.map(async (subscription) => {
@@ -490,8 +579,17 @@ export class NotificationsService implements OnModuleDestroy {
                 p256dh: subscription.p256dh,
               },
             },
-            payload,
-            requestOptions,
+            notificationPayload,
+            {
+              vapidDetails: {
+                subject,
+                publicKey: keys.publicKey,
+                privateKey: keys.privateKey,
+              },
+              topic: payload.tag,
+              TTL: webPushTtlSeconds,
+              urgency: 'high',
+            },
           );
 
           subscription.lastUsedAt = new Date();
@@ -502,7 +600,7 @@ export class NotificationsService implements OnModuleDestroy {
           }
 
           this.logger.error(
-            'Push notification dismissal delivery failed',
+            'Push notification update failed',
             error instanceof Error ? error.stack : String(error),
           );
         }
@@ -510,6 +608,90 @@ export class NotificationsService implements OnModuleDestroy {
     );
 
     await em.flush();
+  }
+
+  @OnEvent(TextRoomsDomainEvents.MESSAGES_READ)
+  async onMessagesRead(
+    payload: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.MESSAGES_READ],
+  ): Promise<void> {
+    try {
+      const dismissal: TNotificationsDismissPayload | null =
+        payload.messageIds.length > 0
+          ? {
+              tags: payload.messageIds.map(buildMessageNotificationTopic),
+            }
+          : payload.maxMessageId
+            ? {
+                roomId: payload.roomId ?? undefined,
+                recipientId: payload.recipientId ?? undefined,
+                maxMessageId: payload.maxMessageId,
+              }
+            : null;
+
+      if (dismissal) {
+        await this.dismiss(payload.readerId, dismissal);
+      }
+    } catch (error: unknown) {
+      this.logger.error(
+        'Failed to dismiss read message notifications',
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
+  @OnEvent(TextRoomsDomainEvents.MESSAGE_NOTIFICATION_UPDATED)
+  async onMessageNotificationUpdated(
+    payload: TTextRoomsDomainPayloadMap[typeof TextRoomsDomainEvents.MESSAGE_NOTIFICATION_UPDATED],
+  ): Promise<void> {
+    const body = htmlToPlainText(
+      payload.messagePreview,
+      pushNotificationBodyMaxLength,
+    );
+    if (!body) {
+      return;
+    }
+
+    const topic = buildMessageNotificationTopic(payload.messageId);
+    const url = payload.roomId
+      ? `/text-room/${payload.roomId}?message=${payload.messageId}`
+      : `/direct/${payload.senderId}`;
+    const notificationPayload: TNotificationUpdatePayload = {
+      title: payload.roomName
+        ? `${payload.senderUsername} · #${payload.roomName}`
+        : payload.senderUsername,
+      body,
+      tag: topic,
+      data: {
+        type: payload.roomId ? 'message' : 'direct-message',
+        roomId: payload.roomId ?? undefined,
+        messageId: payload.messageId,
+        senderId: payload.senderId,
+        url,
+        onActionClick: {
+          default: {
+            operation: 'focusLastFocusedOrOpen',
+            url,
+          },
+        },
+      },
+    };
+
+    for (const recipientId of payload.recipientIds) {
+      try {
+        await this.updateExisting(recipientId, {
+          ...notificationPayload,
+          data: {
+            ...notificationPayload.data,
+            recipientId,
+          },
+        });
+      } catch (error: unknown) {
+        this.logger.error(
+          `Failed to update message notification for user ${recipientId}`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+    }
   }
 
   public async sendDirectMessageNotification(
